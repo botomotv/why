@@ -1,0 +1,12 @@
+{
+  "name": "why",
+  "version": "0.1.0",
+  "private": true,
+  "description": "왜(Why) — 한국 정치·정책의 인과관계 지도",
+  "scripts": {
+    "test": "node test/check.cjs"
+  },
+  "devDependencies": {
+    "jsdom": "^26.1.0"
+  }
+}

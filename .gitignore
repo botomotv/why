@@ -1,0 +1,5 @@
+node_modules/
+점검결과.txt
+.omc/
+.DS_Store
+*.log

@@ -795,6 +795,68 @@ function boot(w, h) {
   scriptErrs.slice(0, 10).forEach(m => F(`스크립트 오류: ${String(m).split('\n')[0].slice(0, 110)}`));
   console.log(`14. 스크립트 오류   ${scriptErrs.length === 0 ? 'PASS' : 'FAIL (' + scriptErrs.length + ')'}`);
 
+  // 19. 고정 패널이 화면 세로를 넘치는가
+  //     .rail 은 position:fixed 라 내용이 화면보다 길면 그냥 잘린다.
+  //     실제로 진영 필터와 라이선스 카드가 그렇게 잘려 있었다 —
+  //     다 보려면 화면 높이 1683px 이 필요한데 그런 화면은 없다.
+  //     기능이 통째로 사라지는데 화면은 멀쩡해 보인다.
+  //
+  //     jsdom 은 레이아웃을 안 한다. scrollHeight·offsetHeight 가 전부 0 이라
+  //     "넘쳤는지" 를 실제로 잴 수 없다. 스텁이 0 을 주면 검사는 조용히 통과한다.
+  //     그래서 높이를 재지 않고 CSS 계약을 강제한다 —
+  //     세로 한계(bottom 또는 max-height)와 overflow-y 가 둘 다 있어야 한다.
+  //     둘 중 하나만 있으면 못 막는다: 한계가 없으면 안 잘리고 넘치고,
+  //     overflow 가 없으면 잘린 데 손이 안 닿는다.
+  {
+    const FIXED_PANELS = ['.rail'];          // position:fixed 로 화면에 붙는 긴 패널
+    const blocks19 = topLevelCss(html);
+    let checked = 0;
+
+    for (const sel of FIXED_PANELS) {
+      /* 같은 셀렉터의 선언을 순서대로 모은다. 뒤엣것이 이긴다. */
+      const decls = [];
+      /* 주석을 먼저 지운다. 안 지우면 주석이 셀렉터 머리에 붙어 매칭이 안 된다 —
+         7번 사고(중복을 하나도 못 잡은 중복 검사)와 같은 종류다. */
+      const decomment = t => t.replace(/\/\*[\s\S]*?\*\//g, ' ');
+      for (const b of blocks19) {
+        const re = new RegExp('(^|[},;])\\s*' + sel.replace('.', '\\.') + '\\s*\\{([^}]*)\\}', 'g');
+        let m;
+        const raw = decomment(b.text);
+        const body = b.media ? raw.slice(raw.indexOf('{') + 1) : raw;
+        while ((m = re.exec(body))) decls.push({ media: b.media, css: m[2] });
+      }
+      if (!decls.length) { F(`19. ${sel} 규칙을 못 찾았다 — 검사가 아무것도 안 보고 있다`); continue }
+      checked++;
+
+      /* 미디어쿼리 밖(= 모든 폭에 적용되는) 선언만 본다.
+         좁은 화면 규칙은 뒤에서 따로 덮으므로 기본이 안전해야 한다. */
+      const base = decls.filter(d => !d.media).map(d => d.css).join(';');
+      const prop = (name) => {
+        const mm = base.match(new RegExp('(?:^|;)\\s*' + name + '\\s*:\\s*([^;]+)', 'g'));
+        return mm ? mm[mm.length - 1].split(':').slice(1).join(':').trim() : null;
+      };
+      const bottom = prop('bottom');
+      const maxH   = prop('max-height');
+      const ovf    = prop('overflow-y') || prop('overflow');
+      const bound  = (bottom && bottom !== 'auto') || (maxH && maxH !== 'none');
+      const scroll = ovf && /auto|scroll/.test(ovf);
+
+      if (!bound)
+        F(`19. ${sel} 에 세로 한계가 없다 (bottom·max-height 둘 다 없음) — 화면보다 길면 잘린다`);
+      if (!scroll)
+        F(`19. ${sel} 에 overflow-y:auto 가 없다 — 잘린 부분에 손이 닿지 않는다`);
+
+      /* 뒤에 오는 미디어쿼리가 overflow 를 되돌리면 헛일이다 */
+      for (const d of decls.filter(d => d.media)) {
+        const o = d.css.match(/overflow(?:-y)?\s*:\s*(visible|hidden)/);
+        if (o) F(`19. ${sel} 이 미디어쿼리 안에서 overflow:${o[1]} 로 되돌아간다 — 기본 규칙이 무력화된다`);
+      }
+
+      console.log(`19. 패널 넘침       ${sel} 세로한계 ${bound ? (bottom ? 'bottom:' + bottom : 'max-height:' + maxH) : '없음'} · 스크롤 ${scroll ? ovf : '없음'} · 선언 ${decls.length}곳`);
+    }
+    if (!checked) F('19. 검사한 패널이 0개다 — 아무것도 안 잡는 검사다');
+  }
+
   /* ── 요약 ── */
   console.log('\n' + '─'.repeat(50));
   console.log('노드 진영 분포:', JSON.stringify(bySide));

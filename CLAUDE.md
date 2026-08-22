@@ -154,6 +154,29 @@ docs/규칙.md      절대 규칙 7개 + 왜 그런 규칙이 있는지.
   `count` 와 `collect` 가 그걸 import 한다. 각자 갖고 있으면 어긋난다
 - 표 머리에 단위·조건을 썼으면 **그 단위로 계산한다**
 
+### 값을 잴 때는 전환(transition)을 끄고 잰다
+
+**브라우저 값도 그대로 믿으면 안 된다.** 이번이 세 번째다.
+
+`.rail` 의 `transform` 이 `translateY(1492px)` 로 나와서 "901~1000 구간에서 패널이
+화면 밖" 이라는 버그를 보고할 뻔했다. **멈춰 있던 전환의 잔상이었다.**
+
+```js
+var st=document.createElement('style');
+st.textContent='*{transition:none !important;animation:none !important}';
+document.head.appendChild(st);
+el.getBoundingClientRect();          // 강제 리플로
+var v=getComputedStyle(el).transform;  // 이제 진짜 값
+st.remove();
+```
+
+- **`getComputedStyle` · `getBoundingClientRect` 를 읽기 전에 전환을 끈다**
+- 브라우저 창이 뒤로 가면 전환과 `requestAnimationFrame` 이 멈춘다.
+  그 상태에서 잰 값은 **중간값**이지 최종값이 아니다
+- 재기 전에 탭을 앞으로 가져오거나, 위처럼 전환을 끄고 리플로를 강제한다
+
+**jsdom 은 값을 안 주고, 브라우저는 틀린 값을 준다.** 종류가 다른 거짓말이다.
+
 ### 그래서 지킬 것
 
 1. **검사에 실패를 주입해서 실제로 FAIL이 나는지 본다.**

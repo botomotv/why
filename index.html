@@ -438,8 +438,18 @@ body.panelon .search{left:calc(50% - 224px)}
 .pname2{font-size:15.5px;font-weight:500;margin-bottom:6px}
 .prow .refin{height:34px;font-size:14.5px}
 
-.rail{position:fixed;left:18px;top:196px;z-index:23;width:212px;display:flex;flex-direction:column;gap:10px;
+/* bottom 을 같이 지정해 높이가 화면에 맞춰지게 한다. max-height 로 계산하면
+   body.hasundo 일 때 top 이 256px 로 바뀌는 걸 따라가지 못한다.
+   overflow-y:auto 가 없으면 넘친 부분에 손이 닿지 않는다 —
+   실제로 진영 필터와 라이선스 카드가 그렇게 잘려 있었다.
+   내용을 다 보려면 화면 높이 1683px 이 필요한데 그런 화면은 없다. */
+.rail{position:fixed;left:18px;top:196px;bottom:18px;z-index:23;width:212px;
+  display:flex;flex-direction:column;gap:10px;
+  overflow-y:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;
+  scrollbar-width:thin;padding-right:2px;
   transition:transform .28s cubic-bezier(.22,.9,.3,1),opacity .28s}
+/* 넘치는 카드가 잘려 보이지 않게 — 마지막 카드 아래 여유를 둔다 */
+.rail>:last-child{margin-bottom:2px}
 .timesw{text-align:left;padding:13px 14px;border-radius:12px;border:1px solid var(--line2);
   background:rgba(21,23,27,.95);cursor:pointer;font-family:inherit;transition:.18s}
 .timesw:hover{border-color:var(--gold);background:#1E2027}

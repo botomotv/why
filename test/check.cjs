@@ -13,17 +13,49 @@ vc.on('jsdomError', e => scriptErrors.push(e.message));
 
 const html = fs.readFileSync(path.join(ROOT, '왜.html'), 'utf8');
 const VIEWPORTS = [[412, 915], [840, 1000], [1440, 900], [1920, 1080]];
+/* 이름표는 캔버스 배율(cam.s)에 곱해져 그려진다. 소스의 고정 폰트 크기가 12px 이므로
+   화면상 크기는 12 × cam.s 다. 배율이 0.5면 6px 이 되어 읽을 수 없다. */
+const LABEL_FONT_PX = 12;
+const LABEL_MIN_PX = 11;
 const fails = [], warns = [], notes = [];
 const F = (m) => fails.push(m);
 const W = (m) => warns.push(m);
 
 /* canvas 스텁 */
+/* 글자 폭 추정.
+   전에는 글자 수 × 6.2px 였다. 한글은 12px 폰트에서 폭이 거의 12px 인데
+   6.2px 로 재고 있었으니 이름표 폭을 절반으로 줄여 본 셈이다.
+   이름표 겹침을 재려면 폭이 맞아야 한다. 전각/반각을 나눠 센다. */
+function textWidth(str, fontPx) {
+  let units = 0;
+  for (const ch of String(str)) {
+    const c = ch.codePointAt(0);
+    const wide =
+      (c >= 0x1100 && c <= 0x11FF) ||   // 한글 자모
+      (c >= 0x2E80 && c <= 0x303F) ||   // CJK 부수·기호
+      (c >= 0x3040 && c <= 0x30FF) ||   // 가나
+      (c >= 0x3400 && c <= 0x4DBF) ||   // CJK 확장A
+      (c >= 0x4E00 && c <= 0x9FFF) ||   // 한자
+      (c >= 0xAC00 && c <= 0xD7A3) ||   // 한글 음절
+      (c >= 0xF900 && c <= 0xFAFF) ||   // CJK 호환 한자
+      (c >= 0xFF00 && c <= 0xFF60);     // 전각 영숫자
+    units += wide ? 1.0 : 0.52;
+  }
+  return units * fontPx;
+}
+
+/* ctx.font 문자열에서 px 크기를 뽑는다. 못 뽑으면 12px 로 본다. */
+function fontPxOf(font) {
+  const m = /(\d+(?:\.\d+)?)px/.exec(String(font || ''));
+  return m ? parseFloat(m[1]) : 12;
+}
+
 function stubCanvas(win) {
   const ctx = {
     canvas: null, font: '', fillStyle: '', strokeStyle: '', lineWidth: 1,
     globalAlpha: 1, textAlign: '', textBaseline: '', lineCap: '', lineJoin: '',
     shadowBlur: 0, shadowColor: '',
-    measureText: (t) => ({ width: String(t).length * 6.2 }),
+    measureText(t) { return { width: textWidth(t, fontPxOf(this.font)) }; },
     save(){},restore(){},beginPath(){},closePath(){},moveTo(){},lineTo(){},
     arc(){},arcTo(){},bezierCurveTo(){},quadraticCurveTo(){},rect(){},
     fill(){},stroke(){},fillRect(){},clearRect(){},strokeRect(){},fillText(){},
@@ -268,7 +300,8 @@ function boot(w, h) {
       const dx = n.x - before[i][0], dy = n.y - before[i][1];
       if (Math.hypot(dx, dy) > 1.0) moved++;
     });
-    // 겹침: 화면에 실제로 그려지는 활성 노드(A)만
+    // 점 겹침: 화면에 실제로 그려지는 활성 노드(A)의 '원' 만 본다.
+    // 이 숫자가 0이라고 화면이 깨끗한 게 아니다 — 실제로 겹치는 건 아래 '이름표' 다.
     const act = win.A || nodes;
     let overlap = 0;
     for (let i = 0; i < act.length; i++) for (let j = i + 1; j < act.length; j++) {
@@ -279,11 +312,45 @@ function boot(w, h) {
       const need = (a.r || 8) + (b.r || 8);
       if (d2 < need * 0.85) overlap++;
     }
-    layout.push({ w, bad: bad.length, moved, overlap });
-    console.log(`  ${String(w).padStart(4)}px  좌표이상 ${bad.length}  ·  미정착 ${moved}  ·  겹침 ${overlap}  ·  포커스중 alpha ${focusedAlpha.toFixed(4)}`);
+
+    // ── 이름표 검사 ──
+    // 전에는 이 검사가 아예 없었다. 점 겹침만 재고 "겹침 0" 이라고 출력했다.
+    // 검사가 화면을 봤다고 착각하게 만드는 게 제일 위험하다. 그래서 셋을 잰다:
+    //   (1) 이름표가 몇 개나 실제로 그려지는가  (2) 이름표끼리 몇 쌍이 겹치는가
+    //   (3) 화면상 글자가 몇 px 인가
+    const camS = (win.cam && win.cam.s) || 1;
+    const labeled = act.filter(n =>
+      typeof win.labelOn === 'function' && win.labelOn(n) && n.a > 0.16 &&
+      isFinite(n.x) && isFinite(n.__hw) && isFinite(n.__hh));
+
+    let labOverlap = 0;
+    const labPairs = [];
+    for (let i = 0; i < labeled.length; i++) for (let j = i + 1; j < labeled.length; j++) {
+      const a = labeled[i], b = labeled[j];
+      // 이름표는 점 아래에 가운데 정렬로 그려진다 (n.y + n.r + 14 부근)
+      const ay = a.y + (a.r || 8) + a.__hh, by = b.y + (b.r || 8) + b.__hh;
+      if (Math.abs(a.x - b.x) < (a.__hw + b.__hw) && Math.abs(ay - by) < (a.__hh + b.__hh)) {
+        labOverlap++;
+        if (labPairs.length < 3) labPairs.push(`${a.lab} × ${b.lab}`);
+      }
+    }
+    const labPx = +(LABEL_FONT_PX * camS).toFixed(1);
+
+    layout.push({ w, bad: bad.length, moved, overlap, labels: labeled.length, labOverlap, labPx });
+    console.log(`  ${String(w).padStart(4)}px  좌표이상 ${bad.length}  ·  미정착 ${moved}  ·  점겹침 ${overlap}  ·  포커스중 alpha ${focusedAlpha.toFixed(4)}`);
+    console.log(`          이름표 ${String(labeled.length).padStart(3)}/${act.length}개 그려짐  ·  이름표겹침 ${labOverlap}쌍  ·  화면상 글자 ${labPx}px  (배율 ${camS.toFixed(3)})`);
+
     if (bad.length) F(`${w}px: 좌표 이상 ${bad.length}개`);
-    if (overlap) W(`${w}px: 겹침 ${overlap}쌍`);
+    if (overlap) W(`${w}px: 점 겹침 ${overlap}쌍`);
     if (moved > nodes.length * 0.1) W(`${w}px: 정착 안 됨 (${moved}/${nodes.length} 이동중)`);
+
+    // 이름표가 하나도 안 그려지면 색깔 점만 보인다. 뭐가 뭔지 알 방법이 없다.
+    if (act.length > 0 && labeled.length === 0)
+      W(`${w}px: 이름표가 하나도 안 그려진다 (활성 ${act.length}개, 배율 ${camS.toFixed(3)} — labelOn 기준 미달)`);
+    if (labOverlap)
+      W(`${w}px: 이름표 겹침 ${labOverlap}쌍 (예: ${labPairs.join(' / ')})`);
+    if (labeled.length && labPx < LABEL_MIN_PX)
+      W(`${w}px: 화면상 글자 ${labPx}px — 읽을 수 있는 하한 ${LABEL_MIN_PX}px 미만`);
     // window.close() 생략 — jsdom DOMException 회피
   }
 

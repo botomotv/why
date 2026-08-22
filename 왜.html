@@ -320,8 +320,7 @@ body.panelon
   
   
   .topbar{height:54px;padding:0 12px;gap:8px}
-  .brand{font-size:0}
-  .brand:before{content:'왜';font-size:17.5px;font-family:'Nanum Myeongjo',serif;font-weight:800;color:var(--gold)}
+  .topbar .brand{font-size:17.5px}
   .brand em{display:none}
   .pipe{display:none}
   .search{order:3}
@@ -344,7 +343,7 @@ body.panelon
   .big-n{font-size:32px}
   
   .zb{width:42px;height:42px;font-size:18.5px}
-  .hint{font-size:13px;bottom:14px;padding:0 20px;line-height:1.5}
+  .hint{font-size:13px;bottom:66px;padding:0 20px;line-height:1.5}
 }
 
 .topbar{position:fixed;top:0;left:0;right:0;height:62px;z-index:40;display:flex;align-items:center;
@@ -403,6 +402,7 @@ body.panelon .search{left:calc(50% - 224px)}
 .sh-dia{width:14px;height:14px;background:#8A929E;border-radius:2px;transform:rotate(45deg)}
 
 .help[hidden]{display:none}
+.ub[hidden]{display:none}
 /* helpbox 는 뉴스·사진 모달이 함께 쓰는 껍데기 스타일이다 (사용법 화면은 제거됨) */
 .helpbox{position:relative;max-width:920px;width:100%;background:var(--bg2);border:1px solid var(--line2);
   border-radius:16px;padding:30px 32px;max-height:86vh;overflow-y:auto;box-shadow:0 30px 80px rgba(0,0,0,.6)}

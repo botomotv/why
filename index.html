@@ -2564,6 +2564,12 @@ function fit(showAll){
     miny=Math.min(miny,n.y-n.r-40);maxy=Math.max(maxy,n.y+n.r+60)});
   var pad=70,gw=maxx-minx+pad*2,gh=maxy-miny+pad*2;
   var s=Math.max(0.25,Math.min(2.2,Math.min(W/gw,H/gh)));
+  /* 첫 화면에서는 이름표 하한 밑으로 내리지 않는다.
+     231개를 다 담으려 하면 배율이 0.46 까지 떨어지고 '결과 숫자만' 모드가 되어
+     이름표가 5개만 남는다 — 폴드를 펼치거나 데스크톱에서 첫인상이 색깔 점 무더기였다.
+     실측: 904x1114 에서 배율 0.46 · 이름표 5개 → 하한을 두면 0.62 · 이름표 12개.
+     다 보고 싶으면 ⛶ '전체 보기' 가 있다. 그 버튼이 showAll 로 이 하한을 끈다. */
+  if(!showAll)s=Math.max(s,LABEL_FAR);
   cam.ts=s;cam.tx=W/2-((minx+maxx)/2)*s;cam.ty=H/2-((miny+maxy)/2)*s}
 rebuildLinks();refilter();size();init();fit();cam.s=cam.ts;cam.x=cam.tx;cam.y=cam.ty;
 var rzT=null;

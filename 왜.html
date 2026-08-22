@@ -53,6 +53,13 @@ body{background:var(--bg);color:var(--t1);font-family:'Noto Sans KR',-apple-syst
 .zb{width:38px;height:38px;border:1px solid var(--line2);background:rgba(21,23,27,.92);color:var(--t2);
   font-size:17.5px;font-family:inherit;border-radius:8px;cursor:pointer;transition:.18s}
 .zb:hover{color:var(--t1);border-color:#464C57}
+/* 라벨 달린 버튼. 아이콘만 두면 길게 눌러야 알 수 있는데, 그건 모르는 것과 같다.
+   .zb 는 폭이 38/42px 로 고정돼 있고 그 42px 은 파일 끝 미디어쿼리에서 온다.
+   미디어쿼리가 뒤에 있으니 같은 특정도로는 못 이긴다. 그래서 한 단계 올린다.
+   화면 크기와 무관하게 라벨 버튼의 폭은 글자에 맞아야 한다. */
+.zoomctl .zb-l{width:auto;padding:0 13px;display:inline-flex;align-items:center;gap:7px}
+.zoomctl .zb-l .zi{font-size:17.5px;line-height:1}
+.zoomctl .zb-l b{font-weight:500;font-size:13.5px;white-space:nowrap}
 .zb:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
 .zb[aria-pressed="true"]{color:var(--gold);border-color:#5A4A2A;background:#241F16}
 
@@ -374,7 +381,8 @@ body.panelon .search{left:calc(50% - 224px)}
 .timesw{text-align:left;padding:13px 14px;border-radius:12px;border:1px solid var(--line2);
   background:rgba(21,23,27,.95);cursor:pointer;font-family:inherit;transition:.18s}
 .timesw:hover{border-color:var(--gold);background:#1E2027}
-.tswl{display:block;font-size:14px;color:var(--t3);margin-bottom:9px}
+.tswl{display:block;font-size:14px;color:var(--t3);margin-bottom:5px}
+.tswhint{display:block;font-size:12.5px;line-height:1.45;color:#7A818C;margin-bottom:9px;word-break:keep-all}
 .tswrow{display:flex;align-items:baseline;justify-content:space-between;gap:10px;padding:4px 0}
 .tswrow b{font-size:14.5px;color:var(--t3);font-weight:400}
 .tswrow em{font-style:normal;font-size:16.5px;font-weight:500;color:var(--gold)}
@@ -408,9 +416,9 @@ body.panelon .search{left:calc(50% - 224px)}
 .nlist{margin-top:22px;border-top:1px solid var(--line);padding-top:18px}
 .newsbox{max-width:760px}
 
-/* 범례 서랍 — 좁은 화면(≤900px)에서 범례를 하단 서랍으로 내린다.
+/* '보는 법' 서랍 — 좁은 화면(≤900px)에서 '보는 법' 을 하단 서랍으로 내린다.
    전에는 620px 이하에서 통째로 display:none 이었다. 폰 방문자는 색이 무슨 뜻인지
-   알 방법이 없었다. 840 에서는 반대로 범례가 노드 32개를 뒤에서 가리고 있었다.
+   알 방법이 없었다. 840 에서는 반대로 이 패널이 노드 32개를 뒤에서 가리고 있었다.
    기본은 접혀 있어서 지도를 하나도 가리지 않는다. */
 .legendbtn{display:none;position:fixed;left:14px;bottom:16px;z-index:27;
   align-items:center;gap:7px;height:42px;padding:0 15px;border-radius:8px;
@@ -534,7 +542,12 @@ body.hasundo .rgrp{pointer-events:auto;display:flex;align-items:center;gap:8px;p
 @media (max-width:620px){}
 @media (max-width:900px){.npick{grid-template-columns:1fr}
  .rail{left:12px;top:186px;width:186px} .newsbtn{font-size:0;padding:9px 12px}.newsbtn:before{content:'＋';font-size:18.5px}}
-@media (max-width:620px){.zoomctl{right:14px;bottom:16px}}
+@media (max-width:620px){
+  .zoomctl{right:14px;bottom:16px}
+  /* 손가락 두 개로 확대되니 + / − 는 화면만 먹는다. 핀치는 touchstart/touchmove 에 구현돼 있다. */
+  #zin,#zout{display:none}
+  .zoomctl .zb-l b{font-size:13px}
+}
 @media (max-width:900px){
   .legendbtn{display:flex}
   body.legendon .legendbtn{display:none}
@@ -579,11 +592,12 @@ body.hasundo .rolebar{top:232px;width:calc(100vw - 24px);max-height:96px;overflo
 <div class="rolebar" id="roleBar" hidden></div>
 <div id="stage"><canvas id="gc"></canvas></div>
 
-<button class="legendbtn" id="legendBtn" aria-expanded="false" aria-controls="rail"><span aria-hidden="true">☰</span><b>범례</b></button>
+<button class="legendbtn" id="legendBtn" aria-expanded="false" aria-controls="rail"><span aria-hidden="true">☰</span><b>보는 법</b></button>
 <aside class="rail" id="rail">
-  <button class="railclose" id="railClose"><span aria-hidden="true">✕</span>범례 닫기</button>
+  <button class="railclose" id="railClose"><span aria-hidden="true">✕</span>보는 법 닫기</button>
   <button class="timesw" id="ztime" aria-pressed="true">
     <span class="tswl">시간 방향 바꾸기</span>
+    <span class="tswhint">지도가 고리 모양입니다. 눌러서 안과 밖을 뒤집습니다.</span>
     <span class="tswrow"><b>가운데</b><em id="ztimeIn">지금</em></span>
     <span class="tswrow"><b>바깥</b><em id="ztimeOut">최근</em></span>
   </button>
@@ -620,8 +634,8 @@ body.hasundo .rolebar{top:232px;width:calc(100vw - 24px);max-height:96px;overflo
 <div class="zoomctl">
   <button class="zb" id="zin" aria-label="확대">＋</button>
   <button class="zb" id="zout" aria-label="축소">－</button>
-  <button class="zb" id="zfit" aria-label="전체 보기">⛶</button>
-  <button class="zb" id="zrst" aria-label="배치 초기화">⟲</button>
+  <button class="zb zb-l" id="zfit"><span class="zi" aria-hidden="true">⛶</span><b>전체 보기</b></button>
+  <button class="zb zb-l" id="zrst"><span class="zi" aria-hidden="true">⟲</span><b>배치 다시</b></button>
 </div>
 
 <p class="hint" id="hint">점을 눌러보세요 · 끌면 옮겨집니다 · 두 손가락으로 확대</p>
@@ -2632,7 +2646,7 @@ cv.addEventListener('touchmove',function(e){
     var mx=(p1[0]+p2[0])/2,my=(p1[1]+p2[1])/2;
     if(pinch.d>4){zoomAt(mx,my,d/pinch.d)}
     var ddx=mx-pinch.cx,ddy=my-pinch.cy;
-    cam.x+=ddx;cam.tx+=ddx;cam.ty+=ddy;
+    cam.x+=ddx;cam.y+=ddy;cam.tx+=ddx;cam.ty+=ddy;
     pinch={d:d,cx:mx,cy:my};return}
   if(e.touches.length===1&&!pinch){var p=tpos(e.touches[0]);move(p[0],p[1])}
 },{passive:false});
@@ -2651,7 +2665,7 @@ document.getElementById('zin').onclick=function(){zoomAt(W/2,H/2,1.28)};
 document.getElementById('zout').onclick=function(){zoomAt(W/2,H/2,1/1.28)};
 document.getElementById('zfit').onclick=function(){fit(true)};
 
-/* 범례 서랍 여닫기. 범례에서 종류·진영을 고르면 닫아서 지도를 다시 보여준다. */
+/* '보는 법' 서랍 여닫기. 여기서 종류·진영을 고르면 닫아서 지도를 다시 보여준다. */
 var legendBtn=document.getElementById('legendBtn'),railBox=document.getElementById('rail');
 function setLegend(on){
   document.body.classList.toggle('legendon',on);

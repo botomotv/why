@@ -120,6 +120,24 @@ body.panelon #stage{right:448px}
 .pclose{position:sticky;float:right;top:12px;margin:12px 12px 0 0;z-index:2;width:26px;height:26px;border:1px solid var(--line2);
   background:rgba(14,15,18,.85);color:var(--t2);border-radius:6px;cursor:pointer;font-family:inherit;font-size:15px;line-height:1}
 .pclose:hover{color:var(--t1)}
+/* 카드 글자 크기 조절. 지도 배율과 무관하다 — 카드 안 글자만 바뀐다.
+   #detail 의 font-size 를 배율로 잡고, 카드 안 크기를 em 으로 따라가게 한다. */
+.ptools{position:sticky;top:0;z-index:2;float:right;display:flex;align-items:center;gap:6px;margin:12px 12px 0 0}
+.ptools .pclose{position:static;float:none;margin:0}
+.ptxt{width:34px;height:26px;border:1px solid var(--line2);background:rgba(14,15,18,.85);
+  color:var(--t2);border-radius:6px;cursor:pointer;font-family:inherit;font-size:13.5px;
+  line-height:1;padding:0;display:flex;align-items:center;justify-content:center;gap:1px}
+.ptxt sup{font-size:10px;line-height:1}
+.ptxt:hover{color:var(--gold);border-color:var(--gold)}
+.ptxt:disabled{opacity:.35;cursor:default}
+.ptxt:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
+#detail{--t-base:15.5px;--t-title:23px;--t-big:36px;--t-bigc:15.5px;--t-chain:17px;--t-lab:13.5px}
+#detail{font-size:calc(var(--t-base) * var(--cardfs,1))}
+#detail .title{font-size:calc(var(--t-title) * var(--cardfs,1))}
+#detail .big-n{font-size:calc(var(--t-big) * var(--cardfs,1))}
+#detail .big-c{font-size:calc(var(--t-bigc) * var(--cardfs,1))}
+#detail .chain button{font-size:calc(var(--t-chain) * var(--cardfs,1))}
+#detail .sec-lab{font-size:calc(var(--t-lab) * var(--cardfs,1))}
 
 .c-head{padding:20px 22px 18px}
 .meta{display:flex;gap:7px;align-items:center;flex-wrap:wrap;margin-bottom:11px}
@@ -509,13 +527,13 @@ body.hasundo .rgrp{pointer-events:auto;display:flex;align-items:center;gap:8px;p
 
 @media (max-width:1000px){
   .note{display:none}
-  .pop{width:100%;top:auto;left:0;right:0;height:62vh;border-left:0;
+  .pop{width:100%;top:auto;left:0;right:0;height:62vh;height:62dvh;border-left:0;
     border-top:1px solid var(--line2);border-radius:16px 16px 0 0;transform:translateY(100%)}
   .pop.on{transform:translateY(0)}
   .pop:before{content:'';position:absolute;top:8px;left:50%;transform:translateX(-50%);
     width:40px;height:4px;border-radius:4px;background:#3A3F48}
   .c-head{padding-top:26px}
-  body.panelon #stage{right:0;bottom:62vh}
+  body.panelon #stage{right:0;bottom:62vh;bottom:62dvh}
   body.panelon 
   body.panelon .legend,body.panelon .hint{display:none}
   
@@ -556,13 +574,13 @@ body.hasundo .rgrp{pointer-events:auto;display:flex;align-items:center;gap:8px;p
 
   .cat{font-size:14.5px;padding:7px 11px}
   .cat b{display:none}
-  /* 카드 2단계. 처음엔 40% — 지도가 60% 살아 있어서 연결선이 보인다.
+  /* 카드 2단계. 접힘 32% — 지도가 68% 살아 있어서 연결선이 보인다.
      손잡이를 끌어올리거나 누르면 82% 로 커져 설명 전체가 나온다.
      100% 로 덮지 않는 건, 지도가 조금이라도 보여야 되돌아갈 수 있다는 신호가 되기 때문이다. */
-  .pop{height:40vh;transition:transform .3s cubic-bezier(.22,.9,.3,1),height .26s ease}
-  body.popfull .pop{height:82vh}
-  body.panelon #stage{bottom:40vh}
-  body.panelon.popfull #stage{bottom:82vh}
+  .pop{height:32vh;height:32dvh;transition:transform .3s cubic-bezier(.22,.9,.3,1),height .26s ease}
+  body.popfull .pop{height:82vh;height:82dvh}
+  body.panelon #stage{bottom:32vh;bottom:32dvh}
+  body.panelon.popfull #stage{bottom:82vh;bottom:82dvh}
   .popgrab{display:block}
   .pop:before{display:none}
   .c-head{padding-top:6px}
@@ -580,13 +598,32 @@ body.hasundo .rgrp{pointer-events:auto;display:flex;align-items:center;gap:8px;p
   /* 접힌 40% 안에 제목·큰숫자·요약이 다 들어가면 정작 관계가 안 보인다.
      요약과 캡션은 펼쳤을 때 보여주고, 접힌 상태에서는 자리를 관계에 넘긴다. */
   body:not(.popfull) .oneline{display:none}
-  body:not(.popfull) .big-c{display:none}
-  body:not(.popfull) .big{padding:14px 22px}
-  body:not(.popfull) .c-head{padding:4px 22px 12px}
+  /* 큰 숫자 블록은 접힘 상태에서 통째로 접는다.
+     제목이 이미 "산업기술 유출 96건" 처럼 숫자를 품고 있어 같은 값을 두 번 보여주는 셈이고,
+     그 한 덩어리가 관계 두세 줄을 밀어낸다. 펼치면 캡션과 함께 제대로 나온다. */
+  body:not(.popfull) .big{display:none}
+  body:not(.popfull) .c-head{padding:0 22px 6px}
+  body:not(.popfull) .ptools{margin:6px 12px 0 0}
+  /* 접힘 상태에서는 큰 숫자가 자리를 너무 먹는다. 관계 한 줄이라도 더 보이게 줄인다.
+     펼치면 원래 크기로 돌아온다. */
+  body:not(.popfull) #detail{--t-title:18.5px}
+  body:not(.popfull) .title{margin-bottom:4px}
+  body:not(.popfull) .meta{margin-bottom:4px}
+  body:not(.popfull) .sec-lab{margin-bottom:8px}
+  /* 접힘은 '무엇과 이어져 있나' 를 훑는 단계다. 설명과 간격 표시는 펼쳤을 때 읽는다.
+     한 항목을 연도 + 제목 두 줄로 줄이면 같은 높이에 관계가 두세 배 들어온다. */
+  body:not(.popfull) .chain li{padding-bottom:9px}
+  body:not(.popfull) #detail .ch-x,
+  body:not(.popfull) #detail .gap,
+  body:not(.popfull) #detail .ch-w{display:none}
+  body:not(.popfull) #detail{--t-lab:11.5px}
+  body:not(.popfull) .sec-lab{margin-bottom:6px}
   body.panelon 
   .c-head,.sec,.big,.caution,.src,.oneline{padding-left:17px;padding-right:17px}
   .gv{padding:12px}
-  .title{font-size:21px}
+  #detail{--t-base:14.5px;--t-title:19.5px;--t-big:26px;--t-bigc:14px;--t-chain:15.5px;--t-lab:12.5px}
+  .big-c{margin-top:6px}
+  .sec-lab{margin-bottom:10px}
   .big-n{font-size:32px}
   
   .zb{width:42px;height:42px;font-size:18.5px}
@@ -605,7 +642,7 @@ body.hasundo .rgrp{pointer-events:auto;display:flex;align-items:center;gap:8px;p
   .legendbtn{display:flex}
   body.legendon .legendbtn{display:none}
   .rail{display:flex;position:fixed;left:0;right:0;bottom:0;top:auto;width:auto;
-    max-height:62vh;overflow-y:auto;z-index:26;gap:10px;
+    max-height:62vh;max-height:62dvh;overflow-y:auto;z-index:26;gap:10px;
     padding:0 14px calc(18px + env(safe-area-inset-bottom,0px));
     background:rgba(14,15,18,.975);border-top:1px solid var(--line2);
     transform:translateY(101%);transition:transform .26s ease;
@@ -726,7 +763,7 @@ body.hasundo .rolebar{top:232px;width:calc(100vw - 24px);max-height:96px;overflo
   <button class="zb zb-l" id="zdir" aria-pressed="true"><span class="zi" aria-hidden="true">⇄</span><b>시간 방향</b></button>
 </div>
 
-<p class="hint" id="hint">점을 눌러보세요 · 끌면 옮겨집니다 · 두 손가락으로 확대</p>
+<p class="hint" id="hint">손가락으로 이동하고 확대·축소합니다</p>
 
 <div class="help" id="make" hidden>
   <div class="helpbox newsbox">
@@ -807,7 +844,7 @@ body.hasundo .rolebar{top:232px;width:calc(100vw - 24px);max-height:96px;overflo
   </div>
 </div>
 
-<div class="pop" id="pop"><button class="popgrab" id="popGrab" aria-label="카드 크게 보기" aria-expanded="false"></button><button class="pclose" id="pclose" aria-label="닫기">✕</button><div id="detail"></div></div>
+<div class="pop" id="pop"><button class="popgrab" id="popGrab" aria-label="카드 크게 보기" aria-expanded="false"></button><div class="ptools"><button class="ptxt" id="txtDn" aria-label="카드 글자 작게">가<sup>−</sup></button><button class="ptxt" id="txtUp" aria-label="카드 글자 크게">가<sup>+</sup></button><button class="pclose" id="pclose" aria-label="닫기">✕</button></div><div id="detail"></div></div>
 
 <script>
 var N=[
@@ -2277,7 +2314,23 @@ var rzT=null;
 window.addEventListener('resize',function(){
   clearTimeout(rzT);size();
   rzT=setTimeout(function(){setAngles();reheat(0.35);setTimeout(fit,420)},160)});
-if(window.visualViewport)window.visualViewport.addEventListener('resize',function(){size()});
+if(window.visualViewport){
+  window.visualViewport.addEventListener('resize',function(){size()});
+  /* iOS 사파리는 주소창이 접힐 때 resize 없이 scroll 만 쏘는 경우가 있다. */
+  window.visualViewport.addEventListener('scroll',function(){size()});
+}
+/* 가장 확실한 신호는 이벤트가 아니라 '박스가 실제로 바뀌었다' 는 사실이다.
+   캔버스 비트맵(cv.width/height)과 CSS 박스의 비율이 어긋나면 원이 타원으로 눌린다.
+   링크로 처음 들어왔을 때 노드가 세로로 찌부러져 보이던 게 이것 때문이다. */
+if(window.ResizeObserver){
+  var stageEl=document.getElementById('stage');
+  var ro=new ResizeObserver(function(){size()});
+  ro.observe(stageEl);
+}
+/* 첫 페인트 직후 iOS 는 뷰포트가 한 번 더 흔들린다. 안정될 때까지 몇 번 더 맞춘다. */
+window.addEventListener('orientationchange',function(){setTimeout(size,120)});
+window.addEventListener('pageshow',function(){size()});
+[0,60,200,500,1000].forEach(function(ms){setTimeout(size,ms)});
 if(document.fonts&&document.fonts.ready)document.fonts.ready.then(function(){measure();reheat(0.25)});
 
 /* ===== 분야 탭 ===== */
@@ -2358,6 +2411,25 @@ function closePop(){focus=null;ring={};roles={};pop.classList.remove('on');setPa
   var rc0=document.getElementById('roleCard');if(rc0)rc0.hidden=true;renderRoleBar();
   document.getElementById('hint').style.opacity=1}
 document.getElementById('pclose').onclick=closePop;
+
+/* 카드 글자 크기. 지도 확대가 아니라 카드 안 글자만 바뀐다. 선택은 기억한다. */
+var CARD_FS=[0.85,1,1.15,1.3,1.5], cardFsI=1;
+try{var sv=localStorage.getItem('why.cardfs');if(sv!==null&&CARD_FS[+sv]!==undefined)cardFsI=+sv}catch(e){}
+var txtUpBtn=document.getElementById('txtUp'),txtDnBtn=document.getElementById('txtDn');
+function applyCardFs(){
+  document.documentElement.style.setProperty('--cardfs',CARD_FS[cardFsI]);
+  if(txtDnBtn)txtDnBtn.disabled=(cardFsI===0);
+  if(txtUpBtn)txtUpBtn.disabled=(cardFsI===CARD_FS.length-1);
+  try{localStorage.setItem('why.cardfs',String(cardFsI))}catch(e){}
+}
+function bumpCardFs(d){
+  var n=cardFsI+d;
+  if(n<0||n>CARD_FS.length-1)return;
+  cardFsI=n;applyCardFs();
+}
+if(txtUpBtn)txtUpBtn.onclick=function(){bumpCardFs(1)};
+if(txtDnBtn)txtDnBtn.onclick=function(){bumpCardFs(-1)};
+applyCardFs();
 
 /* 카드 손잡이. 폰에서 카드는 두 단계다 — 아래 40%(지도가 보인다) / 88%(설명 전체).
    짧게 누르면 토글, 세로로 끌면 끈 방향대로. 끌어내린 상태에서 더 내리면 닫힌다. */
@@ -2731,19 +2803,32 @@ function at(px,py){var w=toWorld(px,py),best=null,bd=1e9;
   A.forEach(function(n){var d=Math.hypot(n.x-w[0],n.y-w[1]);
     if(d<n.r+12/cam.s&&d<bd&&n.a>.04){bd=d;best=n}});return best}
 function rel2(e){var b=cv.getBoundingClientRect();return [e.clientX-b.left,e.clientY-b.top]}
-function down(px,py){var n=at(px,py);
+/* 탭으로 볼 이동 허용치. 화면 픽셀 기준이다.
+   전에는 월드 좌표로 2/cam.s 를 썼는데, 배율이 1이면 화면 2px 밖에 안 된다.
+   손가락은 가만히 눌러도 그보다 쉽게 흔들린다. 그래서 지도를 끌었는데
+   점이 눌려 카드가 열렸다. 손가락은 마우스보다 더 흔들리므로 따로 잡는다. */
+var TAP_SLOP_MOUSE=4, TAP_SLOP_TOUCH=12, tapSlop=TAP_SLOP_MOUSE, downAt=null;
+function down(px,py,isTouch){
+  tapSlop=isTouch?TAP_SLOP_TOUCH:TAP_SLOP_MOUSE;
+  downAt=[px,py];
+  var n=at(px,py);
   if(n){snapshot();drag=n;moved=false;cv.style.cursor='grabbing';reheat(0.34);return true}
   pan={x:px,y:py};panMoved=false;cv.style.cursor='grabbing';return false}
+function movedFar(px,py){
+  if(!downAt)return false;
+  return Math.hypot(px-downAt[0],py-downAt[1])>tapSlop}
 function move(px,py){
   if(drag){var w=toWorld(px,py);
-    if(Math.hypot(w[0]-drag.x,w[1]-drag.y)>2/cam.s)moved=true;
+    if(movedFar(px,py))moved=true;
     drag.x=w[0];drag.y=w[1];reheat(0.34);return}
-  if(pan){var dx=px-pan.x,dy=py-pan.y;if(Math.hypot(dx,dy)>1)panMoved=true;cam.x+=dx;cam.tx+=dx;cam.ty+=dy;pan={x:px,y:py};return}
+  if(pan){var dx=px-pan.x,dy=py-pan.y;
+    if(movedFar(px,py))panMoved=true;
+    cam.x+=dx;cam.y+=dy;cam.tx+=dx;cam.ty+=dy;pan={x:px,y:py};return}
   var n=at(px,py);if(n!==hover){hover=n;cv.style.cursor=n?'pointer':'default'}}
 function up(){
   if(drag){if(moved)drag.fixed=true;else setFocus(drag.id)}
   else if(pan&&!panMoved)closePop();
-  drag=null;pan=null;panMoved=false;cv.style.cursor='default'}
+  drag=null;pan=null;panMoved=false;downAt=null;cv.style.cursor='default'}
 cv.addEventListener('mousedown',function(e){e.preventDefault();var p=rel2(e);down(p[0],p[1])});
 window.addEventListener('mousemove',function(e){var p=rel2(e);move(p[0],p[1])});
 window.addEventListener('mouseup',up);
@@ -2757,7 +2842,7 @@ cv.addEventListener('touchstart',function(e){
     pinch={d:Math.hypot(p1[0]-p2[0],p1[1]-p2[1]),
            cx:(p1[0]+p2[0])/2,cy:(p1[1]+p2[1])/2};
     return}
-  if(e.touches.length===1){var p=tpos(e.touches[0]);down(p[0],p[1])}
+  if(e.touches.length===1){var p=tpos(e.touches[0]);down(p[0],p[1],true)}
 },{passive:false});
 cv.addEventListener('touchmove',function(e){
   e.preventDefault();
@@ -2773,7 +2858,7 @@ cv.addEventListener('touchmove',function(e){
 },{passive:false});
 cv.addEventListener('touchend',function(e){
   e.preventDefault();
-  if(e.touches.length===0){if(!pinch)up();pinch=null;drag=null;pan=null}
+  if(e.touches.length===0){if(!pinch)up();pinch=null;drag=null;pan=null;downAt=null}
 },{passive:false});
 cv.addEventListener('touchcancel',function(){pinch=null;drag=null;pan=null});
 function rehover(px,py){var n2=at(px,py);if(n2!==hover){hover=n2;cv.style.cursor=n2?'pointer':'default'}}

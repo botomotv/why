@@ -338,7 +338,45 @@ function boot(w, h) {
     });
   });
   deadRules.forEach(t => F(`죽은 CSS 규칙 (절대 매칭 안 됨): ${t}`));
-  console.log(`12. 죽은 CSS 규칙   ${deadRules.length === 0 ? 'PASS' : 'FAIL (' + deadRules.length + ')'}`);
+  // 같은 셀렉터가 뒤에서 같은 속성을 덮어쓰면 앞 선언은 죽은 코드다.
+  // 미디어쿼리를 파일 끝으로 몬 뒤로 '같은 특정도면 뒤엣것이 이긴다' 가 기본 구조가 됐다.
+  // 특히 display 를 끄려고 앞에 none 을 넣으면 뒤 원본에 그대로 진다.
+  // 실제로 .rolebar 를 그렇게 껐다가 화면에 그대로 보였다. 그건 FAIL 로 잡는다.
+  const propsOf = (text) => {
+    const body = text.slice(text.indexOf('{') + 1, text.lastIndexOf('}'));
+    const out = {};
+    body.split(/;(?![^(]*\))/).forEach(d => {
+      const i = d.indexOf(':');
+      if (i > 0) out[d.slice(0, i).trim()] = d.slice(i + 1).trim();
+    });
+    return out;
+  };
+  const seenSel = {};
+  const shadowed = [], displayTraps = [];
+  // 블록 머리에는 앞선 주석이 그대로 붙어 온다. 떼지 않으면 같은 셀렉터가
+  // 서로 다른 문자열이 되어 중복을 못 잡는다 (실제로 못 잡았다).
+  const headSel = (text) => text.slice(0, text.indexOf('{')).replace(/\/\*[\s\S]*?\*\//g, '');
+  cssBlocks.filter(b => !b.media).forEach(b => {
+    const head = headSel(b.text);
+    const pr = propsOf(b.text);
+    head.split(',').map(x => x.split(/\s+/).filter(Boolean).join(' ')).filter(Boolean).forEach(sel => {
+      const prev = seenSel[sel];
+      if (prev) {
+        const dup = Object.keys(prev).filter(k => k in pr);
+        if (dup.length) {
+          shadowed.push(`${sel} → ${dup.join(', ')}`);
+          // 앞에서 display:none 으로 껐는데 뒤에서 display 를 되살린 경우
+          if (prev.display === 'none' && 'display' in pr && pr.display !== 'none')
+            displayTraps.push(`${sel} — 앞의 display:none 이 뒤의 display:${pr.display} 에 진다. 뒤에 있는 원본 규칙을 고쳐라`);
+        }
+      }
+      seenSel[sel] = Object.assign({}, prev || {}, pr);
+    });
+  });
+  displayTraps.forEach(t => F(`뒤 규칙이 덮어씀: ${t}`));
+  shadowed.slice(0, 20).forEach(t => W(`같은 셀렉터를 뒤에서 덮어씀 (앞 선언은 죽은 코드): ${t}`));
+
+  console.log(`12. 죽은 CSS 규칙   ${(deadRules.length + displayTraps.length) === 0 ? 'PASS' : 'FAIL (' + (deadRules.length + displayTraps.length) + ')'}` + `   [뒤에서 덮어쓴 셀렉터 ${shadowed.length}건은 WARN]`);
 
   // 10. official2 링크 검증 (규칙 2)
   //     검색 결과에 URL 이 떴다는 것만으로는 출처가 아니다. 실제로 열려야 출처다.

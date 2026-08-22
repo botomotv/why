@@ -106,6 +106,7 @@ docs/규칙.md        절대 규칙 7개 + 왜 그런 규칙이 있는지
 docs/다음단계.md    결과 노드 병목, 결과 추가 절차, 창고/지도 분리, 배포 순서
 docs/배포.md        Cloudflare Pages 배포 절차
 docs/다국어.md      3개국 × 3개 언어로 갈 때의 구조와 위험 (아직 착수 안 함)
+docs/자동연결.md    관계선의 뜻을 '원인'에서 '관련'으로 바꾸는 설계 (아직 착수 안 함)
 docs/og.html       링크 미리보기 카드 원본
 LICENSE            CC BY-NC-SA 4.0
 CLAUDE.md          작업할 때 알아야 할 최소한

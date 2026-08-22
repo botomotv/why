@@ -73,6 +73,7 @@ body{background:var(--bg);color:var(--t1);font-family:'Noto Sans KR',-apple-syst
 .sh-civic{width:14px;height:14px;background:#4FC0A8}
 .shl{flex:0 0 auto;width:26px;height:0;border-top:2px dashed var(--red)}
 .hint{position:fixed;left:50%;transform:translateX(-50%);bottom:70px;z-index:15;font-size:13.5px;color:var(--t3);
+  word-break:keep-all;
   pointer-events:none;transition:opacity .5s}
 
 /* ===== 팝업 카드 ===== */
@@ -467,7 +468,39 @@ body.panelon .search{left:calc(50% - 224px)}
 .newsbox{max-width:760px}
 @media (max-width:900px){.npick{grid-template-columns:1fr}
  .rail{left:12px;top:186px;width:186px} .newsbtn{font-size:0;padding:9px 12px}.newsbtn:before{content:'＋';font-size:18.5px}}
-@media (max-width:620px){.rail{display:none} .zoomctl{right:14px;bottom:16px}}
+@media (max-width:620px){.zoomctl{right:14px;bottom:16px}}
+
+/* 범례 서랍 — 좁은 화면(≤900px)에서 범례를 하단 서랍으로 내린다.
+   전에는 620px 이하에서 통째로 display:none 이었다. 폰 방문자는 색이 무슨 뜻인지
+   알 방법이 없었다. 840 에서는 반대로 범례가 노드 32개를 뒤에서 가리고 있었다.
+   기본은 접혀 있어서 지도를 하나도 가리지 않는다. */
+.legendbtn{display:none;position:fixed;left:14px;bottom:16px;z-index:27;
+  align-items:center;gap:7px;height:42px;padding:0 15px;border-radius:8px;
+  border:1px solid var(--line2);background:rgba(21,23,27,.92);color:var(--t2);
+  font-family:inherit;font-size:14.5px;cursor:pointer;transition:.18s}
+.legendbtn:hover{color:var(--t1);border-color:#464C57}
+.legendbtn:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
+.legendbtn b{font-weight:500}
+.railclose{display:none}
+@media (max-width:900px){
+  .legendbtn{display:flex}
+  body.legendon .legendbtn{display:none}
+  .rail{display:flex;position:fixed;left:0;right:0;bottom:0;top:auto;width:auto;
+    max-height:62vh;overflow-y:auto;z-index:26;gap:10px;
+    padding:0 14px calc(18px + env(safe-area-inset-bottom,0px));
+    background:rgba(14,15,18,.975);border-top:1px solid var(--line2);
+    transform:translateY(101%);transition:transform .26s ease;
+    -webkit-overflow-scrolling:touch}
+  body.legendon .rail{transform:translateY(0)}
+  body.legendon .hint{opacity:0}
+  /* 닫기 바 — 서랍 안 맨 위에 붙어 스크롤해도 따라온다 */
+  .railclose{display:flex;align-items:center;justify-content:center;gap:8px;
+    position:sticky;top:0;z-index:2;flex:0 0 auto;
+    margin:0 -14px 4px;padding:14px;border:0;border-bottom:1px solid var(--line);
+    background:rgba(14,15,18,.985);color:var(--t2);
+    font-family:inherit;font-size:14.5px;cursor:pointer}
+  .railclose:focus-visible{outline:2px solid var(--gold);outline-offset:-2px}
+}
 body.panelon .zoomctl{right:468px}
 body.panelon .hint{opacity:0}
 .mkind{display:flex;gap:7px;flex-wrap:wrap}
@@ -532,7 +565,9 @@ body.hasundo .rolebar{top:232px;width:calc(100vw - 24px);max-height:96px;overflo
 <div class="rolebar" id="roleBar" hidden></div>
 <div id="stage"><canvas id="gc"></canvas></div>
 
+<button class="legendbtn" id="legendBtn" aria-expanded="false" aria-controls="rail"><span aria-hidden="true">☰</span><b>범례</b></button>
 <aside class="rail" id="rail">
+  <button class="railclose" id="railClose"><span aria-hidden="true">✕</span>범례 닫기</button>
   <button class="timesw" id="ztime" aria-pressed="true">
     <span class="tswl">시간 방향 바꾸기</span>
     <span class="tswrow"><b>가운데</b><em id="ztimeIn">지금</em></span>
@@ -2092,8 +2127,29 @@ function init(){
     n.y=Math.sin(a)*R*0.82+(Math.random()-0.5)*40;n.ang=a;
     n.vx=0;n.vy=0;n.a=1;n.gl=0;n.fixed=false});
   alpha=1}
-function fit(){
+/* 좁은 화면에서 231개를 전부 담으려 하면 배율이 0.25까지 떨어진다.
+   labelOn() 이 cam.s>0.5 를 요구하므로 그 순간 이름표가 한 개도 안 그려지고
+   방문자는 색깔 점만 보게 된다.
+   그래서 전체 보기 상태일 때만, 결과 노드(지도의 입구)를 중심에 두고
+   읽을 수 있는 배율을 지킨다. 나머지는 끌어서 본다.
+   ⛶ '전체 보기' 버튼은 showAll 로 이 동작을 꺼서 언제나 다 볼 수 있다. */
+var NARROW_W = 900, NARROW_MIN_S = 1.0;
+function fit(showAll){
   var pool=A.length?A:N;
+  var narrow = W<NARROW_W && !showAll && !focus && pool.length>40;
+  if(narrow){
+    /* 노드가 고리 모양으로 놓이기 때문에, 결과 노드 전체의 가운데를 잡으면
+       고리 한가운데 — 아무것도 없는 빈 곳 — 가 화면에 온다.
+       가장 큰 결과 숫자 하나를 화면 중앙에 놓고 그 둘레부터 보여준다.
+       나머지는 끌어서 보고, ⛶ 를 누르면 전체가 나온다. */
+    var res=pool.filter(function(n){return n.t==='result'&&isFinite(n.x)});
+    if(res.length){
+      var lead=res.reduce(function(a,b){return (b.r||0)>(a.r||0)?b:a});
+      cam.ts=NARROW_MIN_S;
+      cam.tx=W/2-lead.x*NARROW_MIN_S;
+      cam.ty=H/2-lead.y*NARROW_MIN_S;
+      return}
+  }
   var minx=1e9,maxx=-1e9,miny=1e9,maxy=-1e9;
   pool.forEach(function(n){minx=Math.min(minx,n.x-n.r-60);maxx=Math.max(maxx,n.x+n.r+60);
     miny=Math.min(miny,n.y-n.r-40);maxy=Math.max(maxy,n.y+n.r+60)});
@@ -2579,7 +2635,18 @@ cv.addEventListener('wheel',function(e){e.preventDefault();var p=rel2(e);
   setTimeout(function(){rehover(p[0],p[1])},140)},{passive:false});
 document.getElementById('zin').onclick=function(){zoomAt(W/2,H/2,1.28)};
 document.getElementById('zout').onclick=function(){zoomAt(W/2,H/2,1/1.28)};
-document.getElementById('zfit').onclick=function(){fit()};
+document.getElementById('zfit').onclick=function(){fit(true)};
+
+/* 범례 서랍 여닫기. 범례에서 종류·진영을 고르면 닫아서 지도를 다시 보여준다. */
+var legendBtn=document.getElementById('legendBtn'),railBox=document.getElementById('rail');
+function setLegend(on){
+  document.body.classList.toggle('legendon',on);
+  if(legendBtn)legendBtn.setAttribute('aria-expanded',on?'true':'false')}
+if(legendBtn)legendBtn.onclick=function(){setLegend(!document.body.classList.contains('legendon'))};
+var railCloseBtn=document.getElementById('railClose');
+if(railCloseBtn)railCloseBtn.onclick=function(){setLegend(false)};
+if(railBox)railBox.addEventListener('click',function(e){
+  if(window.innerWidth<=900&&e.target.closest('[data-kind],[data-side]'))setLegend(false)});
 var zt=document.getElementById('ztime');
 function ztLabel(){
   document.getElementById('ztimeIn').textContent=timeOut?'과거':'최근';

@@ -665,6 +665,67 @@ function boot(w, h) {
     ? `PASS   [${wmSeen.join(' · ')} · 카드 저작권 ○ · LICENSE ○]`
     : `FAIL (${wmProblems.length})`}`);
 
+  // 17. 지도 선 상한 · 잘린 개수 표시
+  //     실측으로 정한 값이다 — 이웃 6개까지 이름표가 100% 읽히고, 8개에서 63%,
+  //     10개를 넘으면 선 간격이 3.2° 로 붙어 눈으로 구분할 수 없다.
+  //     그리고 잘랐으면 반드시 밝혀야 한다. 말없이 자르면 "이게 전부" 라는 거짓말이 된다.
+  //     전에는 13개에서 소리 없이 잘리고 있었다.
+  //     13번 창(412px)을 재사용하면 안 된다. 폰은 카드가 화면 대부분을 덮어
+  //     포커스 노드가 배지를 그릴 수 있는 자리에 오지 않는다. 데스크톱으로 따로 띄운다.
+  const dCap = boot(1440, 900);
+  await new Promise(r => setTimeout(r, 1500));
+  const we17 = dCap.window;
+  const cap = we17.MAX_EDGES, termCap = we17.TERM_CAP;
+  const capProblems = [];
+  let checked17 = 0, cutSeen = 0;
+
+  if (typeof cap !== 'number') capProblems.push('MAX_EDGES 가 없다 — 상한이 코드에 없다');
+  else {
+    // 연결이 상한을 넘는 노드만 본다. 그런 노드가 없으면 검사가 아무것도 안 보는 셈이다.
+    const over = we17.N
+      .filter(n => (we17.adj[n.id] || []).length > cap)
+      .sort((a, b) => we17.adj[b.id].length - we17.adj[a.id].length);
+
+    over.slice(0, 12).forEach(n => {
+      try { we17.setFocus(n.id) } catch (e) { capProblems.push(`${n.lab} 카드가 깨진다: ${e.message}`); return }
+      // 배지는 draw() 안에서 그려진다. setFocus 직후에는 아직 한 프레임도 안 돌았다.
+      // 기다리는 대신 직접 부른다 — 무엇을 그렸는지 그 자리에서 받아 적어야 한다.
+      we17.__drawn.length = 0;
+      try { we17.draw() } catch (e) { capProblems.push(`${n.lab} draw 실패: ${e.message}`); return }
+      checked17++;
+      const drawnEdges = Object.keys(we17.ring || {}).filter(k => we17.ring[k] === 1).length;
+      const total = we17.adj[n.id].length;
+      const hidden = we17.hiddenEdges;
+
+      if (drawnEdges > cap)
+        capProblems.push(`${n.lab}: 지도에 선 ${drawnEdges}개 — 상한 ${cap} 초과`);
+
+      // term 이 6칸을 다 먹으면 지도가 '정권 지도' 처럼 보인다. 규칙 3이 경계하는 오해다.
+      const termDrawn = we17.adj[n.id]
+        .filter(l => l[3] === 'term' && we17.ring[l[0] === n.id ? l[1] : l[0]] === 1).length;
+      if (typeof termCap === 'number' && termDrawn > termCap)
+        capProblems.push(`${n.lab}: term 이 ${termDrawn}개 그려짐 — 상한 ${termCap} 초과`);
+
+      if (hidden > 0) {
+        cutSeen++;
+        // 잘렸으면 지도(캔버스 배지)와 카드(안내문) 둘 다에 표시가 있어야 한다.
+        const badge = we17.__drawn.some(t => String(t) === '+' + hidden);
+        const note = !!we17.document.querySelector('.cutnote');
+        if (!badge) capProblems.push(`${n.lab}: ${hidden}개를 잘랐는데 지도에 '+${hidden}' 배지가 없다`);
+        if (!note) capProblems.push(`${n.lab}: ${hidden}개를 잘랐는데 카드에 안내(.cutnote)가 없다`);
+        if (hidden !== total - drawnEdges)
+          capProblems.push(`${n.lab}: 잘린 수가 안 맞는다 (표시 ${hidden} · 실제 ${total - drawnEdges})`);
+      }
+    });
+
+    if (!over.length) capProblems.push('상한을 넘는 노드가 하나도 없다 — 검사가 아무것도 못 본다');
+  }
+
+  capProblems.forEach(t => F(`지도 선 상한: ${t}`));
+  console.log(`17. 지도 선 상한    ${capProblems.length === 0
+    ? `PASS   [상한 ${cap} · term ${termCap} · 초과 노드 ${checked17}개 확인 · 그중 ${cutSeen}개에서 잘림 표시 확인]`
+    : `FAIL (${capProblems.length})`}`);
+
   // 14. 스크립트 실행 오류
   //     페이지가 멀쩡해 보여도 스크립트가 중간에 죽으면 그 뒤 초기화가 전부 안 돈다.
   //     함수 선언은 호이스팅돼서 이미 정의돼 있으므로 카드도 열리고 검색창도 보인다.

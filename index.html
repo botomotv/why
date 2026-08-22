@@ -2923,7 +2923,10 @@ function draw(){
     cx.globalAlpha=1});
 
   /* 잘린 선 개수를 포커스 노드 옆에 밝힌다.
-     말없이 자르면 "이게 전부" 라는 거짓말이 된다. 분모를 같이 보여준다. */
+     말없이 자르면 "이게 전부" 라는 거짓말이 된다. 분모를 같이 보여준다.
+     좌표를 화면 기준(fn.x*cam.s+cam.x)으로 직접 계산하므로 카메라 변환을 먼저 푼다.
+     안 풀면 변환이 두 번 걸려 배지가 화면 밖으로 나간다. */
+  cx.setTransform(DPR,0,0,DPR,0,0);
   if(focus&&hiddenEdges>0&&map[focus]&&isFinite(map[focus].x)){
     var fn=map[focus];
     var bxr=fn.x*cam.s+cam.x, byr=fn.y*cam.s+cam.y;

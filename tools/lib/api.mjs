@@ -7,6 +7,16 @@
 export const BASE = process.env.ASSEMBLY_BASE || 'https://open.assembly.go.kr/portal/openapi';
 export const GAP_MS = Number(process.env.ASSEMBLY_GAP || 1000);
 
+/**
+ * 개인별 표결은 20대부터만 제공된다. 19대 이전은 이 API 로 못 얻는다.
+ *
+ * 이 값을 여기 한 곳에만 둔다. count 와 collect 가 각자 갖고 있으면 어긋난다.
+ * 실제로 어긋났다 — collect 는 20대 미만을 건너뛰는데 count 는 전 대수로 시간을 셌다.
+ * 99,995회 27.8시간으로 나왔지만 실제는 64,111회 17.8시간이다.
+ * 같은 쪽에 "20대부터만 제공된다" 고 써놓고 숫자는 전 대수였다.
+ */
+export const VOTE_MIN_AGE = 20;
+
 export const sleep = ms => new Promise(r => setTimeout(r, ms));
 
 /** 인증키를 환경변수로만 받는다. 없으면 조용히 넘어가지 않고 멈춘다. */

@@ -24,16 +24,13 @@
 import fs from 'node:fs';
 import zlib from 'node:zlib';
 import { DatabaseSync } from 'node:sqlite';
-import { needKey, call, unpack, explain, paramKey, sleep, GAP_MS } from './lib/api.mjs';
+import { needKey, call, unpack, explain, paramKey, sleep, GAP_MS, VOTE_MIN_AGE } from './lib/api.mjs';
 
 const KEY  = needKey('tools/collect.mjs');
 const DB   = process.env.COLLECT_DB || 'db/warehouse.db';
 const AGES = (process.env.COLLECT_AGE || '22').split(',').map(Number);
 const STEP = new Set((process.env.COLLECT_STEP || '1,2,3,4').split(','));
 const PAGE = Number(process.env.COLLECT_PAGE || 1000);   // 열린국회정보 pSize 상한
-
-/* 표결은 20대부터만 제공된다. 19대 이전은 이 API 로 못 얻는다. */
-const VOTE_MIN_AGE = 20;
 
 /* 서비스별 자연키. 이게 있어야 같은 행을 두 번 저장하지 않는다. */
 const NATURAL = {

@@ -857,6 +857,72 @@ function boot(w, h) {
     if (!checked) F('19. 검사한 패널이 0개다 — 아무것도 안 잡는 검사다');
   }
 
+  // 20. 노드를 눌렀을 때 이어진 것이 화면 안에 있는가 · 반지름이 안 흔들렸는가
+  //     고치기 전: 폰 2/6(33%) · 태블릿 세로 3/6(50%). 조작이 안 되는 문제였다.
+  //     각도만 모아서 푼다 — 반지름은 연도라서 흔들리면 연도가 거짓말이 된다.
+  //     그래서 두 가지를 같이 잰다. 하나만 재면 다른 하나가 조용히 깨진다.
+  {
+    const SIZES20 = [[412,915,'폰'],[820,1180,'태블릿 세로'],[1440,900,'노트북']];
+    for (const [w,h,nm] of SIZES20) {
+      const d20 = boot(w,h);
+      await new Promise(r => setTimeout(r, 1200));
+      const win = d20.window;
+      const r = win.eval(`(function(){
+        if(typeof setFocus!=='function'||typeof A==='undefined'||!A.length)return null;
+        var c=A.filter(function(n){return n.t==='result'&&adj[n.id]});
+        if(!c.length)return null;
+        var t=c.reduce(function(a,b){return (adj[b.id]||[]).length>(adj[a.id]||[]).length?b:a});
+        setFocus(t.id);
+        /* jsdom 스텁은 모든 요소에 창 전체 크기를 준다. 실물은 카드가 열리면
+           #stage 가 줄어든다 — 폰 412x915 에서 실제 지도는 412x518 이었다.
+           스텁 값을 그대로 쓰면 검사가 실물보다 넓은 화면을 가정해
+           통과하는데 실물은 화면 밖인 상태가 생긴다.
+           CSS 의 카드 규칙(<=620 bottom:32dvh, <=1000 62dvh, 그 위 right:448px)으로
+           지도 크기를 근사한다. 실물 브라우저 값과 대조해 맞췄다. */
+        var pw=${w}, ph=${h};
+        W = pw>1000 ? pw-448 : pw;
+        H = pw<=620 ? Math.round((ph-58)*0.63)
+          : pw<=1000 ? Math.round((ph-58)*0.38) : ph-58;
+        if(typeof gatherFan==='function')gatherFan();   /* 크기를 고친 뒤에 모은다 */
+        for(var i=0;i<420;i++)tick();
+        if(typeof fitFocus==='function')fitFocus();
+        cam.s=cam.ts;cam.x=cam.tx;cam.y=cam.ty;
+        for(var i=0;i<40;i++)tick();
+        var nb=Object.keys(ring).filter(function(k){return ring[k]===1});
+        var inn=0;
+        nb.forEach(function(k){var n=map[k];if(!n)return;
+          var sx=n.x*cam.s+cam.x, sy=n.y*cam.s+cam.y;
+          if(sx>=0&&sx<=W&&sy>=0&&sy<=H)inn++});
+        var drift=0,worst=0,checked=0;
+        A.forEach(function(n){ if(typeof n.tang!=='number')return; checked++;
+          var R=ringR(n), rr=Math.hypot(n.x,n.y/0.86);
+          var dd=Math.abs(rr-R); if(dd>1)drift++; if(dd>worst)worst=dd});
+        var lblOn=nb.filter(function(k){return map[k]&&labelOn(map[k])}).length;
+        return {nb:nb.length, inn:inn, s:+cam.s.toFixed(2), lbl:lblOn,
+                mw:W, mh:H, drift:drift, worst:+worst.toFixed(1), checked:checked};
+      })()`);
+      d20.window.close();
+
+      if (!r) { F(`20. ${nm} ${w}px — 측정 자체를 못 했다 (setFocus·A 가 없다)`); continue }
+
+      const pct = r.nb ? Math.round(100*r.inn/r.nb) : 0;
+      console.log(`20. 연결 화면안     ${nm} ${w}×${h} (지도 ${r.mw}×${r.mh}) · ${r.inn}/${r.nb}개 (${pct}%) · 배율 ${r.s} · 이웃 이름표 ${r.lbl}/${r.nb} · 반지름 흔들림 ${r.drift}/${r.checked}개(최대 ${r.worst}px)`);
+
+      /* 0 은 의심한다. 이웃이 0개면 잰 게 없는 것이지 통과가 아니다. */
+      if (!r.nb) { F(`20. ${nm} — 이웃이 0개라 아무것도 못 쟀다`); continue }
+      if (!r.checked) F(`20. ${nm} — 각도를 모은 노드가 0개다. 부채꼴이 아예 안 돌았다`);
+      if (pct < 100) F(`20. ${nm} ${w}×${h} — 이어진 것 ${r.nb - r.inn}개가 화면 밖이다 (${r.inn}/${r.nb})`);
+      if (r.drift)   F(`20. ${nm} — 반지름이 흔들린 노드 ${r.drift}/${r.checked}개 (최대 ${r.worst}px). 연도가 거짓말이 된다`);
+      /* 배율 바닥(FIT_MIN 0.45)까지는 허용한다. 우선순위는 '이어진 것이 보이는 것' 이다.
+         이름표 하한(0.62) 밑으로 내려가면 이름이 준다는 사실은 WARN 으로 남긴다. */
+      if (r.s < 0.45) F(`20. ${nm} — 배율 ${r.s} 가 바닥 0.45 미만이다. 점만 남는다`);
+      else if (r.s < 0.62) W(`20. ${nm} — 배율 ${r.s} 가 이름표 하한 0.62 미만이다 (이웃 이름표 ${r.lbl}/${r.nb}). 지도가 ${r.mw}×${r.mh} 로 좁아서다 — 카드 높이 문제다`);
+      /* 이름표는 판정하지 않는다. 카드가 폰 화면의 43% 를 먹어 지도가 412×518 밖에 안 되고,
+         부채꼴 폭을 0.10~0.30 으로 훑어도 2~3/6 에서 안 올라간다(실물 측정).
+         물리적 한계라 자동 판정하면 못 고칠 FAIL 이 된다. 눈앞에 띄우는 것까지가 검사의 역할이다. */
+    }
+  }
+
   /* ── 요약 ── */
   console.log('\n' + '─'.repeat(50));
   console.log('노드 진영 분포:', JSON.stringify(bySide));

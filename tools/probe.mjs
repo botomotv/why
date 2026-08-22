@@ -172,6 +172,8 @@ async function main() {
     ['ALLBILL',           '의안정보 통합 API',              '법안 본문·소관위·공포일자',        true],
     ['nzmimeepazxkubdpn', '국회의원 발의법률안',            '대표발의자 → 법안 (lead)',        true],
     ['nqfvrbsdafrmuzixe', '의안접수목록',                  '접수일',                        true],
+    /* 보류 — 서비스명이 틀렸다(ERROR-310). 카탈로그상 infId=OS46YD0012559515463.
+       법안 설명에 쓸 수 있으니 이름을 찾으면 되살린다. docs/창고설계.md 8장. */
     ['BILLRSNRAW',        '법률안 제안이유 및 주요내용',     '자동 연결 3관문 · 조문 언급',      false],
     ['nojepdqqaweusdfbi', '국회의원 본회의 표결정보',        '표결 → 정당별 집계',             false],
     ['nwbpacrgavhjryiph', '본회의 처리안건_법률안',          '가결·부결',                     false],

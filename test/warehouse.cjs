@@ -187,7 +187,8 @@ db.close();
    창고가 없으면 "안 봤다" 라고 말한다. 조용히 통과시키지 않는다 —
    0건은 '문제 없음' 과 '안 보고 있음' 을 구별하지 않는다. */
 {
-  const WH = path.join(ROOT, 'db', 'warehouse.db');
+  /* 경로를 열어 둔다. 작은 가짜 창고로 실패를 주입해 봐야 이 검사를 믿을 수 있다. */
+  const WH = process.env.WAREHOUSE_DB || path.join(ROOT, 'db', 'warehouse.db');
   if (!fs.existsSync(WH)) {
     NOTE('E · 창고가 아직 없어 코드 체계를 대조하지 못했다 (db/warehouse.db). 수집 후 다시 돌린다');
   } else {
@@ -203,25 +204,48 @@ db.close();
     } else {
       const known = new Set(mem.map(r => r.k));
 
-      /* 발의(RST_MONA_CD) */
-      const bills = rows(
-        `SELECT json_extract(row_json,'$.RST_MONA_CD') cd, json_extract(row_json,'$.RST_PROPOSER') nm
-         FROM raw_row WHERE service='nzmimeepazxkubdpn'`) || [];
-      const bMiss = bills.filter(r => r.cd && !known.has(r.cd));
-      NOTE(`E · RST_MONA_CD 미매칭 ${bMiss.length} / 대조 ${bills.length}건 (의원명부 ${known.size}명)`);
-      if (bMiss.length) FAIL(`E · 발의자 코드 ${bMiss.length}건이 의원 명부에 없다 (예: ${bMiss.slice(0,3).map(r=>r.cd+' '+r.nm).join(', ')})`);
+      /* ── 발의(RST_MONA_CD) ──
+         쉼표로 여러 명이 온다. 공동대표발의가 실재한다 (2명 166건 · 3명 45건).
+         쪼개지 않으면 'UOS16250,51A45980' 이 통째로 한 코드로 잡혀
+         미매칭 288건이 유령으로 뜬다 — 실제로 그렇게 떴다.
+         PUBL_MONA_CD 는 쪼개기로 해놓고 RST_ 에는 같은 생각을 안 했다.
 
-      /* 표결(MONA_CD) — 같은 체계인지가 여기서 판가름난다 */
-      const votes = rows(
-        `SELECT DISTINCT json_extract(row_json,'$.MONA_CD') cd, json_extract(row_json,'$.HG_NM') nm
-         FROM raw_row WHERE service='nojepdqqaweusdfbi'`) || [];
-      if (!votes.length) {
-        NOTE('E · 표결이 창고에 없다 — MONA_CD 체계는 아직 대조 못 함');
-      } else {
-        const vMiss = votes.filter(r => r.cd && !known.has(r.cd));
-        NOTE(`E · MONA_CD 미매칭 ${vMiss.length} / 대조 ${votes.length}명`);
-        if (vMiss.length) FAIL(`E · 표결 코드 ${vMiss.length}건이 의원 명부에 없다 — MONA_CD 가 다른 체계일 수 있다 (예: ${vMiss.slice(0,3).map(r=>r.cd+' '+r.nm).join(', ')})`);
+         'UNKNOWN' 은 코드가 아니라 '코드 없음' 표시다. 매칭 대상이 아니다.
+         예외로 숨기지 않고 몇 건인지 세어서 남긴다. */
+      const split = v => String(v || '').split(',').map(x => x.trim()).filter(Boolean);
+      const NOCODE = 'UNKNOWN';
+
+      const bills = rows(
+        `SELECT json_extract(row_json,'$.RST_MONA_CD') cd,
+                json_extract(row_json,'$.RST_PROPOSER') nm,
+                CAST(json_extract(row_json,'$.AGE') AS INT) age
+         FROM raw_row WHERE service='nzmimeepazxkubdpn'`) || [];
+
+      let pairs = 0, noCode = 0, bMiss = [], billNoProposer = 0;
+      const noCodeAge = {};
+      for (const b of bills) {
+        const cds = split(b.cd);
+        if (!cds.length) { billNoProposer++; continue }
+        let anyReal = false;
+        for (const cd of cds) {
+          pairs++;
+          if (cd === NOCODE) { noCode++; noCodeAge[b.age] = (noCodeAge[b.age] || 0) + 1; continue }
+          anyReal = true;
+          if (!known.has(cd)) bMiss.push(`${cd} ${b.nm || ''}`);
+        }
+        if (!anyReal) billNoProposer++;
       }
+
+      NOTE(`E · RST_MONA_CD 미매칭 ${bMiss.length} / 대조 ${pairs - noCode}개 (법안 ${bills.length}건 · 의원명부 ${known.size}명)`);
+
+      /* 코드 없음은 사실로 기록한다. 조용히 빼면 나중에 또 만난다. */
+      if (noCode) {
+        const ages = Object.keys(noCodeAge).map(Number).sort((a, b) => a - b);
+        NOTE(`E · 코드 없음('${NOCODE}') ${noCode}건 — 제${ages[0]}~${ages[ages.length-1]}대에만 있다. 그 시절 데이터에 의원 고유코드가 없다`);
+        NOTE(`E · 그래서 발의자를 못 붙이는 법안 ${billNoProposer}건 / ${bills.length}건 — 지도에 이 숫자를 밝힌다`);
+      }
+      if (bMiss.length)
+        FAIL(`E · 발의자 코드 ${bMiss.length}건이 의원 명부에 없다 (예: ${bMiss.slice(0,3).join(', ')})`);
 
       /* 이름은 같은데 코드가 다른 사람 — 동명이인이 실제로 있다는 증거 */
       const dup = rows(

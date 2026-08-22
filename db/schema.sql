@@ -65,17 +65,22 @@ CREATE TABLE IF NOT EXISTS bill (
   proc_result TEXT,
   announce_dt TEXT,               -- 공포일. 규칙 3(대통령)의 유일한 입력
   detail_url  TEXT,
+  -- 발의자 코드가 없어(UNKNOWN) 발의자를 못 붙인 법안임을 기록한다.
+  -- 조용히 빼면 "발의자가 없는 법안" 과 "발의자를 못 붙인 법안" 이 구별되지 않는다.
+  no_proposer INTEGER NOT NULL DEFAULT 0,
   src_row     INTEGER REFERENCES raw_row(id)
 );
 CREATE INDEX IF NOT EXISTS bill_age      ON bill(age);
 CREATE INDEX IF NOT EXISTS bill_announce ON bill(announce_dt);
 
 -- 대표발의(rst)와 공동발의(publ)를 종류로 나눈다.
--- PUBL_MONA_CD 는 쉼표로 붙어 오는데, 저장할 때 쪼갠다.
+-- RST_MONA_CD 도 PUBL_MONA_CD 도 쉼표로 붙어 온다. 둘 다 저장할 때 쪼갠다.
+-- 대표발의자가 한 명이라고 가정했다가 미매칭 288건을 유령으로 만들었다 —
+-- 공동대표발의가 실재한다 (2명 166건 · 3명 45건).
 -- 문자열째 두면 LIKE '%코드%' 로 조회하게 되고 그건 틀린 결과를 낸다.
 CREATE TABLE IF NOT EXISTS bill_proposer (
   bill_id   TEXT    NOT NULL REFERENCES bill(bill_id),
-  member_cd TEXT    NOT NULL,
+  member_cd TEXT    NOT NULL,     -- 'UNKNOWN' 은 넣지 않는다. 코드가 아니라 '코드 없음' 표시다
   member_nm TEXT,                 -- 검증·표시용. 조인에 쓰지 않는다
   kind      TEXT    NOT NULL CHECK (kind IN ('rst','publ')),
   ord       INTEGER,

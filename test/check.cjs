@@ -982,6 +982,47 @@ function boot(w, h) {
     }
   }
 
+  // 22. 고리 밀도 — 어느 시기가 넘치는가
+  //     '전체 보기' 에서 노드가 한쪽에 뭉치는 원인이다.
+  //     각도는 고르다(12방향에 10~20개). 문제는 반지름이다 —
+  //     84년을 680px 에 넣어 1년당 8.1px 인데 노드 지름은 12~74px 이다.
+  //     그래서 최근처럼 노드가 많은 시기는 고리 넓이보다 노드 면적이 커진다.
+  //     자동 판정하지 않는다. 데이터가 늘면 자연히 변하는 값이고,
+  //     고치는 건 흩뿌리는 방식을 바꾸는 일이라 사람이 정할 문제다.
+  //     매 실행마다 눈앞에 띄우는 것까지가 검사의 역할이다.
+  {
+    const d22 = boot(1440, 900);
+    await new Promise(r => setTimeout(r, 1200));
+    const r = d22.window.eval(`(function(){
+      if(typeof pyOf!=='function'||!A.length)return null;
+      var g={};
+      A.forEach(function(n){var b=Math.floor(pyOf(n)/10)*10;(g[b]=g[b]||[]).push(n)});
+      var years=Object.keys(g).map(Number).sort(function(a,b){return a-b});
+      var rows=years.map(function(y){
+        var r1=radY(y), r2=radY(y+10);
+        var lo=Math.min(r1,r2), hi=Math.max(r1,r2);
+        var area=Math.PI*0.93*(hi*hi-lo*lo);
+        var used=0;
+        g[y].forEach(function(n){used+=Math.max(2*n.r,(n.lw||60))*(2*n.r+(n.lh||24))});
+        return {y:y, n:g[y].length, p:area>0?used/area:0};
+      });
+      return {rows:rows, perYear:+((ROUT-RIN)/(RY1-RY0)).toFixed(1)};
+    })()`);
+    d22.window.close();
+    if (!r) F('22. 고리 밀도를 못 쟀다');
+    else {
+      const over = r.rows.filter(x => x.p > 1);
+      const mx = r.rows.reduce((a, b) => b.p > a.p ? b : a);
+      const mn = r.rows.reduce((a, b) => b.p < a.p ? b : a);
+      console.log(`22. 고리 밀도       1년당 반지름 ${r.perYear}px · 최대 ${mx.y}년대 ${(mx.p*100).toFixed(0)}% · 최소 ${mn.y}년대 ${(mn.p*100).toFixed(0)}% · 차이 ${(mx.p/Math.max(mn.p,1e-6)).toFixed(0)}배 · 넘치는 연대 ${over.length}/${r.rows.length}개`);
+      r.rows.forEach(x => {
+        const bar = '█'.repeat(Math.min(20, Math.round(x.p * 10)));
+        console.log(`     ${x.y}년대 ${String(x.n).padStart(3)}개  ${String((x.p*100).toFixed(0)+'%').padStart(5)} ${bar}${x.p > 1 ? '  ← 넘침' : ''}`);
+      });
+      if (over.length) W(`22. 고리 밀도 — ${over.map(x => x.y + '년대 ' + (x.p*100).toFixed(0) + '%').join(', ')} 가 고리 넓이를 넘는다. 흩뿌리는 방식을 바꿔야 한다 (docs/고리밀도.md)`);
+    }
+  }
+
   /* ── 요약 ── */
   console.log('\n' + '─'.repeat(50));
   console.log('노드 진영 분포:', JSON.stringify(bySide));

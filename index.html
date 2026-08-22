@@ -105,10 +105,10 @@ body{background:var(--bg);color:var(--t1);font-family:'Noto Sans KR',-apple-syst
    폰은 카드가 지도를 덮어서, 점을 눌러도 '무엇과 이어져 있는지' 를 볼 수 없었다.
    이 사이트에서 점을 누르는 이유는 "이게 뭐지" 가 아니라 "왜 이렇게 됐지" 다.
    그래서 카드를 두 단계로 나눈다: 처음엔 아래 40% 만, 끌어올리면 88%. */
-.popgrab{display:none;position:sticky;top:0;z-index:3;width:100%;height:26px;
-  border:0;background:linear-gradient(var(--bg2) 62%,rgba(24,26,31,0));cursor:grab;
+.popgrab{display:none;position:relative;flex:1 1 auto;height:26px;min-width:0;
+  border:0;background:none;cursor:grab;
   touch-action:none;-webkit-tap-highlight-color:transparent}
-.popgrab:before{content:'';position:absolute;top:9px;left:50%;transform:translateX(-50%);
+.popgrab:before{content:'';position:absolute;top:11px;left:50%;transform:translateX(-50%);
   width:44px;height:4px;border-radius:4px;background:#3A3F48;transition:background .18s}
 .popgrab:hover:before{background:#565C67}
 .popgrab:focus-visible{outline:2px solid var(--gold);outline-offset:-3px}
@@ -122,7 +122,12 @@ body.panelon #stage{right:448px}
 .pclose:hover{color:var(--t1)}
 /* 카드 글자 크기 조절. 지도 배율과 무관하다 — 카드 안 글자만 바뀐다.
    #detail 의 font-size 를 배율로 잡고, 카드 안 크기를 em 으로 따라가게 한다. */
-.ptools{position:sticky;top:0;z-index:2;float:right;display:flex;align-items:center;gap:6px;margin:12px 12px 0 0}
+/* 손잡이와 버튼을 한 줄로 묶어 카드 맨 위에 붙인다.
+   전에는 .ptools 가 float:right 였는데, #detail 이 flex 컨테이너(=BFC)라
+   float 을 피해 폭을 291px 로 줄였다. 카드 412px 중 오른쪽 121px 이 죽어 있었다. */
+.pophead{position:sticky;top:0;z-index:3;display:flex;align-items:center;gap:8px;
+  padding:8px 12px 6px;background:var(--bg2)}
+.ptools{display:flex;align-items:center;gap:6px;margin:0;flex:0 0 auto}
 .ptools .pclose{position:static;float:none;margin:0}
 /* 카드를 위로 펴고 다시 접는 버튼.
    손잡이를 끌어도 되지만 그게 있다는 걸 알 방법이 없었다. 글자로 말해준다. */
@@ -134,6 +139,8 @@ body.popfull .pexp .pex-i{transform:rotate(180deg)}
 .pexp b{font-weight:500}
 .pexp:hover{color:var(--gold);border-color:var(--gold)}
 .pexp:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
+.pophead{justify-content:flex-end}
+.pexp{display:none}
 /* 카드 글자 크기는 고정값이다. 조절 기능은 두지 않는다. */
 #detail{--t-base:15.5px;--t-title:23px;--t-big:36px;--t-bigc:15.5px;--t-chain:17px;--t-lab:13.5px}
 #detail{font-size:var(--t-base)}
@@ -152,7 +159,7 @@ body.popfull .pexp .pex-i{transform:rotate(180deg)}
 .b-pass{background:#1E2C21;color:#7DB98A}
 .b-res{background:#2E2718;color:var(--gold)}
 .b-chk{background:#2A2519;color:#C9A55E;border:1px dashed #4A3F22}
-.title{font-family:'Nanum Myeongjo',serif;font-weight:800;font-size:23px;line-height:1.38;letter-spacing:-.02em;margin-bottom:8px;padding-right:26px}
+.title{font-family:'Nanum Myeongjo',serif;font-weight:800;font-size:23px;line-height:1.38;letter-spacing:-.02em;margin-bottom:8px}
 .official{font-size:15px;color:var(--t3);line-height:1.65}
 .gov-bar{display:flex;border-top:1px solid var(--line)}
 .gv{flex:1;padding:13px 15px}
@@ -182,7 +189,7 @@ body.popfull .pexp .pex-i{transform:rotate(180deg)}
 .cb-rec{background:#301E1C;color:var(--red)}
 .cb-pend{background:#2A2519;color:#C9A55E}
 .ch-y{font-family:'Nanum Myeongjo',serif;font-weight:700;font-size:14px;color:var(--t3);margin-bottom:3px}
-.chain button{font-family:inherit;font-size:17px;font-weight:500;background:none;border:0;padding:0;color:var(--t1);cursor:pointer;text-align:left;line-height:1.5}
+.chain button{display:block;width:100%;font-family:inherit;font-size:17px;font-weight:500;background:none;border:0;padding:0;color:var(--t1);cursor:pointer;text-align:left;line-height:1.5}
 .chain button:hover{color:var(--gold)}
 .chain button:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
 .ch-x{font-size:15.5px;color:var(--t2);margin-top:4px;line-height:1.6}
@@ -261,7 +268,7 @@ body.popfull .pexp .pex-i{transform:rotate(180deg)}
 .photobtn.del{border-color:var(--line2);background:transparent;color:var(--t3)}
 .refsec{background:#14171C}
 .reflist{list-style:none;margin-bottom:14px}
-.reflist li{position:relative;padding:11px 60px 11px 0;border-bottom:1px solid #1E2127}
+.reflist li{position:relative;padding:11px 0;border-bottom:1px solid #1E2127}
 .reflist li:last-child{border-bottom:0}
 .reflist a{font-size:16.5px;color:var(--t1);text-decoration:none;line-height:1.5;display:block}
 .reflist a:hover{color:var(--gold);text-decoration:underline;text-underline-offset:3px}
@@ -505,7 +512,10 @@ body.hasundo .rgrp{pointer-events:auto;display:flex;align-items:center;gap:8px;p
 .srcsec{background:#14171C}
 .reflist.off li{border-left:2px solid var(--gold);padding-left:12px}
 .reflist.off a{color:var(--gold)}
-.reflist li{position:relative;padding:11px 60px 11px 0}
+/* 오른쪽 60px 은 삭제 버튼 자리였다. 방문자에게는 버튼이 없으니 글자에 돌려준다.
+   편집 모드에서만 자리를 비운다. */
+.reflist li{position:relative;padding:11px 0}
+body.editmode .reflist li{padding-right:60px}
 .rkb{display:inline-block;font-size:12.5px;padding:2px 7px;border-radius:3px;margin-right:8px;
   background:#22262C;color:#98A0AB;vertical-align:2px}
 .rk-video .rkb{background:#2E1B1B;color:#E8807A}
@@ -586,6 +596,8 @@ body.hasundo .rgrp{pointer-events:auto;display:flex;align-items:center;gap:8px;p
   body.panelon #stage{bottom:32vh;bottom:32dvh}
   body.panelon.popfull #stage{bottom:82vh;bottom:82dvh}
   .popgrab{display:block}
+  .pexp{display:flex}
+  .pophead{padding:7px 12px 5px;justify-content:space-between}
   .pop:before{display:none}
   .c-head{padding-top:6px}
 
@@ -848,7 +860,7 @@ body.hasundo .rolebar{top:232px;width:calc(100vw - 24px);max-height:96px;overflo
   </div>
 </div>
 
-<div class="pop" id="pop"><button class="popgrab" id="popGrab" aria-label="카드 크게 보기" aria-expanded="false"></button><div class="ptools"><button class="pexp" id="popExp" aria-expanded="false" aria-controls="detail"><span class="pex-i" aria-hidden="true">⌃</span><b id="popExpLab">설명 더 보기</b></button><button class="pclose" id="pclose" aria-label="닫기">✕</button></div><div id="detail"></div></div>
+<div class="pop" id="pop"><div class="pophead"><button class="popgrab" id="popGrab" aria-label="끌어서 카드 높이 조절" aria-expanded="false"></button><div class="ptools"><button class="pexp" id="popExp" aria-expanded="false" aria-controls="detail"><span class="pex-i" aria-hidden="true">⌃</span><b id="popExpLab">펼치기</b></button><button class="pclose" id="pclose" aria-label="닫기">✕</button></div></div><div id="detail"></div></div>
 
 <script>
 var N=[
@@ -2156,6 +2168,10 @@ var cam={s:1,x:0,y:0,ts:1,tx:0,ty:0};
 var pop=document.getElementById('pop');
 /* ?edit=1 일 때만 편집 UI가 나온다. 방문자 화면에는 안 보인다. */
 var EDIT=(function(){try{return /[?&]edit=1/.test(location.search)}catch(e){return false}})();
+/* 편집 UI 는 방문자에게 하나도 보이면 안 된다. 이 사이트에서 데이터는 신뢰의 전부다.
+   숨기는 게 아니라 DOM 에서 지운다 — 숨긴 것은 언제든 다시 열리고,
+   검사도 '안 보임' 과 '없음' 을 구별하지 못한다. */
+if(EDIT)document.body.classList.add('editmode');
 var PHOTO={},REFS={},ULK=[];
 try{PHOTO=JSON.parse(localStorage.getItem('billtracker_photos')||'{}')}catch(e){PHOTO={}}
 try{REFS=JSON.parse(localStorage.getItem('billtracker_refs')||'{}')}catch(e){REFS={}}
@@ -3150,7 +3166,7 @@ function qSearch(v){
     return}
   if(!qHits.length){
     srEl.innerHTML='<button class="sr" disabled>찾는 항목이 없습니다</button>'+
-      '<button class="sr srnew" id="srNew">＋ <b>\''+v+'\'</b> 새 사건으로 만들기<small>뉴스에서 본 일을 직접 넣어 그래프에 붙입니다</small></button>';
+      (EDIT?'<button class="sr srnew" id="srNew">＋ <b>\''+v+'\'</b> 새 사건으로 만들기<small>뉴스에서 본 일을 직접 넣어 그래프에 붙입니다</small></button>':'');
     srEl.classList.add('on');
     var nb2=document.getElementById('srNew');
     if(nb2)nb2.onclick=function(){openMake(qEl.value.trim())};
@@ -3159,7 +3175,7 @@ function qSearch(v){
     return '<button class="sr'+(i===qIdx?' sel':'')+'" data-go="'+n.id+'">'+
       (n.t==='bill'?(n.title||n.lab):n.lab)+
       '<small>'+TK[n.t]+(n.yr?' · '+n.yr:'')+(n.sub?' · '+n.sub:'')+'</small></button>'}).join('');
-  srEl.innerHTML+='<button class="sr srnew" id="srNew">＋ <b>\''+v+'\'</b> 새 사건으로 만들기<small>목록에 없으면 직접 넣을 수 있습니다</small></button>';
+  if(EDIT)srEl.innerHTML+='<button class="sr srnew" id="srNew">＋ <b>\''+v+'\'</b> 새 사건으로 만들기<small>목록에 없으면 직접 넣을 수 있습니다</small></button>';
   srEl.classList.add('on');
   srEl.querySelectorAll('[data-go]').forEach(function(b){
     b.onclick=function(){qPick(b.dataset.go)}});
@@ -3250,7 +3266,7 @@ function sentence(l,id){
     (l[6]?'<span class="rdate">'+l[6]+'</span>':'')+
     (l.user?'<span class="umark">내가 이음</span>':'')+'</div><p class="rtext">'+s+
     (l.url?' <a class="ulink" href="'+l.url+'" target="_blank" rel="noopener">기사 ↗</a>':'')+'</p>'+
-    (ui>=0?'<button class="refdel" style="position:static;margin-top:7px" data-ulkdel="'+ui+'">연결 삭제</button>':'')+
+    (EDIT&&ui>=0?'<button class="refdel" style="position:static;margin-top:7px" data-ulkdel="'+ui+'">연결 삭제</button>':'')+
     '</li>'}
 function govBar(n){
   var pc=n.side==='blue'?C.blue:n.side==='red'?C.red:C.gov;
@@ -3348,10 +3364,16 @@ function render(id){
     html='<div class="phead"><div class="avatar" style="border-color:'+col+';color:'+col+'">'+
       '<img src="'+(getPhoto(n.lab)||('photos/'+n.lab+'.jpg'))+'" alt="'+n.lab+'" onerror="this.style.display=\'none\';this.nextSibling.style.display=\'flex\'"><span class="ini" style="display:none">'+ini+'</span>'+'</div>'+
       '<div><p class="pname">'+n.lab+'</p><p class="prole">'+(n.sub||'인물')+'</p></div></div>'+
-      '<div class="photobox"><input class="photoin" type="text" placeholder="사진 주소(URL)를 붙여넣으세요" value="'+(getPhoto(n.lab)||'')+'" data-pn="'+n.lab+'">'+
-        '<button class="photobtn" data-psave="'+n.lab+'">넣기</button>'+
-        (getPhoto(n.lab)?'<button class="photobtn del" data-pdel="'+n.lab+'">지우기</button>':'')+'</div>'+
-      '<p class="photonote">'+(!getPhoto(n.lab)?'':(hasUserPhoto(n.lab)?'':'사진 출처 · '+(PHOTOSRC[n.lab]||'위키미디어 공용')+'. '))+'주소를 넣으면 이 브라우저에 저장돼서 다음에도 그대로 뜹니다. 또는 이 파일 옆에 <b>photos</b> 폴더를 만들고 <b>'+n.lab+'.jpg</b> 를 넣어도 됩니다.</p>'+
+      /* 사진 출처는 방문자에게도 보여야 한다 (규칙 7). 편집 입력만 걷어낸다. */
+      (function(){
+        var srcTxt=(getPhoto(n.lab)&&!hasUserPhoto(n.lab))
+          ? '사진 출처 · '+(PHOTOSRC[n.lab]||'위키미디어 공용') : '';
+        if(!EDIT) return srcTxt?'<p class="photonote">'+srcTxt+'</p>':'';
+        return '<div class="photobox"><input class="photoin" type="text" placeholder="사진 주소(URL)를 붙여넣으세요" value="'+(getPhoto(n.lab)||'')+'" data-pn="'+n.lab+'">'+
+          '<button class="photobtn" data-psave="'+n.lab+'">넣기</button>'+
+          (getPhoto(n.lab)?'<button class="photobtn del" data-pdel="'+n.lab+'">지우기</button>':'')+'</div>'+
+          '<p class="photonote">'+(srcTxt?srcTxt+'. ':'')+'주소를 넣으면 이 브라우저에 저장돼서 다음에도 그대로 뜹니다. 또는 이 파일 옆에 <b>photos</b> 폴더를 만들고 <b>'+n.lab+'.jpg</b> 를 넣어도 됩니다.</p>';
+      })()+
       (onlyP===n.id
         ?'<button class="onlybtn back" data-only="'+n.id+'">전체 그래프로 돌아가기 ↩</button>'
         :'<button class="onlybtn" data-only="'+n.id+'">이 인물만 보기 · 전체 행적 ↗</button>');
@@ -3439,7 +3461,7 @@ function render(id){
       return '<li class="rk-'+kd+'"><span class="rkb">'+SRCK[kd].t+'</span>'+
         '<a href="'+r.u+'" target="_blank" rel="noopener">'+r.t+'</a>'+
         '<p class="refm">'+(r.d?r.d+' · ':'')+(r.h||'')+'</p>'+
-        '<button class="refdel" data-refdel="'+i+'">삭제</button></li>'}).join('')+'</ul>':'')+
+        (EDIT?'<button class="refdel" data-refdel="'+i+'">삭제</button>':'')+'</li>'}).join('')+'</ul>':'')+
     (of.length||rf.length?'':'<p class="body" style="color:var(--pend);font-size:15.5px;margin-bottom:12px">'+
       '근거 링크를 <b>확인 중</b>입니다. 원자료(통계·관보·판결문·공식 발표)를 먼저 찾고, 그다음 보도 링크를 붙입니다. 실제로 열리는 것만 싣기 때문에 확인 전에는 비워 둡니다.'+'</p>')+
     (EDIT?'<div class="refform">'+
@@ -3666,6 +3688,17 @@ mountMYN();setAngles();
 closePop();
 reheat(0.9);
 setTimeout(fit,260);
+
+/* 편집 UI 는 방문자에게 하나도 보이면 안 된다. 이 사이트에서 데이터는 신뢰의 전부다.
+   숨기는 게 아니라 DOM 에서 지운다 — 숨긴 것은 언제든 다시 열리고,
+   검사도 '안 보임' 과 '없음' 을 구별하지 못한다.
+   초기화가 전부 끝난 뒤에 지운다. 먼저 지우면 이 요소들에 핸들러를 붙이는
+   코드가 null 을 만나 스크립트가 통째로 멈춘다 (실제로 한 번 그랬다). */
+if(!EDIT){
+  ['make','news','photos','newsBtn','photoBtn'].forEach(function(id){
+    var el=document.getElementById(id); if(el&&el.parentNode)el.parentNode.removeChild(el);
+  });
+}
 </script>
 </body>
 </html>

@@ -438,6 +438,61 @@ function boot(w, h) {
     // window.close() 생략 — jsdom DOMException 회피
   }
 
+  // 13. 편집 UI 노출 — 방문자 화면에 편집 도구가 하나라도 있으면 FAIL
+  //     방문자가 데이터를 건드릴 수 있으면 안 된다. 이 사이트에서 데이터는 신뢰의 전부다.
+  //     사진 입력창이 인물 카드에 그대로 나와 있었는데 검사가 못 잡았다.
+  //     그래서 '보이는지' 가 아니라 '문서에 있는지' 를 본다 — 숨긴 것은 언제든 열린다.
+  const EDIT_SEL = 'input, textarea, [contenteditable="true"], ' +
+    '[data-psave], [data-pdel], [data-pu], [data-pn], [data-refdel], [data-ulkdel], [data-nd], [data-nl], [data-md], ' +
+    '.photobox, .photobtn, .refform, .refbtn, .refdel, .refin, .srnew, .newsbtn, #make, #news, #photos';
+  // 검색창 하나만 방문자용이다. 그 외 input 은 전부 편집 도구다.
+  const ALLOW_IDS = new Set(['q']);
+
+  const dEdit = boot(412, 915);
+  await new Promise(r => setTimeout(r, 1500));
+  const we = dEdit.window;
+  const leaks = [];
+
+  const describe = (el) => {
+    const id = el.id ? '#' + el.id : '';
+    const cls = el.className && typeof el.className === 'string' ? '.' + el.className.trim().split(/\s+/).join('.') : '';
+    return (el.tagName.toLowerCase() + id + cls).slice(0, 60);
+  };
+  const scan = (where) => {
+    we.document.querySelectorAll(EDIT_SEL).forEach(el => {
+      if (el.id && ALLOW_IDS.has(el.id)) return;
+      leaks.push(`${where}: ${describe(el)}`);
+    });
+  };
+
+  scan('첫 화면');
+  // 모든 노드 종류의 카드를 하나씩 열어 본다. 종류마다 렌더 경로가 다르다.
+  const kinds = [...new Set(we.N.map(n => n.t))];
+  const opened = [];
+  kinds.forEach(k => {
+    const n = we.N.find(x => x.t === k);
+    if (!n) return;
+    try { we.setFocus(n.id); } catch (e) { return }
+    opened.push(`${k}(${n.lab})`);
+    scan(`${k} 카드`);
+  });
+
+  const uniq = [...new Set(leaks)];
+  uniq.forEach(t => F(`편집 UI 노출: ${t}`));
+  console.log(`13. 편집 UI 노출    ${uniq.length === 0
+    ? `PASS   [EDIT=false · 노드 종류 ${opened.length}개 카드 확인: ${opened.map(o => o.split('(')[0]).join(' ')}]`
+    : `FAIL (${uniq.length}) — 방문자 화면에 편집 도구가 있다`}`);
+
+
+  // 14. 스크립트 실행 오류
+  //     페이지가 멀쩡해 보여도 스크립트가 중간에 죽으면 그 뒤 초기화가 전부 안 돈다.
+  //     함수 선언은 호이스팅돼서 이미 정의돼 있으므로 카드도 열리고 검색창도 보인다.
+  //     실제로 편집 패널을 DOM 에서 먼저 지웠더니 그 요소에 핸들러를 붙이는 줄에서
+  //     null 을 만나 멈췄고, 그 뒤 안내문·검색 초기화가 통째로 죽었는데 npm test 는 PASS 였다.
+  const scriptErrs = [...new Set(scriptErrors)];
+  scriptErrs.slice(0, 10).forEach(m => F(`스크립트 오류: ${String(m).split('\n')[0].slice(0, 110)}`));
+  console.log(`14. 스크립트 오류   ${scriptErrs.length === 0 ? 'PASS' : 'FAIL (' + scriptErrs.length + ')'}`);
+
   /* ── 요약 ── */
   console.log('\n' + '─'.repeat(50));
   console.log('노드 진영 분포:', JSON.stringify(bySide));

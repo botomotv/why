@@ -11,7 +11,7 @@ const vc = new VirtualConsole();
 const scriptErrors = [];
 vc.on('jsdomError', e => scriptErrors.push(e.message));
 
-const html = fs.readFileSync(path.join(ROOT, '왜.html'), 'utf8');
+const html = fs.readFileSync(path.join(ROOT, 'index.html'), 'utf8');
 const VIEWPORTS = [[412, 915], [840, 1000], [1440, 900], [1920, 1080]];
 /* 이름표는 캔버스 배율(cam.s)에 곱해져 그려진다. 소스의 고정 폰트 크기가 12px 이므로
    화면상 크기는 12 × cam.s 다. 배율이 0.5면 6px 이 되어 읽을 수 없다. */

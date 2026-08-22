@@ -157,38 +157,57 @@ async function main() {
      (OOWY4R001216HX11536 / OOWY4R001216HX11440). 그 값으로 호출하면 전부 ERROR-310 이다.
      그래서 알려진 서비스명을 코드에 두고 그걸로 부른다.
      이 목록은 검증되지 않았다 — 하나를 먼저 불러보고, 되면 나머지를 돈다. */
+  /* 서비스명은 카탈로그로 못 얻는다. 실제로 확인한 것:
+       · OPENSRVAPI 레코드의 키는 INF_ID INF_NM INF_EXP CATE_NM OPEN_DTTM ORG_NM
+         LOAD_DTTM SRC_EXP DDC_URL SRV_URL CCL_NM LOAD_NM LOAD_CONT — 서비스명 자리가 없다.
+       · SRV_URL(상세 페이지) HTML 에도 없다. ALLBILL 도 nzmimeepazxkubdpn 도 안 나온다.
+     그래서 목록을 손으로 관리한다. 12개뿐이고 서비스명은 자주 바뀌지 않는다.
+     robots.txt 는 /admin/ 만 막지만, HTML 파싱은 구조가 바뀌면 조용히 깨진다.
+     "확인된 것만 싣는다" 는 이 프로젝트 원칙에는 명시적 목록이 맞다.
+
+     list:true 는 '파라미터 없이 목록이 나오는' 서비스다. 목록형부터 검증한다 —
+     파라미터가 필요한 서비스로 검증하면 이름이 맞아도 실패해서 목록 전체를 의심하게 된다. */
   const KNOWN = [
-    ['nojepdqqaweusdfbi', '국회의원 본회의 표결정보',        '표결 → 정당별 집계 (lead/against)'],
-    ['ALLBILL',           '의안정보 통합 API',              '법안 본문·소관위·공포일자'],
-    ['nzmimeepazxkubdpn', '국회의원 발의법률안',            '대표발의자 → 법안 (lead)'],
-    ['ALLNAMEMBER',       '국회의원 인적사항',              '의원 → 정당 (소속)'],
-    ['BILLRSNRAW',        '법률안 제안이유 및 주요내용',     '자동 연결 3관문 · 조문 언급'],
-    ['nwbpacrgavhjryiph', '본회의 처리안건_법률안',          '가결·부결'],
-    ['nqfvrbsdafrmuzixe', '의안접수목록',                  '접수일'],
-    ['nrqwepvouwwsghmze', '위원회 심사(계류의안)',          '소관위'],
-    ['VCONFBILLCONFIRM',  '위원회 심사(처리의안)',          '소관위'],
-    ['BILLJSDCONFIRM',    '위원회 심사(처리의안)_예결위',    '소관위'],
-    ['nzgjnyaowzmvhzpqi', '위원회 심사(처리의안)_본회의부의', '소관위'],
-    ['VCONFBILLLIST',     '위원회 심사(처리의안)_의안검색',  '소관위'],
+    ['ALLNAMEMBER',       '국회의원 인적사항',              '의원 → 정당 (소속)',              true],
+    ['ALLBILL',           '의안정보 통합 API',              '법안 본문·소관위·공포일자',        true],
+    ['nzmimeepazxkubdpn', '국회의원 발의법률안',            '대표발의자 → 법안 (lead)',        true],
+    ['nqfvrbsdafrmuzixe', '의안접수목록',                  '접수일',                        true],
+    ['BILLRSNRAW',        '법률안 제안이유 및 주요내용',     '자동 연결 3관문 · 조문 언급',      false],
+    ['nojepdqqaweusdfbi', '국회의원 본회의 표결정보',        '표결 → 정당별 집계',             false],
+    ['nwbpacrgavhjryiph', '본회의 처리안건_법률안',          '가결·부결',                     false],
+    ['nrqwepvouwwsghmze', '위원회 심사(계류의안)',          '소관위',                        false],
+    ['VCONFBILLCONFIRM',  '위원회 심사(처리의안)',          '소관위',                        false],
+    ['BILLJSDCONFIRM',    '위원회 심사(처리의안)_예결위',    '소관위',                        false],
+    ['nzgjnyaowzmvhzpqi', '위원회 심사(처리의안)_본회의부의', '소관위',                       false],
+    ['VCONFBILLLIST',     '위원회 심사(처리의안)_의안검색',  '소관위',                        false],
   ];
 
-  /* 먼저 하나만 불러본다. 이게 안 되면 목록 전체가 틀린 것이므로 거기서 멈춘다. */
-  console.log(`\n2) 서비스명 확인 — 먼저 한 개만 (${KNOWN[0][0]})`);
-  const probe1 = await call(KNOWN[0][0]);
+  /* 목록형 하나로 먼저 확인한다. 이게 되면 서비스명 규칙이 맞다는 뜻이다.
+     파라미터가 필요한 서비스로 확인하면 이름이 맞아도 실패해서 엉뚱한 결론이 난다. */
+  const first = KNOWN.find(k => k[3]) || KNOWN[0];
+  console.log(`\n2) 서비스명 확인 — 파라미터 없이 되는 것으로 먼저 (${first[0]} · ${first[1]})`);
+  const probe1 = await call(first[0]);
   const u1 = unpack(probe1.json);
   if (!u1.rows.length) {
+    const code1 = (u1.note || '').match(/ERROR-\d+/);
     console.error(`\n   실패 — ${u1.note || probe1.status}`);
     console.error(`   요청 ${probe1.url}`);
-    console.error(`\n서비스명 목록이 맞지 않습니다. 여기서 멈춥니다.`);
-    console.error(`위에 출력된 '레코드 한 건의 키 전부' 를 보고 서비스명이 들어 있는 필드를 찾으세요.`);
-    console.error(`카탈로그에 아예 없다면 열린국회정보 사이트의 각 API 상세 화면에서`);
-    console.error(`요청 주소 끝의 이름(예: .../openapi/ALLBILL)을 확인해 KNOWN 목록을 고치세요.`);
-    console.error(`원본: ${OUT}/_catalog.raw.json`);
+    if (code1 && code1[0] === 'ERROR-310') {
+      console.error(`\n서비스명이 틀렸습니다. ERROR-310 은 '그런 서비스가 없다' 는 뜻입니다.`);
+      console.error(`KNOWN 목록을 고쳐야 합니다. 카탈로그(_catalog.raw.json)에는 서비스명이 없으므로`);
+      console.error(`열린국회정보 각 API 화면에서 요청 주소 끝의 이름을 직접 확인하세요.`);
+    } else if (code1 && code1[0] === 'ERROR-300') {
+      console.error(`\n서비스명은 맞습니다. ERROR-300 은 '필수 파라미터가 빠졌다' 는 뜻입니다.`);
+      console.error(`목록형이라고 표시했지만 실제로는 파라미터가 필요한 서비스입니다.`);
+      console.error(`KNOWN 목록에서 이 항목의 마지막 값을 false 로 바꾸세요.`);
+    } else {
+      console.error(`\n인증키가 아직 활성화되지 않았을 수 있습니다.`);
+    }
     process.exit(3);
   }
   console.log(`   성공 — 필드 ${Object.keys(u1.rows[0]).length}개. 나머지를 돕니다.\n`);
   matched.length = 0;
-  KNOWN.forEach(([code, name, why]) => matched.push({ name, code, why }));
+  KNOWN.forEach(([code, name, why, list]) => matched.push({ name, code, why, list }));
 
   /* ── 2. 각 서비스 3건씩 ── */
   const report = [];
@@ -196,16 +215,39 @@ async function main() {
     const s = matched[i];
     const id = s.code || s.name;
     process.stdout.write(`2) [${i + 1}/${matched.length}] ${id} ${s.name ? '· ' + s.name : ''} … `);
-    const r = await call(id);
-    const u = unpack(r.json);
+    let r = await call(id);
+    let u = unpack(r.json);
+    let usedParams = null;
+
+    /* ERROR-300 은 '서비스는 있는데 필수 파라미터가 빠졌다' 는 뜻이다.
+       흔한 값을 몇 개만 시도한다. 그래도 안 되면 '필수 파라미터 미상' 으로 남긴다.
+       추측으로 채우지 않는다 — 틀린 파라미터로 받은 데이터가 더 나쁘다. */
+    if (!u.rows.length && /ERROR-300/.test(u.note || '')) {
+      const tries = [
+        { AGE: '22' },
+        { AGE: '21' },
+        { UNIT_CD: '100022' },
+        { AGE: '22', BILL_ID: '' },
+      ];
+      for (const t of tries) {
+        await sleep(GAP_MS);
+        const r2 = await call(id, t);
+        const u2 = unpack(r2.json);
+        if (u2.rows.length) { r = r2; u = u2; usedParams = t; break }
+      }
+    }
+
     const fields = u.rows.length ? Object.keys(u.rows[0]) : [];
+    const errCode = (String(u.note || '').match(/ERROR-\d+|INFO-\d+/) || [])[0] || '';
     fs.writeFileSync(
       path.join(OUT, `${safe(id)}.json`),
       JSON.stringify({ service: id, name: s.name, url: r.url, status: r.status, note: u.note,
-                       total: u.total, fields, rows: u.rows }, null, 2));
-    report.push({ id, name: s.name, status: r.status, total: u.total, note: u.note,
-                  fields, sample: u.rows[0] || null, why: s.why || '' });
-    console.log(u.rows.length ? `필드 ${fields.length}개` : `데이터 없음 (${u.note || r.status})`);
+                       errCode, params: usedParams, total: u.total, fields, rows: u.rows }, null, 2));
+    report.push({ id, name: s.name, status: r.status, total: u.total, note: u.note, errCode,
+                  params: usedParams, fields, sample: u.rows[0] || null, why: s.why || '' });
+    console.log(u.rows.length
+      ? `필드 ${fields.length}개${usedParams ? ' (파라미터 ' + JSON.stringify(usedParams) + ')' : ''}`
+      : `실패 ${errCode || r.status}`);
     await sleep(GAP_MS);
   }
 
@@ -225,6 +267,7 @@ async function main() {
   ok.forEach(r => {
     md.push(`### \`${r.id}\` ${r.name ? `· ${r.name}` : ''}`);
     if (r.why) md.push(`무엇에 쓰나 · ${r.why}`);
+    if (r.params) md.push(`필수 파라미터 · \`${JSON.stringify(r.params)}\``);
     md.push(`전체 건수 · ${r.total ?? '?'}`, '');
     md.push('| 필드 | 샘플 |', '|---|---|');
     r.fields.forEach(f => md.push(`| \`${f}\` | ${trunc(r.sample?.[f]).replace(/\|/g, '\\|')} |`));
@@ -232,11 +275,35 @@ async function main() {
   });
 
   if (bad.length) {
-    md.push('## 응답을 못 받은 것', '');
-    md.push('| 서비스 | 상태 | 메모 |', '|---|---|---|');
-    bad.forEach(r => md.push(`| \`${r.id}\` | ${r.status} | ${r.note || ''} |`));
-    md.push('');
-    md.push('키가 아직 활성화되지 않았거나, 그 서비스가 별도 신청을 요구할 수 있다.', '');
+    /* ERROR-310 과 ERROR-300 은 완전히 다른 문제다.
+       310 은 이름이 틀린 것이고, 300 은 이름이 맞는데 파라미터가 빠진 것이다.
+       구분해서 보여줘야 다음에 무엇을 고칠지 안다. */
+    const notFound = bad.filter(r => /ERROR-310/.test(r.errCode || r.note || ''));
+    const needParam = bad.filter(r => /ERROR-300/.test(r.errCode || r.note || ''));
+    const other = bad.filter(r => !notFound.includes(r) && !needParam.includes(r));
+
+    if (needParam.length) {
+      md.push('## 서비스는 있는데 필수 파라미터를 모른다 (ERROR-300)', '');
+      md.push('**서비스명은 맞다.** 이름을 고치지 말고 파라미터를 찾아야 한다.');
+      md.push('AGE=22 · AGE=21 · UNIT_CD=100022 를 시도했지만 안 됐다.');
+      md.push('열린국회정보 각 API 화면의 "요청인자" 표에서 필수 항목을 확인할 것.', '');
+      md.push('| 서비스 | 이름 | 무엇에 쓰나 |', '|---|---|---|');
+      needParam.forEach(r => md.push(`| \`${r.id}\` | ${r.name || ''} | ${r.why || ''} |`));
+      md.push('');
+    }
+    if (notFound.length) {
+      md.push('## 서비스명이 틀렸다 (ERROR-310)', '');
+      md.push('**그런 서비스가 없다.** KNOWN 목록의 이름을 고쳐야 한다.', '');
+      md.push('| 서비스 | 이름 |', '|---|---|');
+      notFound.forEach(r => md.push(`| \`${r.id}\` | ${r.name || ''} |`));
+      md.push('');
+    }
+    if (other.length) {
+      md.push('## 그 밖의 실패', '');
+      md.push('| 서비스 | 상태 | 메모 |', '|---|---|---|');
+      other.forEach(r => md.push(`| \`${r.id}\` | ${r.errCode || r.status} | ${r.note || ''} |`));
+      md.push('');
+    }
   }
 
   md.push('## 다음 단계', '');

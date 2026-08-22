@@ -726,6 +726,66 @@ function boot(w, h) {
     ? `PASS   [상한 ${cap} · term ${termCap} · 초과 노드 ${checked17}개 확인 · 그중 ${cutSeen}개에서 잘림 표시 확인]`
     : `FAIL (${capProblems.length})`}`);
 
+  // 18. 이름표 진영 분포
+  //     이름표를 겹치면 숨기는 순간 '무엇을 남길지' 를 우리가 정하게 된다.
+  //     우선순위에 side 를 쓰지 않아도 결과는 기운다 — 데이터가 이미 기울어 있고
+  //     연결 수로 정렬하기 때문이다. 규칙 5와 같은 종류의 위험이다.
+  //     자동 판정하지 않는다. 매 실행마다 눈앞에 띄우는 것까지가 검사의 역할이다.
+  //     멀리서(전체 보기)는 결과 숫자만 그리는 게 설계다. 거기서 gold 100% 는 편향이 아니다.
+  //     기울기는 '확대해서 전 종류를 그릴 때' 봐야 뜻이 있다. 둘 다 잰다.
+  const SIDE_LAB18 = { blue:'진보', red:'보수', gov:'정부', gold:'결과', both:'양쪽',
+                       labor:'노동', civic:'시민', rec:'기록', pend:'확인중', other:'기타' };
+  const dLbl = boot(1440, 900);
+  await new Promise(r => setTimeout(r, 1500));
+  const wl = dLbl.window;
+
+  const snapLabels = (scale) => {
+    wl.cam.s = scale; wl.cam.ts = scale;
+    wl.labelSet = null; wl.labelKey = '';            // 계획 캐시를 비운다
+    try { wl.draw() } catch (e) { return null }
+    const st = wl.labelStat || { shown:0, total:0, side:{} };
+    return { shown: st.shown, total: st.total, side: Object.assign({}, st.side) };
+  };
+
+  const baseSide = {};
+  (wl.A || []).forEach(n => { baseSide[n.side || '(없음)'] = (baseSide[n.side || '(없음)'] || 0) + 1 });
+  const baseTot = (wl.A || []).length || 1;
+
+  const far = snapLabels(0.5);     // 전체 보기 — 결과 숫자만
+  const near = snapLabels(1.0);    // 확대 — 전 종류
+
+  if (!far || !near || !near.total) F('이름표 통계(labelStat)가 비어 있다 — 배치 계획이 안 돌았다');
+  else {
+    console.log(`18. 이름표 진영     멀리 ${far.shown}/${far.total}개 · 확대 ${near.shown}/${near.total}개 (자동 판정 없음)`);
+    const rows = Object.keys(baseSide)
+      .filter(k => baseSide[k] >= 8)
+      .sort((a, b) => baseSide[b] - baseSide[a]);
+    rows.forEach(k => {
+      const bp = baseSide[k] / baseTot * 100;
+      const np = (near.side[k] || 0) / (near.shown || 1) * 100;
+      const gap = np - bp, arrow = gap > 0 ? '▲' : gap < 0 ? '▼' : ' ';
+      console.log(`     ${(SIDE_LAB18[k] || k).padEnd(4)} 화면 ${bp.toFixed(1).padStart(5)}%` +
+        ` → 확대 시 이름표 ${np.toFixed(1).padStart(5)}%  ${arrow}${Math.abs(gap).toFixed(1)}%p` +
+        `  (${near.side[k] || 0}/${baseSide[k]})`);
+    });
+    const bB = baseSide.blue || 0, bR = baseSide.red || 0;
+    const nB = near.side.blue || 0, nR = near.side.red || 0;
+    if (bR && nR) {
+      const bRatio = bB / bR, sRatio = nB / nR;
+      console.log(`     진보/보수 화면 ${bRatio.toFixed(2)}:1 → 이름표 ${sRatio.toFixed(2)}:1`);
+      if (sRatio > bRatio * 1.3)
+        W(`이름표 진영 기울기가 커졌다: 화면 ${bRatio.toFixed(2)}:1 → 이름표 ${sRatio.toFixed(2)}:1` +
+          ` — 우선순위가 한쪽을 밀어올린다. 손으로 맞추지 말고 데이터로 푼다`);
+    } else if (bR && !nR) {
+      W(`확대해도 이름표에 보수 진영이 하나도 없다 (화면에는 ${bR}개)`);
+    }
+    // 멀리서는 결과 숫자만 나오는 게 설계다. 그게 깨지면 알아야 한다.
+    const farNonGold = Object.keys(far.side).filter(k => k !== 'gold')
+      .reduce((a, k) => a + far.side[k], 0);
+    if (far.shown && farNonGold)
+      W(`전체 보기에서 결과 숫자가 아닌 이름표가 ${farNonGold}개 그려진다 (설계는 결과만)`);
+  }
+
   // 14. 스크립트 실행 오류
   //     페이지가 멀쩡해 보여도 스크립트가 중간에 죽으면 그 뒤 초기화가 전부 안 돈다.
   //     함수 선언은 호이스팅돼서 이미 정의돼 있으므로 카드도 열리고 검색창도 보인다.

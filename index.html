@@ -452,6 +452,7 @@ body.panelon .search{left:calc(50% - 224px)}
 /* 가져다 쓰기 — 법률 용어 대신 사람 말로 쓴다. 읽는 사람이 지켜야 알맹이가 산다. */
 /* 선의 뜻은 한 번 적어두는 걸로는 부족하다. 첫 화면·카드·관계 항목에서 반복한다. */
 .linecard{background:#161A21;border-color:#2A3340}
+.zoomcard{background:#15181D}
 .linetop{font-size:13.5px;line-height:1.62;color:var(--t2);word-break:keep-all}
 .linetop b{color:var(--gold);font-weight:500}
 .linesub{margin-top:7px;font-size:12.5px;line-height:1.55;color:#7A818C;word-break:keep-all}
@@ -767,6 +768,12 @@ body.hasundo .rolebar{top:232px;width:calc(100vw - 24px);max-height:96px;overflo
     <p class="raillab">선이 뜻하는 것</p>
     <p class="linetop">선은 <b>관련이 있다</b>는 표시입니다.<br><b>"이것 때문"</b>이라는 뜻이 아닙니다.</p>
     <p class="linesub">어느 쪽이 원인인지는 이 지도가 말하지 않습니다. 판단은 보는 사람이 합니다.</p>
+  </div>
+  <div class="railcard zoomcard">
+    <p class="raillab">이름이 안 보일 때</p>
+    <p class="linetop"><b>먼저 결과 숫자부터</b> 보여줍니다.</p>
+    <p class="linesub">확대하거나 분야를 고르면 나머지 이름이 나옵니다.
+      한 화면에 다 넣으면 글자가 겹쳐서 하나도 못 읽습니다.</p>
   </div>
   <button class="timesw" id="ztime" aria-pressed="true">
     <span class="tswl">시간 방향 바꾸기</span>
@@ -2376,7 +2383,7 @@ N.forEach(function(n){
   n.r=(n.t==='post'?15:n.t==='event'?10:n.t==='result'?24:n.prez?12:n.t==='bill'?7:6)+Math.sqrt(deg)*(n.t==='result'?4.8:n.prez?2.0:2.4);n.lw=60});
 
 
-function measure(){cx.font="400 13.5px 'Noto Sans KR',sans-serif";
+function measure(){cx.font='400 '+(13.5*labelFontScale())+"px 'Noto Sans KR',sans-serif";
   N.forEach(function(n){n.lw=cx.measureText(n.lab).width})}
 function size(){var b=document.getElementById('stage').getBoundingClientRect();
   W=Math.max(1,b.width);H=Math.max(1,b.height);
@@ -2609,7 +2616,71 @@ function placePop(){}
 
 function hw(n){return Math.max(n.r,n.lw/2+5)+7}
 function hh(n){return n.r+(n.t==='bill'?30:18)}
-function labelOn(n){return cam.s>0.5||n.gl>0.3||(focus&&ring[n.id]!==undefined&&ring[n.id]<=1)}
+/* ── 이름표 배치 ──
+   실측이 말해준 것: 171개를 지금처럼 다 그리면 겹침 308쌍에 읽히는 게 0개다.
+   글자를 화면상 12px 로 고정하면 이름표 총면적이 화면의 107% — 화면보다 크다.
+   알고리즘 문제가 아니라 산수다. 전부 보여주는 건 애초에 불가능하다.
+
+   그래서 두 가지를 같이 한다.
+   (A) 글자 크기를 배율과 무관하게 고정하고, 이미 놓인 이름표와 겹치면 그리지 않는다.
+   (B) 멀리서 볼 때는 결과 숫자만 대상으로 한다.
+       전체 보기는 '지도의 모양' 을 보는 화면이고, 읽는 화면은 확대·필터 쪽이다.
+
+   성능 — 실측으로 격자 해싱은 안 넣기로 했다.
+   greedy 는 '이미 남긴 것' 하고만 비교하는데 그게 30~50개로 작게 유지된다.
+   1026개에서 naive 11.9ms vs 격자 27.6ms 로 오히려 격자가 느렸다.
+   대신 매 프레임 돌리지 않는다 — 카메라·필터가 그대로면 계획을 재사용한다. */
+var LABEL_PX=12;                 /* 화면상 글자 크기. 배율이 변해도 이 값을 지킨다 */
+var LABEL_FAR=0.62;              /* 이 배율 미만이면 결과 숫자만 이름을 단다 */
+var labelSet=null, labelKey='', labelAt=0, labelStat={shown:0,total:0,side:{}};
+
+function labelFontScale(){ return LABEL_PX/(12*cam.s) }
+
+function planLabels(){
+  var far=cam.s<LABEL_FAR;
+  var key=[Math.round(cam.s*400),Math.round(cam.x/8),Math.round(cam.y/8),
+           A.length,focus||'',cat,sideF||'',kindF||'',onlyP||'',far?'F':'N'].join('|');
+  var now=(typeof performance!=='undefined'&&performance.now)?performance.now():Date.now();
+  /* 같은 화면이면 다시 계산하지 않는다. 물리가 도는 동안에도 200ms 쓰로틀. */
+  if(labelSet&&labelKey===key&&(alpha<0.05||now-labelAt<200))return labelSet;
+
+  var k=labelFontScale();
+  var pool=A.filter(function(n){
+    if(!isFinite(n.x)||!isFinite(n.__hw)||!(n.__hw>0))return false;
+    if(n.a<=0.16)return false;
+    /* 포커스한 것과 그 이웃, 커서가 올라간 것은 배율과 무관하게 늘 후보다 */
+    if(n.gl>0.3)return true;
+    if(focus&&ring[n.id]!==undefined&&ring[n.id]<=1)return true;
+    if(far)return n.t==='result';
+    return true});
+
+  /* 우선순위 — 진영(side)은 쓰지 않는다. 종류와 연결 수만 본다.
+     그래도 결과가 기운다(실측: 기준선 blue:red 55:33 → 남은 것 12:5).
+     데이터 자체가 기울어 있어서다. 그래서 검사 18번이 매번 분포를 출력한다.
+     손으로 맞추지 않는다 — 손으로 맞추면 균형이 아니라 연출이다. */
+  var rank=function(n){
+    if(focus&&n.id===focus)return -2;
+    if(focus&&ring[n.id]===1)return -1;
+    return n.t==='result'?0:n.t==='bill'?1:(n.t==='person'||n.t==='party'||n.t==='org')?2:3};
+  pool.sort(function(a,b){
+    var d=rank(a)-rank(b); if(d)return d;
+    return (adj[b.id]?adj[b.id].length:0)-(adj[a.id]?adj[a.id].length:0)});
+
+  var kept=[],box=[];
+  var hitBox=function(a,b){
+    return Math.abs(a.x-b.x)<(a.w+b.w)&&Math.abs(a.y-b.y)<(a.h+b.h)};
+  pool.forEach(function(n){
+    var b={x:n.x, y:n.y+(n.r||8)+n.__hh*k, w:n.__hw*k, h:n.__hh*k};
+    for(var i=0;i<box.length;i++)if(hitBox(box[i],b))return;
+    box.push(b);kept.push(n)});
+
+  var set=Object.create(null); var side={};
+  kept.forEach(function(n){set[n.id]=1; side[n.side||'(없음)']=(side[n.side||'(없음)']||0)+1});
+  labelStat={shown:kept.length,total:pool.length,side:side};
+  labelSet=set;labelKey=key;labelAt=now;
+  return set}
+
+function labelOn(n){ return !!planLabels()[n.id] }
 
 var REST=150,KS=0.03,CHARGE=260;
 function tick(){
@@ -2830,9 +2901,9 @@ function draw(){
       cx.fillStyle=col;cx.fillRect(-n.r*0.8,-n.r*0.8,n.r*1.6,n.r*1.6);
       cx.strokeStyle='#0E0F12';cx.lineWidth=2;cx.strokeRect(-n.r*0.8,-n.r*0.8,n.r*1.6,n.r*1.6);
       cx.restore();
-      if(labelOn(n)&&n.a>0.16){var yr2=n.y+n.r+14;
+      if(labelOn(n)&&n.a>0.16){var yr2=n.y+n.r+14*labelFontScale();
         cx.fillStyle=n.gl>.5?'#F2F4F7':'rgba(190,197,207,'+Math.min(1,n.a).toFixed(2)+')';
-        cx.font=(n.gl>.5?'500 13px':'400 12px')+" 'Noto Sans KR',sans-serif";
+        cx.font=(n.gl>.5?'500 ':'400 ')+((n.gl>.5?13:12)*labelFontScale())+"px 'Noto Sans KR',sans-serif";
         cx.textAlign='center';cx.fillText(n.lab,n.x,yr2)}
       cx.globalAlpha=1;return}
     if(n.t==='post'){
@@ -2846,11 +2917,11 @@ function draw(){
       cx.globalAlpha=Math.max(0,Math.min(1,n.a));
       cx.strokeStyle=col;cx.lineWidth=2.4;cx.stroke();
       if(labelOn(n)&&n.a>0.16){
-        var h6=n.gl>.5,y6=n.y+n.r+16;
+        var h6=n.gl>.5,y6=n.y+n.r+16*labelFontScale();
         cx.fillStyle=h6?'#F2F4F7':'rgba(200,207,217,'+Math.min(1,n.a).toFixed(2)+')';
-        cx.font=(h6?'500 14px':'500 12.5px')+" 'Noto Sans KR',sans-serif";
+        cx.font='500 '+((h6?14:12.5)*labelFontScale())+"px 'Noto Sans KR',sans-serif";
         cx.textAlign='center';cx.fillText(n.lab,n.x,y6);
-        cx.font="400 13.5px 'Noto Sans KR',sans-serif";
+        cx.font='400 '+(13.5*labelFontScale())+"px 'Noto Sans KR',sans-serif";
         cx.fillStyle='rgba(120,128,140,'+Math.min(1,n.a).toFixed(2)+')';
         cx.fillText(n.ekind||'',n.x,y6+14)}
       cx.globalAlpha=1;return}
@@ -2861,11 +2932,11 @@ function draw(){
       cx.fillStyle=/전과/.test(n.ekind||'')?'#0E0F12':col;cx.fill();
       cx.strokeStyle=/전과/.test(n.ekind||'')?'#E2635A':col;cx.lineWidth=2;cx.stroke();
       if(labelOn(n)&&n.a>0.16){
-        var hot2=n.gl>.5,yy2=n.y+n.r+15;
+        var hot2=n.gl>.5,yy2=n.y+n.r+15*labelFontScale();
         cx.fillStyle=hot2?'#F2F4F7':'rgba(190,197,207,'+Math.min(1,n.a).toFixed(2)+')';
-        cx.font=(hot2?'500 13px':'400 12px')+" 'Noto Sans KR',sans-serif";
+        cx.font=(hot2?'500 ':'400 ')+((hot2?13:12)*labelFontScale())+"px 'Noto Sans KR',sans-serif";
         cx.textAlign='center';cx.fillText(n.lab,n.x,yy2);
-        cx.font="400 13.5px 'Noto Sans KR',sans-serif";
+        cx.font='400 '+(13.5*labelFontScale())+"px 'Noto Sans KR',sans-serif";
         cx.fillStyle=/전과/.test(n.ekind||'')?'rgba(226,99,90,0.85)':'rgba(120,128,140,'+Math.min(1,n.a).toFixed(2)+')';
         cx.fillText(n.yr+' · '+(n.ekind||''),n.x,yy2+14)}
       cx.globalAlpha=1;return}
@@ -2895,23 +2966,23 @@ function draw(){
     if(n.fixed&&n.a>0.3){cx.beginPath();cx.arc(n.x,n.y,n.r+4,0,7);
       cx.strokeStyle='rgba(227,174,85,'+(n.a*0.55).toFixed(2)+')';cx.lineWidth=1.1;cx.stroke()}
     if(labelOn(n)&&n.a>0.16){
-      var hot=n.gl>.5,yy=n.y+n.r+15;
+      var hot=n.gl>.5,yy=n.y+n.r+15*labelFontScale();
       cx.fillStyle=hot?'#F2F4F7':'rgba(190,197,207,'+Math.min(1,n.a).toFixed(2)+')';
       var big=n.t==='result';
       var rl=(focus&&ring[n.id]===1)?roles[n.id]:null;
-      cx.font=(big?(hot?'700 17px':'500 15.5px'):(hot?'500 13.5px':'400 12.5px'))+" 'Noto Sans KR',sans-serif";
+      cx.font=(big?(hot?'700 ':'500 '):(hot?'500 ':'400 '))+((big?(hot?17:15.5):(hot?13.5:12.5))*labelFontScale())+"px 'Noto Sans KR',sans-serif";
       cx.textAlign='center';cx.fillText(n.lab,n.x,yy+(big?4:0));
-      if(big&&n.big){cx.font="700 14.5px 'Noto Sans KR',sans-serif";
+      if(big&&n.big){cx.font='700 '+(14.5*labelFontScale())+"px 'Noto Sans KR',sans-serif";
         cx.fillStyle='rgba(227,174,85,'+Math.min(1,n.a).toFixed(2)+')';
         cx.fillText(n.big,n.x,yy+22)}
-      if(n.t==='bill'&&n.yr&&n.pres){cx.font="400 13.5px 'Noto Sans KR',sans-serif";
+      if(n.t==='bill'&&n.yr&&n.pres){cx.font='400 '+(13.5*labelFontScale())+"px 'Noto Sans KR',sans-serif";
         cx.fillStyle='rgba(120,128,140,'+Math.min(1,n.a).toFixed(2)+')';
         cx.fillText(n.yr+(n.check?'':' · '+n.pres),n.x,yy+14)}
       if(rl){
         var rt=ROLE[rl].t, rc=ROLE[rl].c;
-        cx.font="600 12.5px 'Noto Sans KR',sans-serif";
+        cx.font='600 '+(12.5*labelFontScale())+"px 'Noto Sans KR',sans-serif";
         var tw3=cx.measureText(rt).width;
-        var by=yy+(n.t==='bill'&&n.pres?27:14);
+        var by=yy+(n.t==='bill'&&n.pres?27:14)*labelFontScale()-(0);
         cx.fillStyle=rc+'22';
         cx.beginPath();
         var rx=n.x-tw3/2-7,rw=tw3+14,rh=17;

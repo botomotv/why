@@ -121,6 +121,16 @@ async function main() {
   }
   console.log(`   서비스 ${cu.rows.length}개 확인 (전체 ${cu.total ?? '?'})`);
 
+  /* 카탈로그 레코드가 실제로 어떤 키를 갖는지 그대로 보여준다.
+     추측으로 필드명을 고르면 그다음이 전부 어긋난다. */
+  console.log('\n   레코드 한 건의 키 전부:');
+  const sample0 = cu.rows[0] || {};
+  Object.keys(sample0).forEach(k => {
+    const v = String(sample0[k] === null || sample0[k] === undefined ? '' : sample0[k]).replace(/\s+/g, ' ');
+    console.log(`     ${k.padEnd(22)} ${v.slice(0, 60)}`);
+  });
+  console.log('');
+
   /* 카탈로그 행의 필드명도 기관마다 다르다. 이름과 코드로 쓸 만한 걸 찾는다. */
   const pick = (row, cands) => {
     for (const c of cands) if (row[c]) return String(row[c]);
@@ -140,11 +150,45 @@ async function main() {
     return WANT.some(w => hay.includes(w.key));
   });
 
-  console.log(`   그중 의안·표결·발의·의원 관련 ${matched.length}개\n`);
-  if (!matched.length) {
-    console.error('고를 서비스가 없습니다. _catalog.raw.json 을 열어 필드명을 확인하세요.');
+  console.log(`   그중 의안·표결·발의·의원 관련 ${matched.length}개`);
+
+  /* 카탈로그의 ID 는 문서 페이지 번호이지 호출에 쓰는 서비스명이 아니다.
+     실제로 확인된 것: 같은 이름 '의안정보 통합 API' 가 서로 다른 ID 로 두 번 나온다
+     (OOWY4R001216HX11536 / OOWY4R001216HX11440). 그 값으로 호출하면 전부 ERROR-310 이다.
+     그래서 알려진 서비스명을 코드에 두고 그걸로 부른다.
+     이 목록은 검증되지 않았다 — 하나를 먼저 불러보고, 되면 나머지를 돈다. */
+  const KNOWN = [
+    ['nojepdqqaweusdfbi', '국회의원 본회의 표결정보',        '표결 → 정당별 집계 (lead/against)'],
+    ['ALLBILL',           '의안정보 통합 API',              '법안 본문·소관위·공포일자'],
+    ['nzmimeepazxkubdpn', '국회의원 발의법률안',            '대표발의자 → 법안 (lead)'],
+    ['ALLNAMEMBER',       '국회의원 인적사항',              '의원 → 정당 (소속)'],
+    ['BILLRSNRAW',        '법률안 제안이유 및 주요내용',     '자동 연결 3관문 · 조문 언급'],
+    ['nwbpacrgavhjryiph', '본회의 처리안건_법률안',          '가결·부결'],
+    ['nqfvrbsdafrmuzixe', '의안접수목록',                  '접수일'],
+    ['nrqwepvouwwsghmze', '위원회 심사(계류의안)',          '소관위'],
+    ['VCONFBILLCONFIRM',  '위원회 심사(처리의안)',          '소관위'],
+    ['BILLJSDCONFIRM',    '위원회 심사(처리의안)_예결위',    '소관위'],
+    ['nzgjnyaowzmvhzpqi', '위원회 심사(처리의안)_본회의부의', '소관위'],
+    ['VCONFBILLLIST',     '위원회 심사(처리의안)_의안검색',  '소관위'],
+  ];
+
+  /* 먼저 하나만 불러본다. 이게 안 되면 목록 전체가 틀린 것이므로 거기서 멈춘다. */
+  console.log(`\n2) 서비스명 확인 — 먼저 한 개만 (${KNOWN[0][0]})`);
+  const probe1 = await call(KNOWN[0][0]);
+  const u1 = unpack(probe1.json);
+  if (!u1.rows.length) {
+    console.error(`\n   실패 — ${u1.note || probe1.status}`);
+    console.error(`   요청 ${probe1.url}`);
+    console.error(`\n서비스명 목록이 맞지 않습니다. 여기서 멈춥니다.`);
+    console.error(`위에 출력된 '레코드 한 건의 키 전부' 를 보고 서비스명이 들어 있는 필드를 찾으세요.`);
+    console.error(`카탈로그에 아예 없다면 열린국회정보 사이트의 각 API 상세 화면에서`);
+    console.error(`요청 주소 끝의 이름(예: .../openapi/ALLBILL)을 확인해 KNOWN 목록을 고치세요.`);
+    console.error(`원본: ${OUT}/_catalog.raw.json`);
     process.exit(3);
   }
+  console.log(`   성공 — 필드 ${Object.keys(u1.rows[0]).length}개. 나머지를 돕니다.\n`);
+  matched.length = 0;
+  KNOWN.forEach(([code, name, why]) => matched.push({ name, code, why }));
 
   /* ── 2. 각 서비스 3건씩 ── */
   const report = [];
@@ -160,8 +204,7 @@ async function main() {
       JSON.stringify({ service: id, name: s.name, url: r.url, status: r.status, note: u.note,
                        total: u.total, fields, rows: u.rows }, null, 2));
     report.push({ id, name: s.name, status: r.status, total: u.total, note: u.note,
-                  fields, sample: u.rows[0] || null,
-                  why: (WANT.find(w => `${s.name} ${s.code}`.includes(w.key)) || {}).why || '' });
+                  fields, sample: u.rows[0] || null, why: s.why || '' });
     console.log(u.rows.length ? `필드 ${fields.length}개` : `데이터 없음 (${u.note || r.status})`);
     await sleep(GAP_MS);
   }
@@ -202,10 +245,26 @@ async function main() {
   md.push('3. 대통령 관계는 **공포일자 × 재임표 계산으로만** 만든다.');
   md.push('   발의자·소관부처 필드에서 대통령을 끌어오는 코드 경로를 두지 않는다 (규칙 3).');
 
-  fs.writeFileSync(path.join(OUT, '_SUMMARY.md'), md.join('\n'));
-  console.log(`\n끝났습니다.`);
-  console.log(`  요약  ${OUT}/_SUMMARY.md`);
+  /* 파일이 실제로 저장됐는지 확인하고 말한다.
+     전에 "완료" 는 떴는데 파일이 없었다. 그것도 거짓 초록불이다. */
+  const sumPath = path.join(OUT, '_SUMMARY.md');
+  fs.writeFileSync(sumPath, md.join('\n'));
+  if (!fs.existsSync(sumPath)) {
+    console.error(`\n요약 파일을 저장하지 못했습니다: ${sumPath}`);
+    process.exit(5);
+  }
+  const kb = Math.max(1, Math.round(fs.statSync(sumPath).size / 1024));
+
+  console.log(`\n받은 것 ${ok.length}개 · 못 받은 것 ${bad.length}개`);
+  console.log(`  요약  ${sumPath}  (${kb}KB)`);
   console.log(`  원본  ${OUT}/*.json`);
+
+  /* 전부 실패했는데 "끝났습니다" 로 끝내지 않는다. 성공 0개는 실패다. */
+  if (!ok.length) {
+    console.error(`\n한 건도 못 받았습니다. 실패로 끝냅니다.`);
+    bad.slice(0, 5).forEach(r => console.error(`  · ${r.id} — ${r.note || r.status}`));
+    process.exit(4);
+  }
   if (bad.length) console.log(`  ※ ${bad.length}개는 응답을 못 받았습니다. 요약 아래쪽을 보세요.`);
 }
 

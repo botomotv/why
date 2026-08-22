@@ -88,12 +88,21 @@ body{background:var(--bg);color:var(--t1);font-family:'Noto Sans KR',-apple-syst
   background:var(--bg2);border-left:1px solid var(--line2);
   transform:translateX(100%);transition:transform .3s cubic-bezier(.22,.9,.3,1)}
 .pop.on{transform:translateX(0)}
+/* 카드 손잡이 — 폰에서만 보인다.
+   폰은 카드가 지도를 덮어서, 점을 눌러도 '무엇과 이어져 있는지' 를 볼 수 없었다.
+   이 사이트에서 점을 누르는 이유는 "이게 뭐지" 가 아니라 "왜 이렇게 됐지" 다.
+   그래서 카드를 두 단계로 나눈다: 처음엔 아래 40% 만, 끌어올리면 88%. */
+.popgrab{display:none;position:sticky;top:0;z-index:3;width:100%;height:26px;
+  border:0;background:linear-gradient(var(--bg2) 62%,rgba(24,26,31,0));cursor:grab;
+  touch-action:none;-webkit-tap-highlight-color:transparent}
+.popgrab:before{content:'';position:absolute;top:9px;left:50%;transform:translateX(-50%);
+  width:44px;height:4px;border-radius:4px;background:#3A3F48;transition:background .18s}
+.popgrab:hover:before{background:#565C67}
+.popgrab:focus-visible{outline:2px solid var(--gold);outline-offset:-3px}
 .pop::-webkit-scrollbar{width:9px}
 .pop::-webkit-scrollbar-thumb{background:#2A2E35;border-radius:9px}
 #stage{transition:right .3s cubic-bezier(.22,.9,.3,1)}
 body.panelon #stage{right:448px}
-body.panelon 
-body.panelon 
 
 .pclose{position:sticky;float:right;top:12px;margin:12px 12px 0 0;z-index:2;width:26px;height:26px;border:1px solid var(--line2);
   background:rgba(14,15,18,.85);color:var(--t2);border-radius:6px;cursor:pointer;font-family:inherit;font-size:15px;line-height:1}
@@ -381,6 +390,12 @@ body.panelon .search{left:calc(50% - 224px)}
 .timesw{text-align:left;padding:13px 14px;border-radius:12px;border:1px solid var(--line2);
   background:rgba(21,23,27,.95);cursor:pointer;font-family:inherit;transition:.18s}
 .timesw:hover{border-color:var(--gold);background:#1E2027}
+.railbtn{display:block;width:100%;text-align:left;padding:11px 14px;border-radius:12px;
+  border:1px solid var(--line2);background:#191B20;color:var(--t2);font-family:inherit;
+  font-size:14px;cursor:pointer;transition:.18s}
+.railbtn:hover{border-color:var(--gold);background:#1E2027}
+.railbtn b{font-weight:500;margin-left:7px}
+.railbtn em{display:block;font-style:normal;font-size:12.5px;color:#7A818C;margin-top:4px;word-break:keep-all}
 .tswl{display:block;font-size:14px;color:var(--t3);margin-bottom:5px}
 .tswhint{display:block;font-size:12.5px;line-height:1.45;color:#7A818C;margin-bottom:9px;word-break:keep-all}
 .tswrow{display:flex;align-items:baseline;justify-content:space-between;gap:10px;padding:4px 0}
@@ -528,8 +543,33 @@ body.hasundo .rgrp{pointer-events:auto;display:flex;align-items:center;gap:8px;p
 
   .cat{font-size:14.5px;padding:7px 11px}
   .cat b{display:none}
-  .pop{height:68vh}
-  body.panelon #stage{bottom:68vh}
+  /* 카드 2단계. 처음엔 40% — 지도가 60% 살아 있어서 연결선이 보인다.
+     손잡이를 끌어올리거나 누르면 82% 로 커져 설명 전체가 나온다.
+     100% 로 덮지 않는 건, 지도가 조금이라도 보여야 되돌아갈 수 있다는 신호가 되기 때문이다. */
+  .pop{height:40vh;transition:transform .3s cubic-bezier(.22,.9,.3,1),height .26s ease}
+  body.popfull .pop{height:82vh}
+  body.panelon #stage{bottom:40vh}
+  body.panelon.popfull #stage{bottom:82vh}
+  .popgrab{display:block}
+  .pop:before{display:none}
+  .c-head{padding-top:6px}
+
+  /* 폰에서만 순서를 바꾼다 — 제목·큰 숫자 다음에 곧바로 '이어진 것들'.
+     설명·근거는 끌어올려서 본다. JS 조립 순서는 그대로라 PC 는 영향이 없다. */
+  #detail{display:flex;flex-direction:column}
+  .c-head{order:1} .big{order:2} .oneline{order:3}
+  .sec{order:7}
+  .sec-rel{order:4}
+  .caution{order:5}
+  .sec-links{order:6}
+  .sec.srcsec{order:8}
+  .src{order:9}
+  /* 접힌 40% 안에 제목·큰숫자·요약이 다 들어가면 정작 관계가 안 보인다.
+     요약과 캡션은 펼쳤을 때 보여주고, 접힌 상태에서는 자리를 관계에 넘긴다. */
+  body:not(.popfull) .oneline{display:none}
+  body:not(.popfull) .big-c{display:none}
+  body:not(.popfull) .big{padding:14px 22px}
+  body:not(.popfull) .c-head{padding:4px 22px 12px}
   body.panelon 
   .c-head,.sec,.big,.caution,.src,.oneline{padding-left:17px;padding-right:17px}
   .gv{padding:12px}
@@ -601,6 +641,8 @@ body.hasundo .rolebar{top:232px;width:calc(100vw - 24px);max-height:96px;overflo
     <span class="tswrow"><b>가운데</b><em id="ztimeIn">지금</em></span>
     <span class="tswrow"><b>바깥</b><em id="ztimeOut">최근</em></span>
   </button>
+  <button class="railbtn" id="zrst"><span aria-hidden="true">⟲</span><b>배치 다시</b>
+    <em>점들이 엉키면 처음부터 다시 놓습니다</em></button>
   <div class="railcard">
     <p class="raillab">모양 · <em>눌러서 그 종류만 보기</em></p>
     <button class="lg lgbtn kdbtn" data-kind="res"><span class="sh sh-res"></span><b>결과 숫자</b></button>
@@ -635,7 +677,7 @@ body.hasundo .rolebar{top:232px;width:calc(100vw - 24px);max-height:96px;overflo
   <button class="zb" id="zin" aria-label="확대">＋</button>
   <button class="zb" id="zout" aria-label="축소">－</button>
   <button class="zb zb-l" id="zfit"><span class="zi" aria-hidden="true">⛶</span><b>전체 보기</b></button>
-  <button class="zb zb-l" id="zrst"><span class="zi" aria-hidden="true">⟲</span><b>배치 다시</b></button>
+  <button class="zb zb-l" id="zdir" aria-pressed="true"><span class="zi" aria-hidden="true">⇄</span><b>시간 방향</b></button>
 </div>
 
 <p class="hint" id="hint">점을 눌러보세요 · 끌면 옮겨집니다 · 두 손가락으로 확대</p>
@@ -719,7 +761,7 @@ body.hasundo .rolebar{top:232px;width:calc(100vw - 24px);max-height:96px;overflo
   </div>
 </div>
 
-<div class="pop" id="pop"><button class="pclose" id="pclose" aria-label="닫기">✕</button><div id="detail"></div></div>
+<div class="pop" id="pop"><button class="popgrab" id="popGrab" aria-label="카드 크게 보기" aria-expanded="false"></button><button class="pclose" id="pclose" aria-label="닫기">✕</button><div id="detail"></div></div>
 
 <script>
 var N=[
@@ -2266,9 +2308,42 @@ function setFocus(id){
   if(id){pop.classList.add('on');setPanel(true)}else{pop.classList.remove('on');setPanel(false)}
 }
 function closePop(){focus=null;ring={};roles={};pop.classList.remove('on');setPanel(false);
+  document.body.classList.remove('popfull');
   var rc0=document.getElementById('roleCard');if(rc0)rc0.hidden=true;renderRoleBar();
   document.getElementById('hint').style.opacity=1}
 document.getElementById('pclose').onclick=closePop;
+
+/* 카드 손잡이. 폰에서 카드는 두 단계다 — 아래 40%(지도가 보인다) / 88%(설명 전체).
+   짧게 누르면 토글, 세로로 끌면 끈 방향대로. 끌어내린 상태에서 더 내리면 닫힌다. */
+var popGrab=document.getElementById('popGrab');
+function setPopFull(on){
+  document.body.classList.toggle('popfull',!!on);
+  if(popGrab)popGrab.setAttribute('aria-expanded',on?'true':'false');
+  if(on)pop.scrollTop=0;
+}
+if(popGrab){
+  var gy=null,gmoved=0;
+  var grabStart=function(y){gy=y;gmoved=0};
+  var grabMove=function(y){if(gy===null)return;gmoved=y-gy};
+  var grabEnd=function(){
+    if(gy===null)return;
+    var full=document.body.classList.contains('popfull');
+    if(Math.abs(gmoved)<10){setPopFull(!full)}          // 탭
+    else if(gmoved<-40){setPopFull(true)}               // 위로 끌었다
+    else if(gmoved>40){ if(full)setPopFull(false); else closePop() }
+    gy=null;gmoved=0;
+  };
+  popGrab.addEventListener('touchstart',function(e){e.preventDefault();grabStart(e.touches[0].clientY)},{passive:false});
+  popGrab.addEventListener('touchmove',function(e){e.preventDefault();grabMove(e.touches[0].clientY)},{passive:false});
+  popGrab.addEventListener('touchend',function(e){e.preventDefault();grabEnd()},{passive:false});
+  popGrab.addEventListener('mousedown',function(e){grabStart(e.clientY)});
+  window.addEventListener('mousemove',function(e){grabMove(e.clientY)});
+  window.addEventListener('mouseup',function(){grabEnd()});
+  popGrab.addEventListener('keydown',function(e){
+    if(e.key==='Enter'||e.key===' '){e.preventDefault();setPopFull(!document.body.classList.contains('popfull'))}
+    if(e.key==='ArrowUp'){e.preventDefault();setPopFull(true)}
+    if(e.key==='ArrowDown'){e.preventDefault();setPopFull(false)}});
+}
 
 
 /* 팝업을 점 옆에 붙인다 */
@@ -2680,16 +2755,21 @@ function ztLabel(){
   document.getElementById('ztimeIn').textContent=timeOut?'과거':'최근';
   document.getElementById('ztimeOut').textContent=timeOut?'최근':'과거';}
 ztLabel();
-zt.onclick=function(){
+function toggleTimeDir(){
   timeOut=!timeOut;
   zt.setAttribute('aria-pressed',timeOut?'true':'false');
+  var zd=document.getElementById('zdir');
+  if(zd)zd.setAttribute('aria-pressed',timeOut?'true':'false');
   ztLabel();
   setAngles();
   A.forEach(function(n){if(n.fixed)return;
     var R=ringR(n),a=(typeof n.ang==='number'&&isFinite(n.ang))?n.ang:0;
     n.x=Math.cos(a)*R;n.y=Math.sin(a)*R*0.86;n.vx=0;n.vy=0});
   reheat(0.9);
-  var iv=setInterval(function(){if(alpha<0.03){clearInterval(iv);fit()}},60)};
+  var iv=setInterval(function(){if(alpha<0.03){clearInterval(iv);fit()}},60)}
+zt.onclick=toggleTimeDir;
+var zdirBtn=document.getElementById('zdir');
+if(zdirBtn)zdirBtn.onclick=function(){toggleTimeDir();if(innerWidth<=900)setLegend(false)};
 var railEl=document.getElementById('rail');
 var SIDEN={blue:'민주당 계열',red:'국민의힘 계열',both:'여야 공동',gov:'정부·기관',
  other:'정의당·조국혁신당 등',labor:'노동단체',civic:'시민·장애인단체'};
@@ -3039,7 +3119,7 @@ function render(id){
       (n.tip?'<div class="oneline">'+n.tip+'</div>':'')+
       '<div class="sec"><p class="sec-lab">설명</p><p class="body">'+n.body+'</p></div>';
     if(causes.length){
-      html+='<div class="sec"><p class="sec-lab">이 숫자 앞에 있었던 일</p><ul class="chain">'+
+      html+='<div class="sec sec-rel"><p class="sec-lab">이 숫자 앞에 있었던 일</p><ul class="chain">'+
         causes.map(function(c,i){var gap='',g;
           if(i<causes.length-1){g=(yr(causes[i+1])||0)-(yr(c)||0);if(g>0)gap='<p class="gap">'+g+'년 뒤</p>'}
           else{g=(yr(n)||0)-(yr(c)||0);if(g>0)gap='<p class="gap">'+g+'년 뒤 이 숫자</p>'}
@@ -3066,7 +3146,7 @@ function render(id){
       (n.limit&&n.limit.length?'<div class="sec limitsec"><p class="sec-lab">이 법의 남은 문제 · 비판</p><ul class="limlist">'+
         n.limit.map(function(q){return '<li><p class="lq">'+q[0]+'</p><p class="la">'+q[1]+'</p></li>'}).join('')+
         '</ul><p class="limnote">양쪽에서 나온 지적을 그대로 옮긴 것입니다. 옳고 그름은 판단하지 않습니다.</p></div>':'');
-    if(eff.length){html+='<div class="sec"><p class="sec-lab">그 뒤에 나온 숫자</p><ul class="chain">'+
+    if(eff.length){html+='<div class="sec sec-rel"><p class="sec-lab">그 뒤에 나온 숫자</p><ul class="chain">'+
       eff.map(function(e){var g=(yr(e)||0)-(yr(n)||0);
         return '<li data-k="gold"><p class="ch-y">'+e.yr+(g>0?' · '+g+'년 뒤':'')+'</p>'+
           '<button data-go="'+e.id+'">'+e.big+' — '+e.lab+'</button>'+
@@ -3081,7 +3161,7 @@ function render(id){
       (ow?'<p class="official">'+ow.lab+'</p>':'')+'</div>'+
       (n.tip?'<div class="oneline">'+n.tip+'</div>':'')+
       '<div class="sec"><p class="sec-lab">어떤 자리였나</p><p class="body">'+n.body+'</p></div>'+
-      (did.length?'<div class="sec"><p class="sec-lab">이 자리에서 한 일 '+did.length+'건</p><ul class="chain">'+
+      (did.length?'<div class="sec sec-rel"><p class="sec-lab">이 자리에서 한 일 '+did.length+'건</p><ul class="chain">'+
         did.map(function(e){return '<li data-k="'+e.side+'"><p class="ch-y">'+(e.yr||'')+' · '+(e.ekind||'')+'</p>'+
           '<button data-go="'+e.id+'">'+(e.title||e.lab)+'</button>'+
           (e.tip?'<p class="ch-x">'+e.tip+'</p>':'')+'</li>'}).join('')+'</ul></div>':'')+
@@ -3219,7 +3299,7 @@ function render(id){
         '<input class="refin" id="refD" type="text" placeholder="날짜 (비우면 자동)">'+
       '</div>'+
     '</div>':'')+'</div>'+
-    '<div class="sec"><p class="sec-lab">이어진 관계 '+rels.length+'개</p><ul class="rel">'+
+    '<div class="sec sec-links"><p class="sec-lab">이어진 관계 '+rels.length+'개</p><ul class="rel">'+
     rels.map(function(l){return sentence(l,id)}).join('')+'</ul></div>'+(n.src?'<p class="src">'+n.src+'</p>':'');
   d.innerHTML=html;
   d.querySelectorAll('[data-go]').forEach(function(b){b.onclick=function(){

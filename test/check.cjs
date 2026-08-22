@@ -308,6 +308,25 @@ function boot(w, h) {
     ? `PASS   [일반 ${cssBlocks.filter(b => !b.media).length} · 미디어 ${cssBlocks.filter(b => b.media).length}, 미디어쿼리가 전부 뒤에 있다]`
     : `FAIL (${strayRules.length}) — 미디어쿼리 뒤에 일반 규칙이 있다`}`);
 
+  // 12. 죽은 CSS 규칙 — 절대 매칭될 수 없는 셀렉터
+  //     셀렉터 끝에 줄바꿈만 남고 잘리면 다음 규칙이 통째로 삼켜진다.
+  //     실제로 "body.panelon" 두 줄이 .pclose 를 삼켜서
+  //     카드 ✕ 버튼이 브라우저 기본 회색 네모로 나오고 있었다. npm test 는 PASS 였다.
+  //     문법 오류가 아니라 화면만 틀린다 — 검사가 못 보면 아무도 못 본다.
+  const deadRules = [];
+  cssBlocks.filter(b => !b.media).forEach(b => {
+    const head = b.text.slice(0, b.text.indexOf('{'));
+    head.split(',').forEach(sel => {
+      const t = sel.split(/\s+/).filter(Boolean).join(' ');
+      if (!t) return;
+      // body/html 은 문서에 하나뿐이다. 자손으로 두 번 나오면 영원히 매칭 안 된다.
+      const dup = (t.match(/(^|[\s>+~])(body|html)\b/g) || []).length;
+      if (dup > 1) deadRules.push(t.slice(0, 80));
+    });
+  });
+  deadRules.forEach(t => F(`죽은 CSS 규칙 (절대 매칭 안 됨): ${t}`));
+  console.log(`12. 죽은 CSS 규칙   ${deadRules.length === 0 ? 'PASS' : 'FAIL (' + deadRules.length + ')'}`);
+
   // 10. official2 링크 검증 (규칙 2)
   //     검색 결과에 URL 이 떴다는 것만으로는 출처가 아니다. 실제로 열려야 출처다.
   //     오프라인이면 검사를 건너뛰고 그 사실을 분명히 출력한다 (조용히 PASS 하지 않는다).

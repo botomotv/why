@@ -551,12 +551,37 @@ function boot(w, h) {
       wmProblems.push(`${w}px: 워터마크에 사이트 이름 '${site.name}' 이 없다`);
   }
 
-  // <head> 의 og:url 과 SITE.host 가 어긋나면 링크 카드가 엉뚱한 곳을 가리킨다.
-  // 도메인은 한 곳에서 고친다 — 어긋났다는 건 한 곳을 안 고쳤다는 뜻이다.
+  // ── 도메인이 한 벌로 맞는가 ──
+  // 화면(워터마크·카드·안내)은 SITE 한 곳에서 온다. 그런데 <head> 메타는 크롤러가
+  // JS 실행 전에 읽어야 해서 HTML 에 박아야 하고, 링크 카드 그림과 문서도 따로 있다.
+  // 정적 파일에서 이건 피할 수 없다. 대신 '한 곳을 고치면 나머지를 전부 지목한다' 로 만든다.
+  // 도메인을 바꿀 때 여기 목록만 보면 어디를 안 고쳤는지 바로 나온다.
   const w0host = (dom0.window.SITE || {}).host;
-  const ogUrl16 = (/<meta[^>]*property=["']og:url["'][^>]*content=["']([^"']*)["']/i.exec(html) || [])[1];
-  if (w0host && ogUrl16 && ogUrl16.indexOf(w0host) < 0)
-    wmProblems.push(`SITE.host(${w0host}) 와 og:url(${ogUrl16}) 이 다르다 — 도메인을 한 곳만 고쳤다`);
+  if (!w0host) wmProblems.push('SITE.host 가 비어 있다');
+  else {
+    const mustHaveHost = [
+      ['index.html <head> og:url',      html, /<meta[^>]*property=["']og:url["'][^>]*content=["']([^"']*)["']/i],
+      ['index.html <head> og:image',    html, /<meta[^>]*property=["']og:image["'][^>]*content=["']([^"']*)["']/i],
+      ['index.html <head> twitter:image', html, /<meta[^>]*name=["']twitter:image["'][^>]*content=["']([^"']*)["']/i],
+    ];
+    mustHaveHost.forEach(([what, src, re]) => {
+      const v = (re.exec(src) || [])[1];
+      if (!v) wmProblems.push(`${what} 가 없다`);
+      else if (v.indexOf(w0host) < 0)
+        wmProblems.push(`${what}(${v}) 에 SITE.host(${w0host}) 가 없다 — 도메인을 한 곳만 고쳤다`);
+    });
+    // 링크 카드 그림 원본과 문서의 출처 표기 예시도 같은 도메인이어야 한다.
+    [['docs/og.html', 'og.html'], ['README.md', null], ['LICENSE', null], ['docs/배포.md', null]]
+      .forEach(([rel]) => {
+        const fp = path.join(ROOT, rel);
+        if (!fs.existsSync(fp)) return;
+        const t = fs.readFileSync(fp, 'utf8');
+        // 도메인이 전혀 안 나오는 문서는 검사 대상이 아니다
+        if (!/[a-z0-9-]+\.(com|dev|kr|org|net)/i.test(t)) return;
+        if (t.indexOf(w0host) < 0)
+          wmProblems.push(`${rel} 에 SITE.host(${w0host}) 가 없다 — 옛 도메인이 남았을 수 있다`);
+      });
+  }
 
   // 카드 하단 저작권 한 줄
   const licInCard = /class="cardlic"/.test(html);

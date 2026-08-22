@@ -203,7 +203,7 @@ CLAUDE.md          작업할 때 알아야 할 최소한
 출처 표시:
 
 ```
-출처 · 왜 (why-143.pages.dev) · CC BY-NC-SA 4.0
+출처 · 왜 (why-map.com) · CC BY-NC-SA 4.0
 ```
 
 **이 라이선스는 우리가 만든 부분에만 적용된다.**

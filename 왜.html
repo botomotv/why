@@ -611,6 +611,39 @@ body.hasundo .rgrp{pointer-events:auto;display:flex;align-items:center;gap:8px;p
 body.hasundo .rolebar{top:232px;width:calc(100vw - 24px);max-height:96px;overflow-y:auto}
  .rgrp{max-width:none;flex:1 1 100%}}
 @media (max-width:620px){.rolebar{top:164px}body.hasundo .rolebar{top:218px}}
+
+@media (max-width:620px){
+  /* 폰에서는 지도가 최우선이다. 상단 UI 를 최소로 줄이고, 무엇도 지도를 밀어내지 않는다. */
+
+  /* ① 카드가 열리면 검색창이 왼쪽으로 212px 나가 잘렸다.
+     body.panelon .search{left:calc(50% - 224px)} 는 PC 에서 448px 패널의 절반만큼
+     비켜주려고 만든 규칙인데, 폰은 패널이 아래 서랍이라 비킬 이유가 없다. 되돌린다. */
+  body.panelon .search{left:50%}
+  body.panelon .rolebar{left:50%}
+
+  /* ② 검색창을 줄인다. 안내 문구도 짧게 (문구 자체는 JS 가 화면 폭에 맞춰 바꾼다) */
+  .search{top:108px;width:calc(100vw - 28px)}
+  .search input{height:34px;font-size:14px;padding-left:31px;border-radius:9px}
+  .search input::placeholder{font-size:13px}
+  .sicon{left:11px;font-size:15.5px}
+
+  /* 돋보기는 .search 래퍼 기준 top:50% 였다. 래퍼가 입력창+알약이라
+     카드가 열리면 높이가 70px 이 되어 아이콘이 입력창 밖으로 빠졌다.
+     입력창 높이(34px)의 절반에 고정한다. */
+  .sicon{top:17px}
+
+  /* ③ '처음으로' 알약이 지도를 가렸다. 아이콘 + 짧은 글자만 남긴다.
+     무엇을 보고 있는지는 필터 칩이 노랗게 켜져 있어 이미 알 수 있다. */
+  .undo{margin-top:5px}
+  .ub{font-size:12.5px;padding:5px 10px;gap:5px;border-radius:8px}
+  .ub span{font-size:13.5px}
+  .ub em{display:none}
+
+  /* 관계 요약 띠는 배경이 없어 노드 이름표와 뒤엉킨 채 지도 142px 을 덮고 있었다.
+     폰에서는 카드가 40% 로 열리면서 '이어진 것들' 을 이미 맨 위에 보여주므로 중복이다.
+     PC 는 카드가 옆에 붙어 자리가 남으니 그대로 둔다. */
+  .rolebar{display:none}
+}
 </style>
 </head>
 <body>
@@ -2972,6 +3005,11 @@ document.getElementById('zrst').onclick=function(){
 
 /* ===== 검색 ===== */
 var qEl=document.getElementById('q'),srEl=document.getElementById('sres'),qIdx=-1,qHits=[];
+/* 폰에서는 안내 문구가 입력창보다 길어 잘린다. 짧은 문구로 바꾼다. */
+var Q_WIDE=qEl?qEl.placeholder:'', Q_NARROW='이재명, 간첩법, 2020';
+function syncQPlaceholder(){if(qEl)qEl.placeholder=(innerWidth<=620?Q_NARROW:Q_WIDE)}
+syncQPlaceholder();
+window.addEventListener('resize',syncQPlaceholder);
 function qClose(){srEl.classList.remove('on');qIdx=-1}
 function qSearch(v){
   v=(v||'').trim().toLowerCase();

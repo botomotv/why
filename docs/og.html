@@ -1,0 +1,39 @@
+<!DOCTYPE html><html lang="ko"><head><meta charset="utf-8">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Nanum+Myeongjo:wght@700;800&family=Noto+Sans+KR:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+/* 사이트와 같은 색·폰트를 쓴다. 링크 카드가 사이트의 첫인상이 되므로 달라 보이면 안 된다. */
+:root{--bg:#0E0F12;--gold:#E3AE55;--t2:#BEC5CF;--t3:#8B929C;--line:#23262C;--blue:#5B9BE5;--red:#E2635A}
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{width:1200px;height:630px;overflow:hidden}
+body{background:var(--bg);color:#F2F4F7;font-family:'Noto Sans KR',sans-serif;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;position:relative}
+
+/* 배경: 지도의 고리 배치를 아주 옅게 암시한다. 글자를 방해하지 않을 만큼만. */
+.ring{position:absolute;border:1px solid rgba(227,174,85,.055);border-radius:50%}
+.r1{width:1180px;height:1180px}
+.r2{width:900px;height:900px}
+.r3{width:640px;height:640px}
+.dot{position:absolute;border-radius:50%}
+
+.brand{font-family:'Nanum Myeongjo',serif;font-weight:800;font-size:190px;line-height:1;
+  color:var(--gold);letter-spacing:-.03em;position:relative}
+.tag{margin-top:34px;font-size:34px;font-weight:500;color:#E8EAEE;letter-spacing:-.02em;position:relative}
+.sub{margin-top:18px;font-size:23px;color:var(--t3);letter-spacing:-.01em;position:relative}
+.sub b{color:var(--t2);font-weight:500}
+.foot{position:absolute;bottom:104px;font-size:20px;color:#6B727C;letter-spacing:.02em}
+</style></head><body>
+<div class="ring r1"></div><div class="ring r2"></div><div class="ring r3"></div>
+<div class="dot" style="width:22px;height:22px;background:var(--gold);opacity:.5;left:170px;top:150px"></div>
+<div class="dot" style="width:13px;height:13px;background:var(--blue);opacity:.45;left:295px;top:432px"></div>
+<div class="dot" style="width:10px;height:10px;background:var(--red);opacity:.4;left:938px;top:196px"></div>
+<div class="dot" style="width:17px;height:17px;background:var(--gold);opacity:.42;left:1015px;top:455px"></div>
+<div class="dot" style="width:9px;height:9px;background:var(--blue);opacity:.35;left:110px;top:330px"></div>
+<div class="dot" style="width:8px;height:8px;background:#8A929E;opacity:.4;left:1080px;top:318px"></div>
+
+<p class="brand">왜</p>
+<p class="tag">이 숫자가 왜 이렇게 됐는지, 결과에서 거꾸로 따라갑니다</p>
+<p class="sub">한국 정치·정책의 인과관계 지도 · <b>확정된 공식 기록만, 출처와 함께</b></p>
+<p class="foot">why-143.pages.dev</p>
+</body></html>

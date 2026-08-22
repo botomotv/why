@@ -484,6 +484,49 @@ function boot(w, h) {
     : `FAIL (${uniq.length}) — 방문자 화면에 편집 도구가 있다`}`);
 
 
+  // 15. 링크 미리보기 카드 (og:*)
+  //     정치 사이트는 링크로 퍼진다. 카톡·트위터 카드가 사실상 첫인상이다.
+  //     그런데 이건 화면을 아무리 봐도 안 보인다 — 크롤러만 읽는다. 그래서 검사가 봐야 한다.
+  //     og:image 는 절대 주소여야 하고(상대 경로는 크롤러가 못 읽는다),
+  //     가리키는 파일이 저장소에 실제로 있어야 한다.
+  const metaOf = (attr, val) => {
+    const re = new RegExp(`<meta[^>]*${attr}=["']${val}["'][^>]*content=["']([^"']*)["']`, 'i');
+    const m = re.exec(html); return m ? m[1] : null;
+  };
+  const ogImg = metaOf('property', 'og:image');
+  const ogUrl = metaOf('property', 'og:url');
+  const ogDesc = metaOf('property', 'og:description');
+  const ogTitle = metaOf('property', 'og:title');
+  const ogProblems = [];
+
+  if (!ogTitle) ogProblems.push('og:title 없음');
+  if (!ogDesc) ogProblems.push('og:description 없음');
+  if (!ogUrl) ogProblems.push('og:url 없음');
+  else if (!/^https?:\/\//.test(ogUrl)) ogProblems.push(`og:url 이 절대 주소가 아님: ${ogUrl}`);
+
+  let ogImgNote = '없음';
+  if (!ogImg) ogProblems.push('og:image 없음 — 그림 없는 카드가 뜬다');
+  else if (!/^https?:\/\//.test(ogImg)) ogProblems.push(`og:image 가 절대 주소가 아님: ${ogImg}`);
+  else {
+    const file = ogImg.split('/').pop();
+    const fp = path.join(ROOT, file);
+    if (!fs.existsSync(fp)) ogProblems.push(`og:image 파일이 저장소에 없음: ${file}`);
+    else {
+      const kb = Math.round(fs.statSync(fp).size / 1024);
+      // PNG 헤더에서 크기를 직접 읽는다. 선언한 값과 실물이 다르면 카드가 잘린다.
+      const buf = fs.readFileSync(fp);
+      let dim = '';
+      if (buf.length > 24 && buf.toString('ascii', 1, 4) === 'PNG') {
+        dim = `${buf.readUInt32BE(16)}x${buf.readUInt32BE(20)}`;
+        if (dim !== '1200x630') ogProblems.push(`og:image 크기가 1200x630 이 아님: ${dim}`);
+      }
+      if (kb > 300) ogProblems.push(`og:image 가 너무 큼: ${kb}KB (300KB 이하)`);
+      ogImgNote = `${file} ${dim} ${kb}KB`;
+    }
+  }
+  ogProblems.forEach(t => F(`링크 카드: ${t}`));
+  console.log(`15. 링크 미리보기   ${ogProblems.length === 0 ? `PASS   [${ogImgNote}]` : `FAIL (${ogProblems.length})`}`);
+
   // 14. 스크립트 실행 오류
   //     페이지가 멀쩡해 보여도 스크립트가 중간에 죽으면 그 뒤 초기화가 전부 안 돈다.
   //     함수 선언은 호이스팅돼서 이미 정의돼 있으므로 카드도 열리고 검색창도 보인다.

@@ -374,18 +374,16 @@ body.panelon .search{left:calc(50% - 224px)}
   box-shadow:0 16px 40px rgba(0,0,0,.6);max-height:340px;overflow-y:auto;z-index:50}
 .sres.on{display:block}
 .undo{display:flex;gap:9px;justify-content:center;margin-top:10px;pointer-events:none}
-/* PC 에서는 알약을 검색창 오른쪽 옆에 붙인다.
-   검색창 아래 줄에 두면 알약이 노드 이름표를 통째로 덮어 둘 다 안 읽힌다.
-   검색창과 같은 높이로 올리면 지도가 새로 가려지는 세로 공간이 0 이 된다.
-   폰은 화면이 좁아 옆자리가 없으므로 아래 줄 그대로 둔다(미디어쿼리에서 되돌린다). */
-.undo{position:absolute;left:100%;top:0;margin-top:0;margin-left:10px}
+
 .undo>*{pointer-events:auto}
 .ub{display:flex;align-items:center;gap:8px;font-family:inherit;font-size:15.5px;font-weight:500;
   padding:12px 20px;border-radius:11px;border:1px solid #4A3F26;background:#26221A;color:var(--gold);
   cursor:pointer;transition:.18s;white-space:nowrap;box-shadow:0 8px 22px rgba(0,0,0,.5)}
 .ub span{font-size:17px;line-height:1}
 .ub b{font-weight:500}
-.ub em{font-style:normal;color:var(--t3);font-weight:400}
+/* '· OO 보는 중' 은 쓰지 않는다. 무엇을 보고 있는지는 필터가 노랗게 켜져 있어 알 수 있고,
+   알약이 길어지면 지도를 그만큼 더 가린다. */
+.ub em{display:none}
 .ub span{font-size:15.5px}
 .ub:hover:not(:disabled){background:#332C1F;border-color:var(--gold);transform:translateY(-1px)}
 .ub:active:not(:disabled){transform:translateY(0)}
@@ -516,8 +514,10 @@ body.panelon .hint{opacity:0}
 .mk[aria-pressed="true"]{background:var(--gold);border-color:var(--gold);color:#1A1508;font-weight:500}
 .mta{height:110px;padding:12px;line-height:1.7;resize:vertical;font-size:15.5px}
 .nsub em{font-style:normal;color:#5A6069}
+/* 관계 요약 띠는 쓰지 않는다. 같은 정보를 카드가 보여주고, 이건 배경 없이
+   지도 위에 떠서 노드 이름표와 뒤엉킨다. 폰에 이어 PC 에서도 끈다. */
 .rolebar{position:fixed;top:196px;left:50%;transform:translateX(-50%);z-index:29;
-  width:min(880px,calc(100vw - 40px));display:flex;gap:8px;flex-wrap:wrap;justify-content:center;
+  width:min(880px,calc(100vw - 40px));display:none;gap:8px;flex-wrap:wrap;justify-content:center;
   pointer-events:none;transition:left .3s}
 body.panelon .rolebar{left:calc(50% - 224px)}
 body.hasundo .rolebar{top:252px}
@@ -545,7 +545,7 @@ body.editmode .reflist li{padding-right:60px}
 .rk-news .rkb{background:#1B2836;color:#7FB2EE}
 .reflist a{display:inline}
 /* 카드만 캡처해도 저작권이 따라가게 맨 아래 한 줄. 아주 작게. */
-.cardlic{padding:0 22px 20px;font-size:11px;line-height:1.5;color:#5C636D;word-break:keep-all}
+.cardlic{order:99;padding:0 22px 20px;font-size:11px;line-height:1.5;color:#5C636D;word-break:keep-all}
 .srauto{color:var(--gold);border-bottom:1px solid var(--line2)}
 .srauto b{color:var(--gold);font-weight:600}
 .toast{position:fixed;left:50%;transform:translateX(-50%) translateY(20px);bottom:26px;z-index:70;
@@ -724,15 +724,10 @@ body.hasundo .rolebar{top:232px;width:calc(100vw - 24px);max-height:96px;overflo
 
   /* ③ '처음으로' 알약이 지도를 가렸다. 아이콘 + 짧은 글자만 남긴다.
      무엇을 보고 있는지는 필터 칩이 노랗게 켜져 있어 이미 알 수 있다. */
-  .undo{position:static;margin-top:5px;margin-left:0;justify-content:center}
+  .undo{margin-top:5px}
   .ub{font-size:12.5px;padding:5px 10px;gap:5px;border-radius:8px}
   .ub span{font-size:13.5px}
-  .ub em{display:none}
 
-  /* 관계 요약 띠는 배경이 없어 노드 이름표와 뒤엉킨 채 지도 142px 을 덮고 있었다.
-     폰에서는 카드가 40% 로 열리면서 '이어진 것들' 을 이미 맨 위에 보여주므로 중복이다.
-     PC 는 카드가 옆에 붙어 자리가 남으니 그대로 둔다. */
-  .rolebar{display:none}
 }
 </style>
 </head>
@@ -2859,34 +2854,20 @@ function draw(){
 
   /* 워터마크. 캔버스에 직접 그린다 —
      DOM 이 아니라서 개발자도구로 지울 수 없고, 지도만 잘라 캡처해도 따라간다.
-     카메라 변환을 리셋해 배율과 무관하게 같은 자리에 고정한다.
 
-     자리 — 화면 중앙 상단, '처음으로' 알약 바로 아래.
-     모서리는 크롭으로 잘라내기 쉽지만 중앙은 자르면 지도도 같이 잘린다.
-     알약이 떠 있든 아니든 같은 자리라 항상 보인다.
+     자리 — 오른쪽 위 모서리. 중앙 상단은 캡처에는 잘 남지만 지도를 보는 데 방해된다.
+     지도가 안 가려지는 게 우선이다. 폰은 검색창이 거의 전체 폭을 쓰므로 그 아래로 내린다.
 
-     크기·대비 — 캡처에서 읽혀야 목적을 이룬다. 실기기에서 10.5px / 투명도 0.34 는 뭉갰다.
-     글자를 키우고, 뒤에 옅은 판을 깔아 밝은 노드 위에서도 대비가 살게 한다.
-
-     워터마크로 도용을 막을 수는 없다. 목적은 "몰랐다" 를 못 하게 만들고
-     일부러 지웠다는 증거를 남기는 것이다. */
+     세기 — 아주 옅게. 캡처 대응은 카드 저작권 표기와 LICENSE 가 맡는다.
+     워터마크는 '표시가 있었다' 는 흔적이면 된다.
+     도용을 막을 수는 없다. "몰랐다" 를 못 하게 만드는 것이 목적이다. */
   cx.setTransform(DPR,0,0,DPR,0,0);
   cx.globalAlpha=1;
   var narrowWm=W<620;
-  var wmS=narrowWm?13:14.5;
-  var wmY=narrowWm?96:146;
-  var wmTxt=SITE.name+' · '+SITE.host;
-  cx.font='600 '+wmS+"px 'Noto Sans KR',-apple-system,sans-serif";
-  cx.textAlign='center';cx.textBaseline='middle';
-  var wmW=cx.measureText(wmTxt).width,wmPX=11,wmPY=6;
-  var wbx=W/2-wmW/2-wmPX,wby=wmY-wmS/2-wmPY,wbw=wmW+wmPX*2,wbh=wmS+wmPY*2;
-  cx.fillStyle='rgba(12,13,16,0.62)';
-  cx.beginPath();
-  if(cx.roundRect)cx.roundRect(wbx,wby,wbw,wbh,7);else cx.rect(wbx,wby,wbw,wbh);
-  cx.fill();
-  cx.strokeStyle='rgba(227,174,85,0.18)';cx.lineWidth=1;cx.stroke();
-  cx.fillStyle='rgba(227,174,85,0.72)';
-  cx.fillText(wmTxt, W/2, wmY);
+  cx.font='500 '+(narrowWm?11:12)+"px 'Noto Sans KR',-apple-system,sans-serif";
+  cx.textAlign='right';cx.textBaseline='alphabetic';
+  cx.fillStyle='rgba(227,174,85,0.28)';
+  cx.fillText(SITE.name+' · '+SITE.host, W-12, narrowWm?58:24);
 }
 (function loop(){tick();fade();placePop();draw();requestAnimationFrame(loop)})();
 

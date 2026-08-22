@@ -283,75 +283,17 @@ body.panelon
 .pending span{font-size:15.5px;color:var(--t2);line-height:1.7}
 .caution{padding:15px 22px;border-top:1px solid var(--line);background:#131519;font-size:15px;color:var(--t3);line-height:1.75}
 .src{padding:13px 22px;border-top:1px solid var(--line);font-size:13px;color:var(--t3);line-height:1.7}
-@media (max-width:1000px){
-  .note{display:none}
-  .pop{width:100%;top:auto;left:0;right:0;height:62vh;border-left:0;
-    border-top:1px solid var(--line2);border-radius:16px 16px 0 0;transform:translateY(100%)}
-  .pop.on{transform:translateY(0)}
-  .pop:before{content:'';position:absolute;top:8px;left:50%;transform:translateX(-50%);
-    width:40px;height:4px;border-radius:4px;background:#3A3F48}
-  .c-head{padding-top:26px}
-  body.panelon #stage{right:0;bottom:62vh}
-  body.panelon 
-  body.panelon .legend,body.panelon .hint{display:none}
-  
-  .lg i{font-style:normal;font-size:13.5px;color:var(--t3);margin-left:4px}
-  
-  .pclose{width:34px;height:34px;font-size:16.5px}
-}
-@media (max-width:900px){
-  .brand{font-size:24px}
-  .ub{font-size:15px;padding:10px 15px}.ub span{font-size:16.5px}
-  
-  .lg{font-size:15px}
-  
-  
-  
-    }
-@media (max-width:620px){
-  .search{top:112px;width:calc(100vw - 24px)}
-  .search input{height:46px;font-size:16px;padding-left:42px}
-  .topbar{height:56px;padding:0 12px;gap:9px}
-  .catbar{top:56px;height:48px;padding:0 12px}
-  #stage{top:104px}
-  .search input{height:38px;font-size:15.5px;padding-left:34px}
-  .search input::placeholder{font-size:14.5px}
-  .cat{font-size:15px;padding:8px 13px}
-  .cat b{display:none}
-  
-  
-  .topbar{height:54px;padding:0 12px;gap:8px}
-  .topbar .brand{font-size:17.5px}
-  .brand em{display:none}
-  .pipe{display:none}
-  .search{order:3}
-  .search input{width:38px;padding:0;text-align:center;transition:width .22s}
-  .search input:focus{width:150px;padding:0 10px;text-align:left}
-  .search input::placeholder{font-size:0}
-  .search input:focus::placeholder{font-size:14px}
-  .sres{width:min(76vw,280px);right:0;left:auto}
-  .undo{order:4}
-  .ub{padding:8px 12px;font-size:14px}
-
-  .cat{font-size:14.5px;padding:7px 11px}
-  .cat b{display:none}
-  .pop{height:68vh}
-  body.panelon #stage{bottom:68vh}
-  body.panelon 
-  .c-head,.sec,.big,.caution,.src,.oneline{padding-left:17px;padding-right:17px}
-  .gv{padding:12px}
-  .title{font-size:21px}
-  .big-n{font-size:32px}
-  
-  .zb{width:42px;height:42px;font-size:18.5px}
-  .hint{font-size:13px;bottom:66px;padding:0 20px;line-height:1.5}
-}
 
 .topbar{position:fixed;top:0;left:0;right:0;height:62px;z-index:40;display:flex;align-items:center;
   justify-content:center;position:fixed;padding:0 18px;background:rgba(14,15,18,.94);backdrop-filter:blur(14px);
   border-bottom:1px solid var(--line)}
 .brand{font-family:'Nanum Myeongjo',serif;font-weight:800;font-size:30px;letter-spacing:-.02em;
   white-space:nowrap;color:var(--gold);line-height:1}
+/* 부제 — 첫 방문자가 여기가 뭐 하는 곳인지 알 수 있는 유일한 문장이다.
+   이게 없으면 파랑·빨강 점만 먼저 눈에 들어와서 '정치 성향 지도' 로 읽힌다.
+   규칙 3·4 가 통째로 막으려는 오해를 첫 화면이 유도하게 된다. 잘리면 의미가 없다. */
+.topbar{flex-direction:column;gap:3px}
+.tagline{font-size:13.5px;line-height:1.2;color:var(--t3);letter-spacing:-.015em;white-space:nowrap}
 .search{position:fixed;top:128px;left:50%;transform:translateX(-50%);z-index:30;
   width:min(560px,calc(100vw - 40px));transition:left .3s,width .3s}
 body.panelon .search{left:calc(50% - 224px)}
@@ -377,7 +319,6 @@ body.panelon .search{left:calc(50% - 224px)}
 .ub:hover:not(:disabled){background:#332C1F;border-color:var(--gold);transform:translateY(-1px)}
 .ub:active:not(:disabled){transform:translateY(0)}
 .ub:disabled{opacity:0;pointer-events:none;transform:translateY(-6px)}
-@media (max-width:620px){}
 
 .catbar{position:fixed;top:62px;left:0;right:0;height:52px;z-index:39;display:flex;align-items:center;
   padding:0 18px;background:rgba(18,20,24,.94);backdrop-filter:blur(12px);border-bottom:1px solid var(--line)}
@@ -466,9 +407,6 @@ body.panelon .search{left:calc(50% - 224px)}
 .nmsg.err{color:var(--red)}
 .nlist{margin-top:22px;border-top:1px solid var(--line);padding-top:18px}
 .newsbox{max-width:760px}
-@media (max-width:900px){.npick{grid-template-columns:1fr}
- .rail{left:12px;top:186px;width:186px} .newsbtn{font-size:0;padding:9px 12px}.newsbtn:before{content:'＋';font-size:18.5px}}
-@media (max-width:620px){.zoomctl{right:14px;bottom:16px}}
 
 /* 범례 서랍 — 좁은 화면(≤900px)에서 범례를 하단 서랍으로 내린다.
    전에는 620px 이하에서 통째로 display:none 이었다. 폰 방문자는 색이 무슨 뜻인지
@@ -482,25 +420,6 @@ body.panelon .search{left:calc(50% - 224px)}
 .legendbtn:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
 .legendbtn b{font-weight:500}
 .railclose{display:none}
-@media (max-width:900px){
-  .legendbtn{display:flex}
-  body.legendon .legendbtn{display:none}
-  .rail{display:flex;position:fixed;left:0;right:0;bottom:0;top:auto;width:auto;
-    max-height:62vh;overflow-y:auto;z-index:26;gap:10px;
-    padding:0 14px calc(18px + env(safe-area-inset-bottom,0px));
-    background:rgba(14,15,18,.975);border-top:1px solid var(--line2);
-    transform:translateY(101%);transition:transform .26s ease;
-    -webkit-overflow-scrolling:touch}
-  body.legendon .rail{transform:translateY(0)}
-  body.legendon .hint{opacity:0}
-  /* 닫기 바 — 서랍 안 맨 위에 붙어 스크롤해도 따라온다 */
-  .railclose{display:flex;align-items:center;justify-content:center;gap:8px;
-    position:sticky;top:0;z-index:2;flex:0 0 auto;
-    margin:0 -14px 4px;padding:14px;border:0;border-bottom:1px solid var(--line);
-    background:rgba(14,15,18,.985);color:var(--t2);
-    font-family:inherit;font-size:14.5px;cursor:pointer}
-  .railclose:focus-visible{outline:2px solid var(--gold);outline-offset:-2px}
-}
 body.panelon .zoomctl{right:468px}
 body.panelon .hint{opacity:0}
 .mkind{display:flex;gap:7px;flex-wrap:wrap}
@@ -525,10 +444,6 @@ body.hasundo .rgrp{pointer-events:auto;display:flex;align-items:center;gap:8px;p
 .rgrp button:hover{color:var(--gold);text-decoration:underline;text-underline-offset:3px}
 .rhead{pointer-events:auto;display:flex;align-items:center;gap:9px;padding:9px 14px;border-radius:11px;
   background:rgba(28,25,18,.96);border:1px solid #4A3F26;font-size:15px;color:var(--gold);font-weight:500}
-@media (max-width:900px){.rolebar{top:176px;}
-body.hasundo .rolebar{top:232px;width:calc(100vw - 24px);max-height:96px;overflow-y:auto}
- .rgrp{max-width:none;flex:1 1 100%}}
-@media (max-width:620px){.rolebar{top:164px}body.hasundo .rolebar{top:218px}}
 .srcsec{background:#14171C}
 .reflist.off li{border-left:2px solid var(--gold);padding-left:12px}
 .reflist.off a{color:var(--gold)}
@@ -545,12 +460,111 @@ body.hasundo .rolebar{top:232px;width:calc(100vw - 24px);max-height:96px;overflo
   padding:14px 22px;border-radius:12px;background:#26221A;border:1px solid #4A3F26;color:var(--gold);
   font-size:15.5px;font-weight:500;opacity:0;transition:.28s;pointer-events:none;box-shadow:0 10px 30px rgba(0,0,0,.5)}
 .toast.on{opacity:1;transform:translateX(-50%) translateY(0)}
+
+/* ══════════════════════════════════════════════════════════
+   여기서부터 미디어쿼리. 이 아래에 일반 규칙을 쓰지 않는다.
+   같은 특정도면 나중에 선언한 쪽이 이긴다. 미디어쿼리 뒤에 일반 규칙을
+   두면 반응형이 조용히 무력화된다. 이 프로젝트에서 세 번 났다 —
+   .brand      제목이 '왜왜' 로 두 번 렌더
+   .search input  폰 검색 안내문이 사라짐 (입력창은 넓게 열린 채)
+   .ub         '처음으로' 버튼이 처음부터 항상 보임
+   test/check.cjs 11번 검사가 이 규칙을 강제한다.
+   ══════════════════════════════════════════════════════════ */
+
+@media (max-width:1000px){
+  .note{display:none}
+  .pop{width:100%;top:auto;left:0;right:0;height:62vh;border-left:0;
+    border-top:1px solid var(--line2);border-radius:16px 16px 0 0;transform:translateY(100%)}
+  .pop.on{transform:translateY(0)}
+  .pop:before{content:'';position:absolute;top:8px;left:50%;transform:translateX(-50%);
+    width:40px;height:4px;border-radius:4px;background:#3A3F48}
+  .c-head{padding-top:26px}
+  body.panelon #stage{right:0;bottom:62vh}
+  body.panelon 
+  body.panelon .legend,body.panelon .hint{display:none}
+  
+  .lg i{font-style:normal;font-size:13.5px;color:var(--t3);margin-left:4px}
+  
+  .pclose{width:34px;height:34px;font-size:16.5px}
+}
+@media (max-width:900px){
+  .brand{font-size:24px}
+  .ub{font-size:15px;padding:10px 15px}.ub span{font-size:16.5px}
+  
+  .lg{font-size:15px}
+  
+  
+  
+    }
+@media (max-width:620px){
+  .search{top:112px;width:calc(100vw - 24px)}
+  .search input{height:46px;font-size:16px;padding-left:42px}
+  .topbar{height:56px;padding:0 12px;gap:9px}
+  .catbar{top:56px;height:48px;padding:0 12px}
+  #stage{top:104px}
+  .search input{height:38px;font-size:15.5px;padding-left:34px}
+  .search input::placeholder{font-size:14.5px}
+  .cat{font-size:15px;padding:8px 13px}
+  .cat b{display:none}
+  
+  
+  .topbar{height:54px;padding:0 12px;gap:8px}
+  .topbar .brand{font-size:17.5px}
+  .tagline{font-size:12.5px}
+  .brand em{display:none}
+  .pipe{display:none}
+  .search{order:3}
+  .sres{width:min(76vw,280px);right:0;left:auto}
+  .undo{order:4}
+  .ub{padding:8px 12px;font-size:14px}
+
+  .cat{font-size:14.5px;padding:7px 11px}
+  .cat b{display:none}
+  .pop{height:68vh}
+  body.panelon #stage{bottom:68vh}
+  body.panelon 
+  .c-head,.sec,.big,.caution,.src,.oneline{padding-left:17px;padding-right:17px}
+  .gv{padding:12px}
+  .title{font-size:21px}
+  .big-n{font-size:32px}
+  
+  .zb{width:42px;height:42px;font-size:18.5px}
+  .hint{font-size:13px;bottom:66px;padding:0 20px;line-height:1.5}
+}
+@media (max-width:620px){}
+@media (max-width:900px){.npick{grid-template-columns:1fr}
+ .rail{left:12px;top:186px;width:186px} .newsbtn{font-size:0;padding:9px 12px}.newsbtn:before{content:'＋';font-size:18.5px}}
+@media (max-width:620px){.zoomctl{right:14px;bottom:16px}}
+@media (max-width:900px){
+  .legendbtn{display:flex}
+  body.legendon .legendbtn{display:none}
+  .rail{display:flex;position:fixed;left:0;right:0;bottom:0;top:auto;width:auto;
+    max-height:62vh;overflow-y:auto;z-index:26;gap:10px;
+    padding:0 14px calc(18px + env(safe-area-inset-bottom,0px));
+    background:rgba(14,15,18,.975);border-top:1px solid var(--line2);
+    transform:translateY(101%);transition:transform .26s ease;
+    -webkit-overflow-scrolling:touch}
+  body.legendon .rail{transform:translateY(0)}
+  body.legendon .hint{opacity:0}
+  /* 닫기 바 — 서랍 안 맨 위에 붙어 스크롤해도 따라온다 */
+  .railclose{display:flex;align-items:center;justify-content:center;gap:8px;
+    position:sticky;top:0;z-index:2;flex:0 0 auto;
+    margin:0 -14px 4px;padding:14px;border:0;border-bottom:1px solid var(--line);
+    background:rgba(14,15,18,.985);color:var(--t2);
+    font-family:inherit;font-size:14.5px;cursor:pointer}
+  .railclose:focus-visible{outline:2px solid var(--gold);outline-offset:-2px}
+}
+@media (max-width:900px){.rolebar{top:176px;}
+body.hasundo .rolebar{top:232px;width:calc(100vw - 24px);max-height:96px;overflow-y:auto}
+ .rgrp{max-width:none;flex:1 1 100%}}
+@media (max-width:620px){.rolebar{top:164px}body.hasundo .rolebar{top:218px}}
 </style>
 </head>
 <body>
 
 <header class="topbar">
   <p class="brand">왜</p>
+  <p class="tagline">이 숫자가 왜 이렇게 됐는지, 결과에서 거꾸로 따라갑니다</p>
 </header>
 <nav class="catbar"><div class="cats" id="cats" role="group" aria-label="분야 고르기"></div></nav>
 

@@ -67,6 +67,44 @@ function stubCanvas(win) {
   win.HTMLCanvasElement.prototype.getContext = function(){ ctx.canvas=this; return ctx; };
 }
 
+/* <style> 안을 최상위 블록 단위로 자른다.
+   문자열('...')과 주석(/* ... *\/) 안의 중괄호에 속으면 안 되므로 상태를 들고 훑는다.
+   정규식으로 자르면 블록이 통째로 날아가도 문법 검사는 통과한다. */
+function topLevelCss(htmlText) {
+  const a = htmlText.indexOf('<style>');
+  const b = htmlText.indexOf('</style>');
+  if (a < 0 || b < 0) return [];
+  const css = htmlText.slice(a + 7, b);
+  const out = [];
+  let i = 0, depth = 0, start = 0, isMedia = false, str = null, com = false;
+  while (i < css.length) {
+    const c = css[i];
+    if (com) { if (c === '*' && css[i + 1] === '/') { com = false; i += 2; continue } i++; continue }
+    if (str) { if (c === '\\') { i += 2; continue } if (c === str) str = null; i++; continue }
+    if (c === '/' && css[i + 1] === '*') { com = true; i += 2; continue }
+    if (c === '"' || c === "'") { str = c; i++; continue }
+    if (c === '{') { if (depth === 0) isMedia = css.slice(start, i).indexOf('@media') >= 0; depth++; i++; continue }
+    if (c === '}') {
+      depth--;
+      if (depth === 0) { out.push({ media: isMedia, text: css.slice(start, i + 1) }); start = i + 1 }
+      i++; continue }
+    i++;
+  }
+  return out;
+}
+
+/* 블록에서 셀렉터만 뽑는다. 미디어쿼리면 안쪽 규칙들의 셀렉터를 뽑는다. */
+function selectorsOf(block) {
+  const body = /^\s*@media[^{]*\{([\s\S]*)\}\s*$/.exec(block);
+  const src = body ? body[1] : block;
+  const sels = [];
+  src.replace(/([^{}]+)\{[^{}]*\}/g, (_, sel) => {
+    sel.split(',').forEach(x => { const t = x.trim(); if (t && !t.startsWith('@')) sels.push(t) });
+    return '';
+  });
+  return [...new Set(sels)];
+}
+
 /* 네트워크 연결 확인 — 대상 URL 의 호스트 이름을 실제로 찾을 수 있는지 본다.
    하나라도 찾히면 온라인. 전부 못 찾으면 오프라인으로 보고 검사를 SKIP 한다. */
 async function online(targets) {
@@ -242,6 +280,33 @@ function boot(w, h) {
     const skew = Math.abs(blue - red) / (blue + red) * 100;
     console.log(`     진보/보수 격차 ${blue}:${red} · 기울기 ${skew.toFixed(1)}%${skew > 20 ? '  ← API 로 발의·표결 데이터를 채우면 완화된다' : ''}`);
   }
+
+  // 11. CSS 순서 — 미디어쿼리 뒤에 일반 규칙을 두지 않는다
+  //     같은 특정도면 나중에 선언한 쪽이 이긴다. 미디어쿼리 뒤에 일반 규칙을 두면
+  //     반응형이 조용히 무력화된다. 화면은 깨지는데 문법 오류는 없어서 아무도 모른다.
+  //     이 프로젝트에서 세 번 났다: .brand(제목 '왜왜'), .search input(폰 안내문 사라짐),
+  //     .ub([hidden] 무시). 개별 버그가 아니라 구조 문제라 규칙으로 박는다.
+  const cssBlocks = topLevelCss(html);
+  const firstMediaAt = cssBlocks.findIndex(b => b.media);
+  const strayRules = firstMediaAt < 0 ? []
+    : cssBlocks.slice(firstMediaAt + 1).filter(b => !b.media);
+
+  if (strayRules.length) {
+    // 미디어쿼리 안에 같은 셀렉터가 있으면 실제로 덮어쓰는 사고다. 그것부터 보여준다.
+    const inMedia = new Set();
+    cssBlocks.filter(b => b.media).forEach(b =>
+      selectorsOf(b.text).forEach(sel => inMedia.add(sel)));
+
+    strayRules.forEach(b => {
+      const sels = selectorsOf(b.text);
+      const clash = sels.filter(sel => inMedia.has(sel));
+      F(`미디어쿼리 뒤의 일반 규칙: ${sels.join(', ').slice(0, 70)}` +
+        (clash.length ? `  ← 미디어쿼리 안의 ${clash.join(', ').slice(0, 50)} 를 덮어쓴다` : ''));
+    });
+  }
+  console.log(`11. CSS 순서        ${strayRules.length === 0
+    ? `PASS   [일반 ${cssBlocks.filter(b => !b.media).length} · 미디어 ${cssBlocks.filter(b => b.media).length}, 미디어쿼리가 전부 뒤에 있다]`
+    : `FAIL (${strayRules.length}) — 미디어쿼리 뒤에 일반 규칙이 있다`}`);
 
   // 10. official2 링크 검증 (규칙 2)
   //     검색 결과에 URL 이 떴다는 것만으로는 출처가 아니다. 실제로 열려야 출처다.

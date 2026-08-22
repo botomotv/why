@@ -58,12 +58,16 @@ function stubCanvas(win) {
     measureText(t) { return { width: textWidth(t, fontPxOf(this.font)) }; },
     save(){},restore(){},beginPath(){},closePath(){},moveTo(){},lineTo(){},
     arc(){},arcTo(){},bezierCurveTo(){},quadraticCurveTo(){},rect(){},
-    fill(){},stroke(){},fillRect(){},clearRect(){},strokeRect(){},fillText(){},
+    fill(){},stroke(){},fillRect(){},clearRect(){},strokeRect(){},
+    /* 그려진 글자를 기록한다. 캔버스는 픽셀이라 '무엇을 그렸는지' 를
+       나중에 물어볼 수 없다. 그리는 순간에 받아 적어야 한다. */
+    fillText(t){ win.__drawn && win.__drawn.push(String(t)) },
     strokeText(){},translate(){},scale(){},rotate(){},setTransform(){},
     setLineDash(){},drawImage(){},clip(){},ellipse(){},
     createLinearGradient:()=>({addColorStop(){}}),
     createRadialGradient:()=>({addColorStop(){}})
   };
+  win.__drawn = [];
   win.HTMLCanvasElement.prototype.getContext = function(){ ctx.canvas=this; return ctx; };
 }
 
@@ -526,6 +530,43 @@ function boot(w, h) {
   }
   ogProblems.forEach(t => F(`링크 카드: ${t}`));
   console.log(`15. 링크 미리보기   ${ogProblems.length === 0 ? `PASS   [${ogImgNote}]` : `FAIL (${ogProblems.length})`}`);
+
+  // 16. 워터마크 · 저작권
+  //     캡처하면 출처가 따라가야 한다. 워터마크는 캔버스에 직접 그리므로
+  //     DOM 을 아무리 뒤져도 안 보인다 — 그리는 순간을 잡아야 확인된다.
+  //     실수로 지워지거나 다른 그림에 가려지면 아무도 모른 채 출처 없는 캡처가 퍼진다.
+  const wmProblems = [];
+  const wmSeen = [];
+  for (const [w, h] of VIEWPORTS) {
+    const dw = boot(w, h);
+    await new Promise(r => setTimeout(r, 900));
+    const ww = dw.window;
+    const site = ww.SITE || {};
+    const drawn = (ww.__drawn || []).map(String);
+    const hit = drawn.filter(t => site.host && t.indexOf(site.host) >= 0);
+    wmSeen.push(`${w}px ${hit.length ? '○' : '✕'}`);
+    if (!site.host) { wmProblems.push(`${w}px: SITE.host 가 없다`); continue }
+    if (!hit.length) wmProblems.push(`${w}px: 워터마크가 캔버스에 안 그려졌다 (찾는 글자: ${site.host})`);
+    if (hit.length && site.name && hit[0].indexOf(site.name) < 0)
+      wmProblems.push(`${w}px: 워터마크에 사이트 이름 '${site.name}' 이 없다`);
+  }
+
+  // <head> 의 og:url 과 SITE.host 가 어긋나면 링크 카드가 엉뚱한 곳을 가리킨다.
+  // 도메인은 한 곳에서 고친다 — 어긋났다는 건 한 곳을 안 고쳤다는 뜻이다.
+  const w0host = (dom0.window.SITE || {}).host;
+  const ogUrl16 = (/<meta[^>]*property=["']og:url["'][^>]*content=["']([^"']*)["']/i.exec(html) || [])[1];
+  if (w0host && ogUrl16 && ogUrl16.indexOf(w0host) < 0)
+    wmProblems.push(`SITE.host(${w0host}) 와 og:url(${ogUrl16}) 이 다르다 — 도메인을 한 곳만 고쳤다`);
+
+  // 카드 하단 저작권 한 줄
+  const licInCard = /class="cardlic"/.test(html);
+  if (!licInCard) wmProblems.push('카드 하단 저작권 줄(.cardlic)이 없다');
+  if (!fs.existsSync(path.join(ROOT, 'LICENSE'))) wmProblems.push('LICENSE 파일이 없다');
+
+  wmProblems.forEach(t => F(`워터마크·저작권: ${t}`));
+  console.log(`16. 워터마크        ${wmProblems.length === 0
+    ? `PASS   [${wmSeen.join(' · ')} · 카드 저작권 ○ · LICENSE ○]`
+    : `FAIL (${wmProblems.length})`}`);
 
   // 14. 스크립트 실행 오류
   //     페이지가 멀쩡해 보여도 스크립트가 중간에 죽으면 그 뒤 초기화가 전부 안 돈다.

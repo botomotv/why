@@ -450,6 +450,11 @@ body.panelon .search{left:calc(50% - 224px)}
 .railbtn b{font-weight:500;margin-left:7px}
 .railbtn em{display:block;font-style:normal;font-size:12.5px;color:#7A818C;margin-top:4px;word-break:keep-all}
 /* 가져다 쓰기 — 법률 용어 대신 사람 말로 쓴다. 읽는 사람이 지켜야 알맹이가 산다. */
+/* 선의 뜻은 한 번 적어두는 걸로는 부족하다. 첫 화면·카드·관계 항목에서 반복한다. */
+.linecard{background:#161A21;border-color:#2A3340}
+.linetop{font-size:13.5px;line-height:1.62;color:var(--t2);word-break:keep-all}
+.linetop b{color:var(--gold);font-weight:500}
+.linesub{margin-top:7px;font-size:12.5px;line-height:1.55;color:#7A818C;word-break:keep-all}
 .usecard{background:#15171B}
 .usetop{font-size:13px;line-height:1.6;color:var(--t2);word-break:keep-all;margin-bottom:9px}
 .uselist{list-style:none;margin:0;padding:0}
@@ -546,6 +551,11 @@ body.editmode .reflist li{padding-right:60px}
 .reflist a{display:inline}
 /* 카드만 캡처해도 저작권이 따라가게 맨 아래 한 줄. 아주 작게. */
 .cardlic{order:99;padding:0 22px 20px;font-size:11px;line-height:1.5;color:#5C636D;word-break:keep-all}
+/* 왜 이어졌는지를 항목마다 적는다. 근거를 댈 수 없는 연결은 만들지 않는다. */
+.whyline{font-size:12px;color:#7A818C;margin:2px 0 5px;word-break:keep-all}
+.cutnote{font-size:12.5px;color:var(--gold);margin:-4px 0 8px;word-break:keep-all}
+.linknote{font-size:12.5px;color:var(--t3);margin:0 0 11px;line-height:1.55;word-break:keep-all}
+.linknote b{color:var(--t2);font-weight:500}
 .srauto{color:var(--gold);border-bottom:1px solid var(--line2)}
 .srauto b{color:var(--gold);font-weight:600}
 .toast{position:fixed;left:50%;transform:translateX(-50%) translateY(20px);bottom:26px;z-index:70;
@@ -753,6 +763,11 @@ body.hasundo .rolebar{top:232px;width:calc(100vw - 24px);max-height:96px;overflo
 <button class="legendbtn" id="legendBtn" aria-expanded="false" aria-controls="rail"><span aria-hidden="true">☰</span><b>보는 법</b></button>
 <aside class="rail" id="rail">
   <button class="railclose" id="railClose"><span aria-hidden="true">✕</span>보는 법 닫기</button>
+  <div class="railcard linecard">
+    <p class="raillab">선이 뜻하는 것</p>
+    <p class="linetop">선은 <b>관련이 있다</b>는 표시입니다.<br><b>"이것 때문"</b>이라는 뜻이 아닙니다.</p>
+    <p class="linesub">어느 쪽이 원인인지는 이 지도가 말하지 않습니다. 판단은 보는 사람이 합니다.</p>
+  </div>
   <button class="timesw" id="ztime" aria-pressed="true">
     <span class="tswl">시간 방향 바꾸기</span>
     <span class="tswhint">지도가 고리 모양입니다. 눌러서 안과 밖을 뒤집습니다.</span>
@@ -781,7 +796,7 @@ body.hasundo .rolebar{top:232px;width:calc(100vw - 24px);max-height:96px;overflo
   </div>
   <div class="railcard" id="roleCard" hidden>
     <p class="raillab">지금 보고 있는 관계</p>
-    <div class="lg"><span class="sh" style="background:#7FB2EE"></span><b>배경·원인</b></div>
+    <div class="lg"><span class="sh" style="background:#7FB2EE"></span><b>같은 주제</b><i>원인이란 뜻이 아님</i></div>
     <div class="lg"><span class="sh" style="background:#6FBF8E"></span><b>밀어붙임</b></div>
     <div class="lg"><span class="sh" style="background:#E2635A"></span><b>반대·대립</b></div>
     <div class="lg"><span class="sh" style="background:#A08BC7"></span><b>그때 정권</b><i>한 건 아님</i></div>
@@ -2295,16 +2310,44 @@ function applySnap(sn){sn.forEach(function(o){var n=map[o.id];
 function syncUndo(){/* 되돌리기 UI 제거 — 배치 초기화(⟲)가 대신한다 */}
 
 function other(l,id){return l[0]===id?l[1]:l[0]}
+/* 선의 뜻 — 이 사이트는 인과를 주장하지 않는다.
+   선은 "관련이 있다" 는 표시일 뿐이고, 어느 쪽이 원인인지는 말하지 않는다.
+   전에는 같은 선이 보는 방향에 따라 '배경·원인' 과 '결과' 로 갈렸다.
+   그건 데이터가 아니라 여기서 만들어낸 주장이었다. 하나로 합친다. */
+/* 지도에 그리는 선의 상한. 실측으로 정한 값이다 — docs/자동연결.md 참고. */
+var MAX_EDGES=6, TERM_CAP=2, hiddenEdges=0;
 var ROLE={push:{c:'#6FBF8E',t:'밀어붙임'},block:{c:'#E2635A',t:'반대·대립'},
- cause:{c:'#7FB2EE',t:'배경·원인'},effect:{c:'#E3AE55',t:'결과'},
+ topic:{c:'#7FB2EE',t:'같은 주제'},
  term:{c:'#A08BC7',t:'그때 정권'},rel:{c:'#9AA2AE',t:'관련'}};
 function roleOf(l,id){
+  /* lead · against · term 은 공식 기록이다. 주장이 아니라 사실이므로 그대로 둔다. */
   if(l[3]==='against')return 'block';
   if(l[3]==='term')return 'term';
   if(l[3]==='lead')return 'push';
-  if(l[5]&&l[1]===id)return 'cause';
-  if(l[5]&&l[0]===id)return 'effect';
+  /* l[3]==='result' 는 '결과' 가 아니라 '근거(l[5])가 붙은 연결' 이라는 뜻이다.
+     값 이름은 데이터 63건이 쓰고 있어 그대로 두고, 창고로 옮길 때 바꾼다.
+     방향(누가 앞이고 누가 뒤인지)으로 뜻을 만들지 않는다. */
+  if(l[5])return 'topic';
   return 'rel'}
+
+/* 왜 이어졌는지를 사람 말로 만든다.
+   근거를 댈 수 없는 연결은 애초에 만들지 않는다는 원칙의 화면 쪽 절반이다. */
+function whyLinked(l,id){
+  var o=other(l,id),me=map[id],him=map[o],why=[];
+  if(l[3]==='lead')return '공식 기록 · 대표발의·주도';
+  if(l[3]==='against')return '공식 기록 · 반대·대립';
+  if(l[3]==='term')return '공포일자 × 재임표 계산';
+  if(me&&him&&me.cats&&him.cats){
+    var sh=me.cats.filter(function(c){return him.cats.indexOf(c)>=0});
+    if(sh.length){
+      var nm=sh.map(function(k){for(var i=0;i<CATS.length;i++)if(CATS[i].k===k)return CATS[i].lab;return k});
+      why.push('같은 분야('+nm.slice(0,2).join('·')+')');
+    }
+  }
+  var a=me&&me.yr?parseInt(me.yr):null, b=him&&him.yr?parseInt(him.yr):null;
+  if(a&&b){var gap=Math.abs(a-b); why.push(gap===0?'같은 해('+a+')':'시기 '+gap+'년 차이');}
+  if(l[6])why.push(l[6]);
+  return why.length?why.join(' · '):'연결 근거 확인 중';}
 function yr(n){return n.yr?parseInt(n.yr):null}
 function bad(n){return !isFinite(n.x)||!isFinite(n.y)}
 function reheat(a){alpha=Math.max(alpha,a===undefined?0.5:a)}
@@ -2421,11 +2464,14 @@ function renderRoleBar(){
   if(!el)return;
   if(!focus){el.hidden=true;el.innerHTML='';return}
   var n=map[focus];
-  var g={push:[],block:[],cause:[],effect:[],term:[],rel:[]};
+  /* 칸은 ROLE 에서 만든다. 손으로 적어두면 ROLE 을 고칠 때마다 여기가 어긋나고,
+     없는 칸에 push 하다 터진다 (실제로 그랬다). */
+  var g={}; Object.keys(ROLE).forEach(function(k){g[k]=[]});
   adj[focus].forEach(function(l){
     var o=other(l,focus);if(!map[o]||!inCat(map[o]))return;
-    g[roleOf(l,focus)].push(map[o])});
-  var order=['cause','push','block','term','effect','rel'];
+    var rk=roleOf(l,focus); if(!g[rk])g[rk]=[];
+    g[rk].push(map[o])});
+  var order=['topic','push','block','term','rel'].filter(function(k){return g[k]});
   var html='<div class="rhead">'+(n.title||n.lab)+'</div>';
   var any=false;
   order.forEach(function(k){
@@ -2463,14 +2509,38 @@ function setFocus(id){
         n2.vx+=dx/d*k;n2.vy+=dy/d*k;n2.orb=Math.random()*6.28}});
     adj[id].forEach(function(l){
       if(l[5]&&(l[3]==='result'||l[3]==='lead'||l[3]==='against'))keyRing[other(l,id)]=1});
-    adj[id].forEach(function(l){ring[other(l,id)]=1});
+    /* 지도에 그리는 선은 노드당 MAX_EDGES 개까지만.
+       실측: 이웃 6개까지는 이름표가 100% 읽히고, 8개에서 63%,
+       10개를 넘으면 선 간격이 3.2° 로 붙어 눈으로 구분할 수 없다.
+       전에는 13개에서 말없이 잘리고 있었다 — 그건 "이게 전부" 라는 거짓말이다.
+       무엇을 남기나 · 설명할 수 있는 것부터 남기고, 설명이 약한 것부터 자른다.
+         ① 사람이 직접 이은 것  ② lead·against(공식 기록)
+         ③ term (그때 정권) — 최대 TERM_CAP 개.
+            공포일자×재임표로 자동 생성돼 양이 많다. 제한이 없으면 6칸을 다 먹어
+            지도가 '정권 지도' 처럼 보인다. 규칙 3이 가장 경계하는 오해다.
+         ④ 근거(l[5])가 붙은 연결  ⑤ 나머지 */
+    var cand=adj[id].slice();
+    var rank=function(l){
+      if(l.user)return 0;
+      if(l[3]==='lead'||l[3]==='against')return 1;
+      if(l[3]==='term')return 2;
+      if(l[5])return 3;
+      return 4};
+    cand.sort(function(a,b){return rank(a)-rank(b)});
+    var termUsed=0,kept=[];
+    cand.forEach(function(l){
+      if(kept.length>=MAX_EDGES)return;
+      if(l[3]==='term'){ if(termUsed>=TERM_CAP)return; termUsed++ }
+      kept.push(l)});
+    hiddenEdges=adj[id].length-kept.length;
+    kept.forEach(function(l){ring[other(l,id)]=1});
     Object.keys(ring).forEach(function(k){
       if(ring[k]===1)adj[k].forEach(function(l){var o=other(l,k);if(!(o in ring))ring[o]=2})})}
   document.getElementById('hint').style.opacity=id?0:1;
   render(id);renderRoleBar();
   if(id){pop.classList.add('on');setPanel(true)}else{pop.classList.remove('on');setPanel(false)}
 }
-function closePop(){focus=null;ring={};roles={};pop.classList.remove('on');setPanel(false);
+function closePop(){focus=null;ring={};roles={};hiddenEdges=0;pop.classList.remove('on');setPanel(false);
   document.body.classList.remove('popfull');
   var rc0=document.getElementById('roleCard');if(rc0)rc0.hidden=true;renderRoleBar();
   document.getElementById('hint').style.opacity=1}
@@ -2851,6 +2921,27 @@ function draw(){
         cx.fillStyle=rc;cx.fillText(rt,n.x,by);
       }}
     cx.globalAlpha=1});
+
+  /* 잘린 선 개수를 포커스 노드 옆에 밝힌다.
+     말없이 자르면 "이게 전부" 라는 거짓말이 된다. 분모를 같이 보여준다. */
+  if(focus&&hiddenEdges>0&&map[focus]&&isFinite(map[focus].x)){
+    var fn=map[focus];
+    var bxr=fn.x*cam.s+cam.x, byr=fn.y*cam.s+cam.y;
+    if(bxr>-60&&bxr<W+60&&byr>-40&&byr<H+40){
+      var bt='+'+hiddenEdges;
+      cx.font="600 11.5px 'Noto Sans KR',-apple-system,sans-serif";
+      cx.textAlign='center';cx.textBaseline='middle';
+      var bw2=cx.measureText(bt).width+14, bh2=18;
+      var bx2=bxr+(fn.r||8)*cam.s+8, by2=byr-(fn.r||8)*cam.s-4;
+      cx.fillStyle='rgba(14,15,18,0.88)';
+      cx.beginPath();
+      if(cx.roundRect)cx.roundRect(bx2,by2-bh2/2,bw2,bh2,9);else cx.rect(bx2,by2-bh2/2,bw2,bh2);
+      cx.fill();
+      cx.strokeStyle='rgba(154,162,174,0.45)';cx.lineWidth=1;cx.stroke();
+      cx.fillStyle='#9AA2AE';
+      cx.fillText(bt,bx2+bw2/2,by2);
+    }
+  }
 
   /* 워터마크. 캔버스에 직접 그린다 —
      DOM 이 아니라서 개발자도구로 지울 수 없고, 지도만 잘라 캡처해도 따라간다.
@@ -3327,9 +3418,10 @@ function sentence(l,id){
   s=s.replace('§','<button data-go="'+o+'">'+him.lab+'</button>');
   if(s.indexOf('<button')<0)s+=' <button data-go="'+o+'">'+him.lab+'</button>';
   var ui=l.user?ULK.findIndex(function(u){return u.a===l[0]&&u.b===l[1]&&(u.v||'연결')===l[2]}):-1;
+  var why=whyLinked(l,id);
   return '<li><div class="rtop"><span class="verb v-'+(l[3]||'plain')+'">'+l[2]+'</span>'+
     (l[6]?'<span class="rdate">'+l[6]+'</span>':'')+
-    (l.user?'<span class="umark">내가 이음</span>':'')+'</div><p class="rtext">'+s+
+    (l.user?'<span class="umark">내가 이음</span>':'')+'</div><p class="whyline">왜 이어졌나 · '+why+'</p><p class="rtext">'+s+
     (l.url?' <a class="ulink" href="'+l.url+'" target="_blank" rel="noopener">기사 ↗</a>':'')+'</p>'+
     (EDIT&&ui>=0?'<button class="refdel" style="position:static;margin-top:7px" data-ulkdel="'+ui+'">연결 삭제</button>':'')+
     '</li>'}
@@ -3540,7 +3632,12 @@ function render(id){
         '<input class="refin" id="refD" type="text" placeholder="날짜 (비우면 자동)">'+
       '</div>'+
     '</div>':'')+'</div>'+
-    '<div class="sec sec-links"><p class="sec-lab">이어진 관계 '+rels.length+'개</p><ul class="rel">'+
+    '<div class="sec sec-links"><p class="sec-lab">이어진 관계 '+rels.length+'개</p>'+
+    (rels.length>MAX_EDGES
+      ? '<p class="cutnote">지도에는 가까운 '+MAX_EDGES+'개만 그렸습니다 · 전체 '+rels.length+'개를 아래에 모두 적습니다</p>'
+      : '')+
+    '<p class="linknote">선은 <b>관련이 있다</b>는 표시입니다. 어느 쪽이 원인인지는 이 지도가 말하지 않습니다.</p>'+
+    '<ul class="rel">'+
     rels.map(function(l){return sentence(l,id)}).join('')+'</ul></div>'+(n.src?'<p class="src">'+n.src+'</p>':'')+
     '<p class="cardlic">'+siteCopy()+'</p>';
   d.innerHTML=html;

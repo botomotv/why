@@ -2408,11 +2408,50 @@ N.forEach(function(n){
   n.r=(n.t==='post'?15:n.t==='event'?10:n.t==='result'?24:n.prez?12:n.t==='bill'?7:6)+Math.sqrt(deg)*(n.t==='result'?4.8:n.prez?2.0:2.4);n.lw=60});
 
 
-function measure(){cx.font='400 '+(13.5*labelFontScale())+"px 'Noto Sans KR',sans-serif";
-  N.forEach(function(n){n.lw=cx.measureText(n.lab).width})}
+/* 이름표는 한 줄이 아니다. 실제로 그려지는 줄 전부를 재야 겹침이 맞는다.
+     결과 노드   이름(15.5px) + 숫자 n.big(14.5px, yy+22)
+     법안 노드   이름(12.5px) + 연도·대통령(13.5px, yy+14)
+     초점 이웃   + 역할 배지(12.5px, yy+14~27)
+   전에는 n.lab 한 줄만 12px 로 쟀다. 그래서 겹침 검사는 PASS 인데
+   화면에서는 '합계출산율 0.7명대' 와 '관련' 이 겹쳤다.
+   폭도 마찬가지다 — 숫자나 배지가 이름보다 넓으면 그쪽이 박스 폭이다. */
+function measure(){
+  var k=1;   /* 여기서는 배율 1 기준으로 재고, 쓸 때 labelFontScale() 을 곱한다 */
+  var wOf=function(t,px,w){cx.font=w+' '+px+"px 'Noto Sans KR',sans-serif";
+    return cx.measureText(t||'').width};
+  N.forEach(function(n){
+    var big=n.t==='result';
+    var w=wOf(n.lab,big?15.5:12.5,big?'500':'400');
+    var lines=1;
+    if(big&&n.big){w=Math.max(w,wOf(n.big,14.5,'700'));lines=2}
+    if(n.t==='bill'&&n.yr&&n.pres){
+      w=Math.max(w,wOf(n.yr+(n.check?'':' · '+n.pres),13.5,'400'));lines=2}
+    n.lw=w;
+    n.lh=15+(lines-1)*14+18;   /* 첫 줄 위치(yy=r+15) + 추가 줄 + 글자 높이 */
+  });
+  /* 역할 배지는 초점 이웃에만 뜬다. 모든 노드에 더하면
+     짧은 이름의 박스가 두 배가 돼 이름표가 62/171 → 5/171 로 무너진다.
+     실제로 그렇게 짰다가 확인했다. 뜨는 노드에만 planLabels 가 더한다. */
+  BADGE_W=0;
+  Object.keys(ROLE).forEach(function(r){BADGE_W=Math.max(BADGE_W,wOf(ROLE[r].t,12.5,'600'))});
+  BADGE_W+=14}
+var BADGE_W=0;
+/* 사용자가 카메라를 직접 만졌나. 만졌으면 크기가 바뀌어도 다시 맞추지 않는다 —
+   보고 있던 자리를 빼앗는 게 더 나쁘다. */
+var camUser=false;
+
 function size(){var b=document.getElementById('stage').getBoundingClientRect();
+  var pw=W,ph=H;
   W=Math.max(1,b.width);H=Math.max(1,b.height);
-  cv.width=W*DPR;cv.height=H*DPR;measure()}
+  cv.width=W*DPR;cv.height=H*DPR;measure();
+  /* 첫 로드 때 지도 크기가 뒤늦게 정해진다 —
+     실측: init 시점 412x518 → 안정 뒤 412x811. 293px 차이다.
+     size() 는 [0,60,200,500,1000]ms 에 다시 도는데 fit() 은 안 돌았다.
+     그래서 카메라가 낡은 H 로 잡은 중심을 그대로 들고 있었고,
+     가장 큰 결과 노드가 화면 중앙에서 147px 어긋났다.
+     폰에서 "노드가 한쪽에 치우치고 화면이 텅 빈" 첫인상이 이것이었다. */
+  if(!camUser&&!focus&&(Math.abs(W-pw)>2||Math.abs(H-ph)>2)&&isFinite(pw)&&pw>1){
+    fit();cam.s=cam.ts;cam.x=cam.tx;cam.y=cam.ty}}
 function init(){
   N.forEach(function(n,i){var a=i/N.length*6.2832,R=ringR(n);
     n.x=Math.cos(a)*R+(Math.random()-0.5)*40;
@@ -2425,7 +2464,21 @@ function init(){
    그래서 전체 보기 상태일 때만, 결과 노드(지도의 입구)를 중심에 두고
    읽을 수 있는 배율을 지킨다. 나머지는 끌어서 본다.
    ⛶ '전체 보기' 버튼은 showAll 로 이 동작을 꺼서 언제나 다 볼 수 있다. */
-var NARROW_W = 900, NARROW_MIN_S = 1.0;
+var LABEL_PX=12;                 /* 화면상 글자 크기. 배율이 변해도 이 값을 지킨다 */
+var LABEL_FAR=0.62;              /* 이 배율 미만이면 결과 숫자만 이름을 단다 */
+/* 위 두 줄은 여기 있어야 한다. 아래 NARROW_MIN_S 가 LABEL_FAR 를 쓴다.
+   var 는 선언만 끌어올리고 값은 안 끌어올린다 —
+   뒤에 두었더니 NARROW_MIN_S 가 undefined 가 돼 이름표가 171/171 개 그려지고
+   겹침이 314 쌍 났다. 문법 오류가 없어서 화면을 보기 전까지 몰랐다. */
+
+/* 좁은 화면 첫 배율.
+   1.0 이면 이름은 크지만 화면에 노드가 14/171 개뿐이라 첫인상이 "텅 빈 화면에 점 하나" 다.
+   LABEL_FAR(0.62) 로 내리면 41/171 개가 보이고 이름표도 6 → 8 개로 늘어난다.
+   그 아래로 더 내리면 '결과 숫자만' 모드로 떨어져 이름표가 2 개가 된다.
+   즉 0.62 는 '모든 종류의 이름표가 나오는 가장 넓은 화면' 이다. 실측으로 고른 값이다.
+     배율 1.00 → 화면안 14 · 이름표 6      0.62 → 화면안 41 · 이름표 8
+     배율 0.85 → 화면안 21 · 이름표 7      0.55 → 화면안 51 · 이름표 2 (결과만) */
+var NARROW_W = 900, NARROW_MIN_S = LABEL_FAR;
 
 /* ── 노드를 누르면 이어진 것을 화면 안으로 ──
    실측(폰 412x915): 손대지 않으면 이어진 6개 중 2개만 화면에 있다(33%).
@@ -2534,6 +2587,14 @@ if(window.ResizeObserver){
 window.addEventListener('orientationchange',function(){setTimeout(size,120)});
 window.addEventListener('pageshow',function(){size()});
 [0,60,200,500,1000].forEach(function(ms){setTimeout(size,ms)});
+/* 물리가 가라앉으면서 노드가 크게 움직인다.
+   init 직후 한 번 맞춘 카메라는 그때쯤 이미 어긋나 있다 —
+   실측(폰 412x811): 가장 큰 결과 노드가 화면 중앙에서 429px 벗어나 있고
+   화면에 노드가 2개뿐이었다. 첫인상이 "텅 빈 화면에 점 하나" 였다.
+   size() 만 다시 부르고 fit() 은 안 불렀던 게 원인이다.
+   사용자가 카메라를 만졌으면 건드리지 않는다 — 보던 자리를 빼앗는 게 더 나쁘다. */
+[700,1500].forEach(function(ms){setTimeout(function(){
+  if(camUser||focus)return; fit()},ms)});
 if(document.fonts&&document.fonts.ready)document.fonts.ready.then(function(){measure();reheat(0.25)});
 
 /* ===== 분야 탭 ===== */
@@ -2718,7 +2779,9 @@ function setPanel(on){
 function placePop(){}
 
 function hw(n){return Math.max(n.r,n.lw/2+5)+7}
-function hh(n){return n.r+(n.t==='bill'?30:18)}
+/* 이름표가 실제로 차지하는 세로. measure() 가 줄 수를 세어 n.lh 를 채운다.
+   전에는 결과 노드에 18px 을 줬는데 숫자가 yy+22 에 그려져 박스 밖이었다. */
+function hh(n){return n.r+(n.lh||(n.t==='bill'?30:18))}
 /* ── 이름표 배치 ──
    실측이 말해준 것: 171개를 지금처럼 다 그리면 겹침 308쌍에 읽히는 게 0개다.
    글자를 화면상 12px 로 고정하면 이름표 총면적이 화면의 107% — 화면보다 크다.
@@ -2733,8 +2796,7 @@ function hh(n){return n.r+(n.t==='bill'?30:18)}
    greedy 는 '이미 남긴 것' 하고만 비교하는데 그게 30~50개로 작게 유지된다.
    1026개에서 naive 11.9ms vs 격자 27.6ms 로 오히려 격자가 느렸다.
    대신 매 프레임 돌리지 않는다 — 카메라·필터가 그대로면 계획을 재사용한다. */
-var LABEL_PX=12;                 /* 화면상 글자 크기. 배율이 변해도 이 값을 지킨다 */
-var LABEL_FAR=0.62;              /* 이 배율 미만이면 결과 숫자만 이름을 단다 */
+/* LABEL_PX · LABEL_FAR 은 NARROW_MIN_S 보다 앞에서 선언한다 (위쪽) */
 var labelSet=null, labelKey='', labelAt=0, labelStat={shown:0,total:0,side:{}};
 
 function labelFontScale(){ return LABEL_PX/(12*cam.s) }
@@ -2772,14 +2834,24 @@ function planLabels(){
   var kept=[],box=[];
   var hitBox=function(a,b){
     return Math.abs(a.x-b.x)<(a.w+b.w)&&Math.abs(a.y-b.y)<(a.h+b.h)};
+  var offScreen=0;
   pool.forEach(function(n){
-    var b={x:n.x, y:n.y+(n.r||8)+n.__hh*k, w:n.__hw*k, h:n.__hh*k};
+    /* 이 노드에 역할 배지가 뜨나 — 뜨면 그만큼 넓고 한 줄 더 높다 */
+    var hasBadge=focus&&ring[n.id]===1&&roles[n.id];
+    var bw=hasBadge?Math.max(n.__hw,BADGE_W/2+7):n.__hw;
+    var bh=hasBadge?n.__hh+14:n.__hh;
+    var b={x:n.x, y:n.y+(n.r||8)+bh*k, w:bw*k, h:bh*k};
+    /* 화면 밖으로 삐져나가는 이름표는 그리지 않는다.
+       '의대 정원 2천명 3,058 → 5,09…' 처럼 오른쪽이 잘려 나오던 것이 이것이다.
+       잘린 글자는 정보가 아니라 소음이다. */
+    var sx=b.x*cam.s+cam.x, sy=b.y*cam.s+cam.y, sw=b.w*cam.s, sh=b.h*cam.s;
+    if(sx-sw<0||sx+sw>W||sy-sh<0||sy+sh>H){offScreen++;return}
     for(var i=0;i<box.length;i++)if(hitBox(box[i],b))return;
     box.push(b);kept.push(n)});
 
   var set=Object.create(null); var side={};
   kept.forEach(function(n){set[n.id]=1; side[n.side||'(없음)']=(side[n.side||'(없음)']||0)+1});
-  labelStat={shown:kept.length,total:pool.length,side:side};
+  labelStat={shown:kept.length,total:pool.length,side:side,off:offScreen};
   labelSet=set;labelKey=key;labelAt=now;
   return set}
 
@@ -3198,7 +3270,7 @@ function move(px,py){
     drag.x=w[0];drag.y=w[1];reheat(0.34);return}
   if(pan){var dx=px-pan.x,dy=py-pan.y;
     if(movedFar(px,py))panMoved=true;
-    cam.x+=dx;cam.y+=dy;cam.tx+=dx;cam.ty+=dy;pan={x:px,y:py};return}
+    camUser=true;cam.x+=dx;cam.y+=dy;cam.tx+=dx;cam.ty+=dy;pan={x:px,y:py};return}
   var n=at(px,py);if(n!==hover){hover=n;cv.style.cursor=n?'pointer':'default'}}
 function up(){
   if(drag){if(moved)drag.fixed=true;else setFocus(drag.id)}
@@ -3227,7 +3299,7 @@ cv.addEventListener('touchmove',function(e){
     var mx=(p1[0]+p2[0])/2,my=(p1[1]+p2[1])/2;
     if(pinch.d>4){zoomAt(mx,my,d/pinch.d)}
     var ddx=mx-pinch.cx,ddy=my-pinch.cy;
-    cam.x+=ddx;cam.y+=ddy;cam.tx+=ddx;cam.ty+=ddy;
+    camUser=true;cam.x+=ddx;cam.y+=ddy;cam.tx+=ddx;cam.ty+=ddy;
     pinch={d:d,cx:mx,cy:my};return}
   if(e.touches.length===1&&!pinch){var p=tpos(e.touches[0]);move(p[0],p[1])}
 },{passive:false});
@@ -3253,7 +3325,7 @@ cv.addEventListener('touchcancel',function(){pinch=null;drag=null;pan=null});
   },{passive:false});
 })();
 function rehover(px,py){var n2=at(px,py);if(n2!==hover){hover=n2;cv.style.cursor=n2?'pointer':'default'}}
-function zoomAt(px,py,k){var ns=Math.max(0.22,Math.min(3.2,cam.ts*k));
+function zoomAt(px,py,k){camUser=true;var ns=Math.max(0.22,Math.min(3.2,cam.ts*k));
   cam.tx=px-(px-cam.tx)*(ns/cam.ts);cam.ty=py-(py-cam.ty)*(ns/cam.ts);cam.ts=ns}
 cv.addEventListener('wheel',function(e){e.preventDefault();var p=rel2(e);
   zoomAt(p[0],p[1],e.deltaY<0?1.13:1/1.13);

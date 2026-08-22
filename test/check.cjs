@@ -469,7 +469,16 @@ function boot(w, h) {
         if (labPairs.length < 3) labPairs.push(`${a.lab} × ${b.lab}`);
       }
     }
-    const labPx = +(LABEL_FONT_PX * camS).toFixed(1);
+    /* 화면상 글자 크기는 배율 × 글꼴크기가 아니다.
+       draw() 가 labelFontScale() = LABEL_PX/(12*cam.s) 를 곱해 그리므로
+       배율이 변해도 화면 글자는 일정하다. 그 항을 빼먹고 곱하면
+       배율이 작을수록 글자가 작다는 거짓 숫자가 나온다 —
+       1440·1920 에서 "5.5px, 읽을 수 있는 하한 미만" 경고가 계속 떴는데
+       실제로는 12px 이었다. 거짓 경보였다.
+       그래서 페이지에서 직접 계산해 읽는다. 공식을 여기 베껴 쓰지 않는다. */
+    let labPx = 0;
+    try { labPx = +win.eval('(function(){return 12.5*labelFontScale()*cam.s})()').toFixed(1) }
+    catch (e) { labPx = +(LABEL_FONT_PX * camS).toFixed(1) }
 
     layout.push({ w, bad: bad.length, moved, overlap, labels: labeled.length, labOverlap, labPx });
     console.log(`  ${String(w).padStart(4)}px  좌표이상 ${bad.length}  ·  미정착 ${moved}  ·  점겹침 ${overlap}  ·  포커스중 alpha ${focusedAlpha.toFixed(4)}`);
@@ -920,6 +929,42 @@ function boot(w, h) {
       /* 이름표는 판정하지 않는다. 카드가 폰 화면의 43% 를 먹어 지도가 412×518 밖에 안 되고,
          부채꼴 폭을 0.10~0.30 으로 훑어도 2~3/6 에서 안 올라간다(실물 측정).
          물리적 한계라 자동 판정하면 못 고칠 FAIL 이 된다. 눈앞에 띄우는 것까지가 검사의 역할이다. */
+    }
+  }
+
+  // 21. 첫 화면 — 가장 큰 결과 노드가 화면 중앙에 오는가
+  //     init 직후 fit() 을 한 번 부르고 끝냈더니, 그 뒤 물리가 가라앉으며
+  //     노드가 크게 움직여 카메라가 어긋났다. 실측 429px.
+  //     폰에서 "텅 빈 화면에 점 하나" 로 보이던 첫인상이 이것이었다.
+  //     size() 는 [0,60,200,500,1000]ms 에 다시 도는데 fit() 은 안 돌았다.
+  {
+    for (const [w,h,nm] of [[412,915,'폰'],[820,1180,'태블릿 세로']]) {
+      const d21 = boot(w,h);
+      await new Promise(r => setTimeout(r, 1400));
+      const win = d21.window;
+      const r = win.eval(`(function(){
+        if(typeof fit!=='function'||!A.length)return null;
+        /* 실제 로드 순서: init 뒤 물리가 가라앉고, 그 뒤 재조준이 돈다 */
+        for(var i=0;i<400;i++)tick();
+        fit(); cam.s=cam.ts;cam.x=cam.tx;cam.y=cam.ty;
+        labelSet=null;labelKey='';draw();
+        var res=A.filter(function(n){return n.t==='result'&&isFinite(n.x)});
+        if(!res.length)return null;
+        var lead=res.reduce(function(a,b){return (b.r||0)>(a.r||0)?b:a});
+        var off=Math.hypot(lead.x*cam.s+cam.x-W/2, lead.y*cam.s+cam.y-H/2);
+        var on=A.filter(function(n){var sx=n.x*cam.s+cam.x,sy=n.y*cam.s+cam.y;
+          return sx>=0&&sx<=W&&sy>=0&&sy<=H}).length;
+        return {off:Math.round(off), on:on, tot:A.length, s:+cam.s.toFixed(2),
+                lbl:labelStat?labelStat.shown:0, dim:W+'×'+Math.round(H)};
+      })()`);
+      d21.window.close();
+      if (!r) { F(`21. ${nm} — 첫 화면을 못 쟀다`); continue }
+      console.log(`21. 첫 화면        ${nm} ${w}×${h} (지도 ${r.dim}) · 중앙과 ${r.off}px · 화면안 ${r.on}/${r.tot} · 배율 ${r.s} · 이름표 ${r.lbl}`);
+      /* 중앙에서 노드 반지름 이상 벗어나면 눈에 띈다. 넉넉히 60px 를 준다. */
+      if (r.off > 60) F(`21. ${nm} — 가장 큰 결과 노드가 화면 중앙에서 ${r.off}px 벗어났다`);
+      /* 0 은 의심한다. 화면에 노드가 거의 없으면 첫인상이 빈 화면이다. */
+      if (r.on < 10) F(`21. ${nm} — 첫 화면에 노드가 ${r.on}/${r.tot}개뿐이다. 빈 화면으로 보인다`);
+      if (!r.lbl) F(`21. ${nm} — 첫 화면에 이름표가 하나도 없다. 색깔 점만 보인다`);
     }
   }
 

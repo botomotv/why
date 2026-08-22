@@ -185,6 +185,33 @@ npm test
 - `official2` 링크가 붙은 노드는 `r6` 하나뿐.
 - API 수집기는 아직 없다. 인증키가 없어서다.
 
+## 창고 (SQLite)
+
+수집물은 `db/warehouse.db` 에 담고 **커밋하지 않는다.** 스키마와 규칙만 남긴다.
+
+```
+db/schema.sql       원본층 · 가공층 · 관계층
+db/rules/*.sql      선을 만드는 규칙. 규칙 하나가 파일 하나다
+db/seed.sql         규칙 목록 (rule.reads = 그 규칙이 읽어도 되는 표)
+tools/count.mjs     대수별 건수 세기. 수집 전에 규모를 먼저 안다
+tools/collect.mjs   원본층 수집기. 중단해도 이어서 받는다
+test/warehouse.cjs  검사 A~E
+```
+
+**선은 규칙 없이 못 들어간다.** `link.rule` 이 `NOT NULL REFERENCES rule(name)` 이고
+`link.why`(왜 이어졌나)도 `NOT NULL` 이다. 근거를 못 대는 선은 주장이지 기록이 아니다.
+
+**규칙 3 은 `rule.reads` 로 강제한다.** `term_by_promulgation` 이 읽어도 되는 표는
+`bill, president_term` 둘뿐이다. 검사 B 가 `.sql` 원문을 훑어 그 밖의 표가 나오면 FAIL.
+검사 D 는 **발의자에서 대통령을 끌어오는 가짜 규칙을 주입해 B 가 실제로 FAIL 하는지 본다.**
+D 를 빼지 않는다 — 아무것도 안 잡는 검사는 언제나 PASS 라서 가장 오래 산다.
+
+**개인별 표결은 20대부터만 있다.** 19대 이전은 이 API 로 못 얻는다.
+수집기는 건너뛴 대수를 화면에 밝힌다. 말없이 건너뛰면
+"표결이 없는 법안" 과 "표결을 안 받은 법안" 이 구별되지 않는다.
+
+자세한 건 [docs/창고설계.md](docs/창고설계.md).
+
 ## 로드맵
 
 한국판 완성 → 미국 · 일본 확장 → 다국어 지원.

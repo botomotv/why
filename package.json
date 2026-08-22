@@ -4,7 +4,9 @@
   "private": true,
   "description": "왜(Why) — 한국 정치·정책의 인과관계 지도",
   "scripts": {
-    "test": "node test/check.cjs"
+    "test": "node test/check.cjs && node test/warehouse.cjs",
+    "count": "node tools/count.mjs",
+    "collect": "node tools/collect.mjs"
   },
   "devDependencies": {
     "jsdom": "^26.1.0"

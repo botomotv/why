@@ -4,3 +4,9 @@ node_modules/
 .DS_Store
 *.log
 probe-out/
+
+# 창고 — 수집물은 커밋하지 않는다. 스키마와 규칙만 남긴다
+db/*.db
+db/*.db-wal
+db/*.db-shm
+probe-out/

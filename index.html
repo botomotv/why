@@ -26,7 +26,7 @@
 --t1:#E8EAEE;--t2:#9CA3AE;--t3:#666C77;
 --blue:#5B9BE5;--red:#E2635A;--gov:#8A929E;--gold:#E3AE55}
 *{box-sizing:border-box;margin:0;padding:0}
-html,body{height:100%;overflow:hidden}
+html,body{height:100%;overflow:hidden;touch-action:manipulation}
 body{background:var(--bg);color:var(--t1);font-family:'Noto Sans KR',-apple-system,sans-serif;line-height:1.6;font-size:15.5px;-webkit-text-size-adjust:100%;overscroll-behavior:none}
 
 
@@ -93,7 +93,7 @@ body{background:var(--bg);color:var(--t1);font-family:'Noto Sans KR',-apple-syst
 .sh-civic{width:14px;height:14px;background:#4FC0A8}
 .shl{flex:0 0 auto;width:26px;height:0;border-top:2px dashed var(--red)}
 .hint{position:fixed;left:50%;transform:translateX(-50%);bottom:70px;z-index:15;font-size:13.5px;color:var(--t3);
-  word-break:keep-all;
+  word-break:keep-all;text-align:center;width:max-content;max-width:calc(100vw - 40px);
   pointer-events:none;transition:opacity .5s}
 
 /* ===== 팝업 카드 ===== */
@@ -124,20 +124,24 @@ body.panelon #stage{right:448px}
    #detail 의 font-size 를 배율로 잡고, 카드 안 크기를 em 으로 따라가게 한다. */
 .ptools{position:sticky;top:0;z-index:2;float:right;display:flex;align-items:center;gap:6px;margin:12px 12px 0 0}
 .ptools .pclose{position:static;float:none;margin:0}
-.ptxt{width:34px;height:26px;border:1px solid var(--line2);background:rgba(14,15,18,.85);
-  color:var(--t2);border-radius:6px;cursor:pointer;font-family:inherit;font-size:13.5px;
-  line-height:1;padding:0;display:flex;align-items:center;justify-content:center;gap:1px}
-.ptxt sup{font-size:10px;line-height:1}
-.ptxt:hover{color:var(--gold);border-color:var(--gold)}
-.ptxt:disabled{opacity:.35;cursor:default}
-.ptxt:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
+/* 카드를 위로 펴고 다시 접는 버튼.
+   손잡이를 끌어도 되지만 그게 있다는 걸 알 방법이 없었다. 글자로 말해준다. */
+.pexp{height:26px;padding:0 10px;border:1px solid var(--line2);background:rgba(14,15,18,.85);
+  color:var(--t2);border-radius:6px;cursor:pointer;font-family:inherit;font-size:12.5px;
+  line-height:1;display:flex;align-items:center;gap:5px;white-space:nowrap}
+.pexp .pex-i{font-size:12px;line-height:1;transition:transform .2s}
+body.popfull .pexp .pex-i{transform:rotate(180deg)}
+.pexp b{font-weight:500}
+.pexp:hover{color:var(--gold);border-color:var(--gold)}
+.pexp:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
+/* 카드 글자 크기는 고정값이다. 조절 기능은 두지 않는다. */
 #detail{--t-base:15.5px;--t-title:23px;--t-big:36px;--t-bigc:15.5px;--t-chain:17px;--t-lab:13.5px}
-#detail{font-size:calc(var(--t-base) * var(--cardfs,1))}
-#detail .title{font-size:calc(var(--t-title) * var(--cardfs,1))}
-#detail .big-n{font-size:calc(var(--t-big) * var(--cardfs,1))}
-#detail .big-c{font-size:calc(var(--t-bigc) * var(--cardfs,1))}
-#detail .chain button{font-size:calc(var(--t-chain) * var(--cardfs,1))}
-#detail .sec-lab{font-size:calc(var(--t-lab) * var(--cardfs,1))}
+#detail{font-size:var(--t-base)}
+#detail .title{font-size:var(--t-title)}
+#detail .big-n{font-size:var(--t-big)}
+#detail .big-c{font-size:var(--t-bigc)}
+#detail .chain button{font-size:var(--t-chain)}
+#detail .sec-lab{font-size:var(--t-lab)}
 
 .c-head{padding:20px 22px 18px}
 .meta{display:flex;gap:7px;align-items:center;flex-wrap:wrap;margin-bottom:11px}
@@ -606,7 +610,7 @@ body.hasundo .rgrp{pointer-events:auto;display:flex;align-items:center;gap:8px;p
   body:not(.popfull) .ptools{margin:6px 12px 0 0}
   /* 접힘 상태에서는 큰 숫자가 자리를 너무 먹는다. 관계 한 줄이라도 더 보이게 줄인다.
      펼치면 원래 크기로 돌아온다. */
-  body:not(.popfull) #detail{--t-title:18.5px}
+  body:not(.popfull) #detail{--t-title:17px}
   body:not(.popfull) .title{margin-bottom:4px}
   body:not(.popfull) .meta{margin-bottom:4px}
   body:not(.popfull) .sec-lab{margin-bottom:8px}
@@ -616,12 +620,12 @@ body.hasundo .rgrp{pointer-events:auto;display:flex;align-items:center;gap:8px;p
   body:not(.popfull) #detail .ch-x,
   body:not(.popfull) #detail .gap,
   body:not(.popfull) #detail .ch-w{display:none}
-  body:not(.popfull) #detail{--t-lab:11.5px}
+  body:not(.popfull) #detail{--t-lab:11px}
   body:not(.popfull) .sec-lab{margin-bottom:6px}
   body.panelon 
   .c-head,.sec,.big,.caution,.src,.oneline{padding-left:17px;padding-right:17px}
   .gv{padding:12px}
-  #detail{--t-base:14.5px;--t-title:19.5px;--t-big:26px;--t-bigc:14px;--t-chain:15.5px;--t-lab:12.5px}
+  #detail{--t-base:13.5px;--t-title:18px;--t-big:23px;--t-bigc:13px;--t-chain:14.5px;--t-lab:11.5px}
   .big-c{margin-top:6px}
   .sec-lab{margin-bottom:10px}
   .big-n{font-size:32px}
@@ -844,7 +848,7 @@ body.hasundo .rolebar{top:232px;width:calc(100vw - 24px);max-height:96px;overflo
   </div>
 </div>
 
-<div class="pop" id="pop"><button class="popgrab" id="popGrab" aria-label="카드 크게 보기" aria-expanded="false"></button><div class="ptools"><button class="ptxt" id="txtDn" aria-label="카드 글자 작게">가<sup>−</sup></button><button class="ptxt" id="txtUp" aria-label="카드 글자 크게">가<sup>+</sup></button><button class="pclose" id="pclose" aria-label="닫기">✕</button></div><div id="detail"></div></div>
+<div class="pop" id="pop"><button class="popgrab" id="popGrab" aria-label="카드 크게 보기" aria-expanded="false"></button><div class="ptools"><button class="pexp" id="popExp" aria-expanded="false" aria-controls="detail"><span class="pex-i" aria-hidden="true">⌃</span><b id="popExpLab">설명 더 보기</b></button><button class="pclose" id="pclose" aria-label="닫기">✕</button></div><div id="detail"></div></div>
 
 <script>
 var N=[
@@ -2412,24 +2416,9 @@ function closePop(){focus=null;ring={};roles={};pop.classList.remove('on');setPa
   document.getElementById('hint').style.opacity=1}
 document.getElementById('pclose').onclick=closePop;
 
-/* 카드 글자 크기. 지도 확대가 아니라 카드 안 글자만 바뀐다. 선택은 기억한다. */
-var CARD_FS=[0.85,1,1.15,1.3,1.5], cardFsI=1;
-try{var sv=localStorage.getItem('why.cardfs');if(sv!==null&&CARD_FS[+sv]!==undefined)cardFsI=+sv}catch(e){}
-var txtUpBtn=document.getElementById('txtUp'),txtDnBtn=document.getElementById('txtDn');
-function applyCardFs(){
-  document.documentElement.style.setProperty('--cardfs',CARD_FS[cardFsI]);
-  if(txtDnBtn)txtDnBtn.disabled=(cardFsI===0);
-  if(txtUpBtn)txtUpBtn.disabled=(cardFsI===CARD_FS.length-1);
-  try{localStorage.setItem('why.cardfs',String(cardFsI))}catch(e){}
-}
-function bumpCardFs(d){
-  var n=cardFsI+d;
-  if(n<0||n>CARD_FS.length-1)return;
-  cardFsI=n;applyCardFs();
-}
-if(txtUpBtn)txtUpBtn.onclick=function(){bumpCardFs(1)};
-if(txtDnBtn)txtDnBtn.onclick=function(){bumpCardFs(-1)};
-applyCardFs();
+/* 카드 펴기·접기. 손잡이 드래그와 같은 동작을 글자로 알려주는 버튼이다. */
+var popExpBtn=document.getElementById('popExp'),popExpLab=document.getElementById('popExpLab');
+if(popExpBtn)popExpBtn.onclick=function(){setPopFull(!document.body.classList.contains('popfull'))};
 
 /* 카드 손잡이. 폰에서 카드는 두 단계다 — 아래 40%(지도가 보인다) / 88%(설명 전체).
    짧게 누르면 토글, 세로로 끌면 끈 방향대로. 끌어내린 상태에서 더 내리면 닫힌다. */
@@ -2437,6 +2426,9 @@ var popGrab=document.getElementById('popGrab');
 function setPopFull(on){
   document.body.classList.toggle('popfull',!!on);
   if(popGrab)popGrab.setAttribute('aria-expanded',on?'true':'false');
+  var eb=document.getElementById('popExp'),el=document.getElementById('popExpLab');
+  if(eb)eb.setAttribute('aria-expanded',on?'true':'false');
+  if(el)el.textContent=on?'접기':'설명 더 보기';
   if(on)pop.scrollTop=0;
 }
 if(popGrab){
@@ -2861,6 +2853,22 @@ cv.addEventListener('touchend',function(e){
   if(e.touches.length===0){if(!pinch)up();pinch=null;drag=null;pan=null;downAt=null}
 },{passive:false});
 cv.addEventListener('touchcancel',function(){pinch=null;drag=null;pan=null});
+
+/* 더블탭 확대 차단 (보조).
+   touch-action:manipulation 로 대부분 막히지만 iOS 사파리는 남는 경우가 있다.
+   두 손가락 제스처는 절대 건드리지 않는다 — 핀치 확대는 계속 되어야 한다. */
+(function(){
+  var lastT=0,lastX=0,lastY=0;
+  document.addEventListener('touchend',function(e){
+    if(e.touches.length>0)return;                 // 아직 손가락이 남아있으면 핀치 중이다
+    if(e.changedTouches.length!==1)return;        // 한 손가락 탭만 본다
+    var t=e.timeStamp, c=e.changedTouches[0];
+    if(t-lastT<320 && Math.hypot(c.clientX-lastX,c.clientY-lastY)<32){
+      if(e.cancelable)e.preventDefault();
+      lastT=0;return}
+    lastT=t;lastX=c.clientX;lastY=c.clientY;
+  },{passive:false});
+})();
 function rehover(px,py){var n2=at(px,py);if(n2!==hover){hover=n2;cv.style.cursor=n2?'pointer':'default'}}
 function zoomAt(px,py,k){var ns=Math.max(0.22,Math.min(3.2,cam.ts*k));
   cam.tx=px-(px-cam.tx)*(ns/cam.ts);cam.ty=py-(py-cam.ty)*(ns/cam.ts);cam.ts=ns}
@@ -3103,6 +3111,16 @@ document.getElementById('zrst').onclick=function(){
 
 /* ===== 검색 ===== */
 var qEl=document.getElementById('q'),srEl=document.getElementById('sres'),qIdx=-1,qHits=[];
+/* 안내문은 입력 장치에 맞춰 고른다. 폭으로 가르면 폴드(840px)가 마우스 문구를 받는다. */
+var hintEl2=document.getElementById('hint');
+function syncHint(){
+  if(!hintEl2)return;
+  var mouse=window.matchMedia&&matchMedia('(hover:hover) and (pointer:fine)').matches;
+  hintEl2.textContent=mouse?'끌어서 이동, 휠로 확대·축소':'두 손가락으로 이동하고 확대·축소';
+}
+syncHint();
+window.addEventListener('resize',syncHint);
+
 /* 폰에서는 안내 문구가 입력창보다 길어 잘린다. 짧은 문구로 바꾼다. */
 var Q_WIDE=qEl?qEl.placeholder:'', Q_NARROW='이재명, 간첩법, 2020';
 function syncQPlaceholder(){if(qEl)qEl.placeholder=(innerWidth<=620?Q_NARROW:Q_WIDE)}

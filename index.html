@@ -12,6 +12,7 @@
      og:image 와 og:url 은 절대 주소여야 한다. 상대 경로는 크롤러가 못 읽는다.
      그림은 docs/og.html 을 헤드리스 크롬으로 렌더해서 만든다 (docs/배포.md 참고). -->
 <meta property="og:type" content="website">
+<link rel="canonical" href="https://why-map.com/">
 <meta property="og:url" content="https://why-map.com/">
 <meta property="og:image" content="https://why-map.com/og.png">
 <meta property="og:image:width" content="1200">
@@ -373,6 +374,11 @@ body.panelon .search{left:calc(50% - 224px)}
   box-shadow:0 16px 40px rgba(0,0,0,.6);max-height:340px;overflow-y:auto;z-index:50}
 .sres.on{display:block}
 .undo{display:flex;gap:9px;justify-content:center;margin-top:10px;pointer-events:none}
+/* PC 에서는 알약을 검색창 오른쪽 옆에 붙인다.
+   검색창 아래 줄에 두면 알약이 노드 이름표를 통째로 덮어 둘 다 안 읽힌다.
+   검색창과 같은 높이로 올리면 지도가 새로 가려지는 세로 공간이 0 이 된다.
+   폰은 화면이 좁아 옆자리가 없으므로 아래 줄 그대로 둔다(미디어쿼리에서 되돌린다). */
+.undo{position:absolute;left:100%;top:0;margin-top:0;margin-left:10px}
 .undo>*{pointer-events:auto}
 .ub{display:flex;align-items:center;gap:8px;font-family:inherit;font-size:15.5px;font-weight:500;
   padding:12px 20px;border-radius:11px;border:1px solid #4A3F26;background:#26221A;color:var(--gold);
@@ -718,7 +724,7 @@ body.hasundo .rolebar{top:232px;width:calc(100vw - 24px);max-height:96px;overflo
 
   /* ③ '처음으로' 알약이 지도를 가렸다. 아이콘 + 짧은 글자만 남긴다.
      무엇을 보고 있는지는 필터 칩이 노랗게 켜져 있어 이미 알 수 있다. */
-  .undo{margin-top:5px}
+  .undo{position:static;margin-top:5px;margin-left:0;justify-content:center}
   .ub{font-size:12.5px;padding:5px 10px;gap:5px;border-radius:8px}
   .ub span{font-size:13.5px}
   .ub em{display:none}
@@ -2205,7 +2211,16 @@ if(EDIT)document.body.classList.add('editmode');
    화면 워터마크·카드 하단·'보는 법' 안내가 전부 이 값을 읽는다.
    <head> 의 og:url / og:image 는 크롤러가 JS 실행 전에 읽으므로 HTML 에 그대로 두되,
    test/check.cjs 16번 검사가 둘이 어긋나지 않는지 본다. */
-var SITE={name:'왜',host:'why-map.com',owner:'장용석',license:'CC BY-NC-SA 4.0',year:'2026'};
+var SITE={
+  name:'왜', host:'why-map.com',
+  /* 화면에는 사이트 이름만 쓴다. 개인 이름이 걸리면 '누구의 사이트' 처럼 보여
+     중립성이 흐려진다. 권리는 LICENSE 와 README 가 가진다. */
+  display:'왜(why-map.com)',
+  owner:'장용석',                 /* 권리 표기용. 화면에 쓰지 않는다 */
+  license:'CC BY-NC-SA 4.0', year:'2026'
+};
+/* 화면에 나가는 저작권 한 줄. 여기 한 곳에서만 만든다. */
+function siteCopy(){ return '© '+SITE.year+' '+SITE.display+' · '+SITE.license }
 var PHOTO={},REFS={},ULK=[];
 try{PHOTO=JSON.parse(localStorage.getItem('billtracker_photos')||'{}')}catch(e){PHOTO={}}
 try{REFS=JSON.parse(localStorage.getItem('billtracker_refs')||'{}')}catch(e){REFS={}}
@@ -2472,7 +2487,7 @@ if(popExpBtn)popExpBtn.onclick=function(){setPopFull(!document.body.classList.co
 
 /* 이용 안내 밑줄. 도메인·저작권자는 SITE 한 곳에서 온다. */
 var useFootEl=document.getElementById('useFoot');
-if(useFootEl)useFootEl.innerHTML='© '+SITE.year+' '+SITE.owner+' · <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/deed.ko" target="_blank" rel="noopener">'+SITE.license+'</a><br>'+SITE.name+' · '+SITE.host;
+if(useFootEl)useFootEl.innerHTML='© '+SITE.year+' '+SITE.display+' · <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/deed.ko" target="_blank" rel="noopener">'+SITE.license+'</a>';
 
 /* 카드 손잡이. 폰에서 카드는 두 단계다 — 아래 40%(지도가 보인다) / 88%(설명 전체).
    짧게 누르면 토글, 세로로 끌면 끈 방향대로. 끌어내린 상태에서 더 내리면 닫힌다. */
@@ -2844,17 +2859,34 @@ function draw(){
 
   /* 워터마크. 캔버스에 직접 그린다 —
      DOM 이 아니라서 개발자도구로 지울 수 없고, 지도만 잘라 캡처해도 따라간다.
-     카메라 변환을 리셋해서 화면 오른쪽 위에 고정한다. 배율과 무관하게 같은 자리다.
-     지도를 가리면 안 되므로 아주 옅게, 작게. 클릭도 가로채지 않는다(그림일 뿐이다). */
+     카메라 변환을 리셋해 배율과 무관하게 같은 자리에 고정한다.
+
+     자리 — 화면 중앙 상단, '처음으로' 알약 바로 아래.
+     모서리는 크롭으로 잘라내기 쉽지만 중앙은 자르면 지도도 같이 잘린다.
+     알약이 떠 있든 아니든 같은 자리라 항상 보인다.
+
+     크기·대비 — 캡처에서 읽혀야 목적을 이룬다. 실기기에서 10.5px / 투명도 0.34 는 뭉갰다.
+     글자를 키우고, 뒤에 옅은 판을 깔아 밝은 노드 위에서도 대비가 살게 한다.
+
+     워터마크로 도용을 막을 수는 없다. 목적은 "몰랐다" 를 못 하게 만들고
+     일부러 지웠다는 증거를 남기는 것이다. */
   cx.setTransform(DPR,0,0,DPR,0,0);
   cx.globalAlpha=1;
-  var wmS=W<620?10.5:12;
-  cx.font='500 '+wmS+"px 'Noto Sans KR',-apple-system,sans-serif";
-  cx.textAlign='right';cx.textBaseline='alphabetic';
-  cx.fillStyle='rgba(227,174,85,0.34)';
-  /* 캔버스 맨 위(y≈20)는 검색창이 덮는다. 검색창 아래 오른쪽 구석에 둔다.
-     이 자리는 폰·PC 모두, 카드가 열려 캔버스가 줄어들 때도 비어 있다. */
-  cx.fillText(SITE.name+' · '+SITE.host, W-13, 80);
+  var narrowWm=W<620;
+  var wmS=narrowWm?13:14.5;
+  var wmY=narrowWm?96:146;
+  var wmTxt=SITE.name+' · '+SITE.host;
+  cx.font='600 '+wmS+"px 'Noto Sans KR',-apple-system,sans-serif";
+  cx.textAlign='center';cx.textBaseline='middle';
+  var wmW=cx.measureText(wmTxt).width,wmPX=11,wmPY=6;
+  var wbx=W/2-wmW/2-wmPX,wby=wmY-wmS/2-wmPY,wbw=wmW+wmPX*2,wbh=wmS+wmPY*2;
+  cx.fillStyle='rgba(12,13,16,0.62)';
+  cx.beginPath();
+  if(cx.roundRect)cx.roundRect(wbx,wby,wbw,wbh,7);else cx.rect(wbx,wby,wbw,wbh);
+  cx.fill();
+  cx.strokeStyle='rgba(227,174,85,0.18)';cx.lineWidth=1;cx.stroke();
+  cx.fillStyle='rgba(227,174,85,0.72)';
+  cx.fillText(wmTxt, W/2, wmY);
 }
 (function loop(){tick();fade();placePop();draw();requestAnimationFrame(loop)})();
 
@@ -3529,7 +3561,7 @@ function render(id){
     '</div>':'')+'</div>'+
     '<div class="sec sec-links"><p class="sec-lab">이어진 관계 '+rels.length+'개</p><ul class="rel">'+
     rels.map(function(l){return sentence(l,id)}).join('')+'</ul></div>'+(n.src?'<p class="src">'+n.src+'</p>':'')+
-    '<p class="cardlic">© '+SITE.year+' '+SITE.owner+' · '+SITE.license+' · '+SITE.name+' · '+SITE.host+'</p>';
+    '<p class="cardlic">'+siteCopy()+'</p>';
   d.innerHTML=html;
   d.querySelectorAll('[data-go]').forEach(function(b){b.onclick=function(){
     var t=b.dataset.go;

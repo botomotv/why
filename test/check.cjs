@@ -71,6 +71,15 @@ function stubCanvas(win) {
   win.HTMLCanvasElement.prototype.getContext = function(){ ctx.canvas=this; return ctx; };
 }
 
+/* 사람이 화면에서 실제로 보는 글자만 모은다.
+   textContent 는 <script> 안의 소스까지 읽어서, 상수에 적어둔 값이
+   '화면에 보인다' 로 잘못 잡힌다. script·style·template 을 떼고 센다. */
+function visibleText(doc) {
+  const b = doc.body.cloneNode(true);
+  b.querySelectorAll('script,style,template,noscript').forEach(el => el.remove());
+  return String(b.textContent || '');
+}
+
 /* <style> 안을 최상위 블록 단위로 자른다.
    문자열('...')과 주석(/* ... *\/) 안의 중괄호에 속으면 안 되므로 상태를 들고 훑는다.
    정규식으로 자르면 블록이 통째로 날아가도 문법 검사는 통과한다. */
@@ -563,6 +572,7 @@ function boot(w, h) {
       ['index.html <head> og:url',      html, /<meta[^>]*property=["']og:url["'][^>]*content=["']([^"']*)["']/i],
       ['index.html <head> og:image',    html, /<meta[^>]*property=["']og:image["'][^>]*content=["']([^"']*)["']/i],
       ['index.html <head> twitter:image', html, /<meta[^>]*name=["']twitter:image["'][^>]*content=["']([^"']*)["']/i],
+      ['index.html <head> canonical',    html, /<link[^>]*rel=["']canonical["'][^>]*href=["']([^"']*)["']/i],
     ];
     mustHaveHost.forEach(([what, src, re]) => {
       const v = (re.exec(src) || [])[1];
@@ -587,6 +597,30 @@ function boot(w, h) {
   const licInCard = /class="cardlic"/.test(html);
   if (!licInCard) wmProblems.push('카드 하단 저작권 줄(.cardlic)이 없다');
   if (!fs.existsSync(path.join(ROOT, 'LICENSE'))) wmProblems.push('LICENSE 파일이 없다');
+
+  // 화면에는 사이트 이름만 쓴다. 개인 이름이 걸리면 '누구의 사이트' 처럼 보여
+  // 중립성이 흐려진다. 권리는 LICENSE 와 README 가 갖고, 화면은 담백하게 간다.
+  const owner16 = (dom0.window.SITE || {}).owner;
+  if (owner16) {
+    const de = dom0.window.document;
+    // 노드 종류별 카드를 열어 화면에 실명이 나오는지 본다
+    [...new Set(dom0.window.N.map(n => n.t))].forEach(k => {
+      const n = dom0.window.N.find(x => x.t === k);
+      if (!n) return;
+      try { dom0.window.setFocus(n.id) } catch (e) { return }
+      // jsdom 은 innerText 를 지원하지 않는다 (undefined). textContent 를 쓰되,
+      // textContent 는 <script> 안의 소스까지 읽는다 — SITE 상수의 owner 가 그대로 잡힌다.
+      // 사람이 화면에서 보는 글자만 남기려면 script·style 을 떼고 봐야 한다.
+      if (visibleText(de).indexOf(owner16) >= 0)
+        wmProblems.push(`${k} 카드 화면에 저작권자 실명('${owner16}')이 보인다 — 화면은 SITE.display 를 쓴다`);
+    });
+    // LICENSE 와 README 에는 반대로 실명이 있어야 한다. 권리 주체가 사라지면 안 된다.
+    [['LICENSE'], ['README.md']].forEach(([rel]) => {
+      const fp = path.join(ROOT, rel);
+      if (fs.existsSync(fp) && fs.readFileSync(fp, 'utf8').indexOf(owner16) < 0)
+        wmProblems.push(`${rel} 에 저작권자('${owner16}')가 없다 — 권리 주체가 빠졌다`);
+    });
+  }
 
   wmProblems.forEach(t => F(`워터마크·저작권: ${t}`));
   console.log(`16. 워터마크        ${wmProblems.length === 0

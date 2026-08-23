@@ -50,8 +50,15 @@ const qFetchIns  = db.prepare(`INSERT INTO raw_fetch
   (service,params,fetched_at,status,code,total,row_count,body) VALUES (?,?,?,?,?,?,?,?)`);
 const qRowIns    = db.prepare(`INSERT OR IGNORE INTO raw_row
   (fetch_id,service,natural_k,row_json) VALUES (?,?,?,?)`);
+/* 법안마다 제 대수를 같이 꺼낸다.
+   전에는 대수를 안 보고 모든 BILL_ID 를 꺼낸 뒤 AGES 전부와 곱했다.
+   22대만 받으려 해도 창고에 있는 99,995건을 전부 부르게 된다 —
+   그중 81,133건은 20대 미만이라 표결이 아예 없는 법안이다.
+   법안 하나당 그 법안의 대수로 한 번만 부른다. */
 const qBillIds   = db.prepare(
-  `SELECT natural_k FROM raw_row WHERE service='nzmimeepazxkubdpn' ORDER BY natural_k`);
+  `SELECT natural_k AS id, CAST(json_extract(row_json,'$.AGE') AS INTEGER) AS age
+     FROM raw_row WHERE service='nzmimeepazxkubdpn'
+     ORDER BY age DESC, natural_k`);
 const qVoteDone  = db.prepare(
   `SELECT params FROM raw_fetch WHERE service='nojepdqqaweusdfbi'`);
 
@@ -132,27 +139,38 @@ async function main() {
     if (skip.length) console.log(`\n표결 건너뜀 · 제${skip.join(',')}대 — 20대부터만 제공된다`);
 
     if (ages.length) {
-      const ids = qBillIds.all().map(r => r.natural_k);
-      if (!ids.length) {
+      const all = qBillIds.all();
+      if (!all.length) {
         console.error('\nBILL_ID 가 하나도 없습니다. 2단계를 먼저 돌려야 합니다.');
         process.exit(3);
       }
-      const done = new Set(qVoteDone.all().map(r => JSON.parse(r.params).BILL_ID));
-      const todo = ids.filter(id => !done.has(id));
-      console.log(`\n4) 개인별 표결 · 법안 ${ids.length}건 중 ${todo.length}건 남음 (완료 ${done.size}건)`);
+      const want = new Set(ages);
+      const pairs = all.filter(r => want.has(r.age));
+      const outOfAge = all.length - pairs.length;
 
+      /* 말없이 거르지 않는다. 몇 건을 왜 뺐는지 밝힌다. */
+      console.log(`\n4) 개인별 표결`);
+      console.log(`   창고의 법안 ${all.length.toLocaleString()}건 중 이번에 받을 대수(${ages.join(',')}) ${pairs.length.toLocaleString()}건`);
+      if (outOfAge) console.log(`   다른 대수라 건너뜀 ${outOfAge.toLocaleString()}건`);
+
+      const done = new Set(qVoteDone.all().map(r => JSON.parse(r.params).BILL_ID));
+      const todo = pairs.filter(r => !done.has(r.id));
+      console.log(`   이미 받은 것 ${done.size.toLocaleString()}건 · 남은 것 ${todo.length.toLocaleString()}건`);
+      if (!todo.length) { console.log('   받을 게 없습니다.'); }
+
+      const t0 = Date.now();
       for (let i = 0; i < todo.length; i++) {
-        for (const age of ages) {
-          await fetchOnce('nojepdqqaweusdfbi',
-            { BILL_ID: todo[i], AGE: String(age), pIndex: '1', pSize: String(PAGE) });
-        }
+        await fetchOnce('nojepdqqaweusdfbi',
+          { BILL_ID: todo[i].id, AGE: String(todo[i].age), pIndex: '1', pSize: String(PAGE) });
         if (i % 20 === 0 || i === todo.length - 1) {
           const pct = ((i + 1) / todo.length * 100).toFixed(1);
-          const left = ((todo.length - i - 1) * GAP_MS * ages.length / 3600000).toFixed(1);
+          /* 남은 시간은 실제로 걸린 시간에서 낸다. 상수로 계산하면 실제와 갈라진다. */
+          const per = (Date.now() - t0) / (i + 1);
+          const left = ((todo.length - i - 1) * per / 3600000).toFixed(1);
           process.stdout.write(`\r   ${i + 1}/${todo.length} (${pct}%) · 남은 시간 약 ${left}시간      `);
         }
       }
-      process.stdout.write('\n');
+      if (todo.length) process.stdout.write('\n');
     }
   }
 

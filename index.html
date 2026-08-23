@@ -3628,7 +3628,37 @@ function decideRailOpen(){
   /* open 을 코드로 바꿔도 toggle 이 난다. 그걸 '사람이 손댔다' 로 세면
      이 함수가 스스로를 막아버린다 — 실제로 폴드를 접었다 펴도 안 바뀌었다. */
   railAuto=true;
-  document.querySelectorAll('details.railcard').forEach(function(d){d.open=pc});
+  var all=[].slice.call(document.querySelectorAll('details.railcard'));
+  all.forEach(function(d){d.open=false});
+  if(pc){
+    /* 8장을 다 펴면 2047px 이라 스크롤이 생긴다. 접기를 만든 이유가 그 스크롤이었다.
+       그래서 **중요한 순서로, 들어가는 만큼만** 편다.
+
+       순서의 기준: 처음 온 사람이 지도를 읽으려면 반드시 봐야 하는 것.
+         1. 선이 뜻하는 것 — 이 지도의 핵심 약속이다.
+            "선은 관련이지 인과가 아니다" 를 모르면 지도 전체를 잘못 읽는다.
+         2. 모양 — 점의 생김새가 무엇을 뜻하는지. 범례가 없으면 못 읽는다.
+         3. 색 — 진영. 모양 다음으로 필요하다.
+         4. 이름이 안 보일 때 — 왜 이름이 다 안 뜨는지. 안 물어보면 그만이다.
+       나머지(시간 방향·가져다 쓰기·여기 안 나오는 것)는 필요할 때 찾는 것이다.
+       '여기 안 나오는 것' 은 카드 바닥에도 같은 문구가 있어 여기서 안 펴도 보인다.
+
+       실측(1440x900): 여유 172px · 선이 뜻하는 것 +141px → 한 장이 들어간다.
+              (1920x1080): 여유 352px → 선이 뜻하는 것 + 모양 두 장이 들어간다.
+       화면이 높으면 더 펴진다. 새 경계값을 만들지 않는다. */
+    var rail=document.getElementById('rail');
+    var order=['linecard','__kind','__side','zoomcard'];
+    var pick=function(k){
+      if(k==='__kind')return all.filter(function(d){return /모양/.test(d.querySelector('summary').textContent)})[0];
+      if(k==='__side')return all.filter(function(d){return /^\s*색/.test(d.querySelector('summary').textContent)})[0];
+      return all.filter(function(d){return d.classList.contains(k)})[0];
+    };
+    order.forEach(function(k){
+      var d=pick(k); if(!d||d.hidden)return;
+      d.open=true;
+      if(rail&&rail.scrollHeight>rail.clientHeight)d.open=false;
+    });
+  }
   /* toggle 은 **비동기**로 온다. finally 로 바로 끄면 이미 꺼진 뒤에 도착해
      우리가 바꾼 것을 '사람이 손댔다' 로 센다 — 실제로 그랬다.
      다음 차례에 끈다. */

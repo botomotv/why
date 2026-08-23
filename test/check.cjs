@@ -1286,6 +1286,22 @@ function boot(w, h) {
     });
     console.log(`27. 카드 규칙       CSS 와 맞는 값 ${ok}/${want.length}개`);
     if (!ok) F('27. 하나도 못 맞췄다 — 검사가 아무것도 안 보고 있다');
+
+    /* PC 에서 왼쪽 패널이 화면 세로를 넘치면 FAIL.
+       8장을 다 펴면 2047px 이 돼 스크롤이 생긴다. 접기를 만든 이유가 그 스크롤이었다.
+       jsdom 은 레이아웃을 안 해 높이를 못 잰다 — 그래서 코드의 규칙을 강제한다:
+       decideRailOpen 이 한 장 펼 때마다 넘침을 보고 되돌리는가.
+       실제 높이는 브라우저로 확인했다 (1440x900 → 1장, 1920x1080 → 2장, 둘 다 스크롤 없음). */
+    const dr = html.match(/function decideRailOpen\(\)[\s\S]*?\n\}/);
+    if (!dr) F('27. decideRailOpen 을 못 찾았다');
+    else {
+      const body = dr[0];
+      if (!/scrollHeight\s*>\s*[\w.]*clientHeight/.test(body))
+        F('27. PC 패널 — decideRailOpen 이 넘침을 안 본다. 다 펴면 스크롤이 생긴다');
+      else if (!/\.open\s*=\s*false/.test(body))
+        F('27. PC 패널 — 넘칠 때 되돌리지 않는다');
+      else console.log('27. PC 패널 넘침    한 장 펼 때마다 넘침을 보고 되돌린다 — 확인');
+    }
   }
 
   /* ── 요약 ── */

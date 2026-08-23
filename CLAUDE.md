@@ -175,6 +175,19 @@ st.remove();
   그 상태에서 잰 값은 **중간값**이지 최종값이 아니다
 - 재기 전에 탭을 앞으로 가져오거나, 위처럼 전환을 끄고 리플로를 강제한다
 
+**`getBoundingClientRect` 는 transform 을 포함한다 — 전환에 휘둘린다.**
+배치값이 필요하면 **`offsetLeft` · `offsetWidth` · `offsetTop`** 을 쓴다. 이건 transform 을 안 탄다.
+
+왼쪽 패널이 지도를 얼마나 가리는지 `getBoundingClientRect().right` 로 쟀더니
+전환 잔상 때문에 **230px 이 0 으로** 나왔다. 그래서 지도가 패널 뒤로 밀렸다.
+`offsetLeft + offsetWidth` 로 바꾸니 언제 재도 230px 이다.
+
+| 무엇을 재나 | 쓸 것 |
+|---|---|
+| 화면에서 실제로 차지하는 자리 (transform 포함) | `getBoundingClientRect` — **전환을 끄고** |
+| 배치상의 위치·크기 (transform 무시) | `offsetLeft` `offsetWidth` `offsetTop` |
+| 내용이 넘치는가 | `scrollHeight` vs `clientHeight` |
+
 **jsdom 은 값을 안 주고, 브라우저는 틀린 값을 준다.** 종류가 다른 거짓말이다.
 
 ### 검사는 계산으로 값을 만들지 말고 페이지에서 직접 읽는다

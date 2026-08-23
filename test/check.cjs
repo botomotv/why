@@ -1076,7 +1076,10 @@ function boot(w, h) {
     const src = html;
     /* reheat 뒤에 시계로 fit 을 부르는 꼴을 찾는다 */
     const bad = [];
-    const re = /setTimeout\(\s*(?:function\s*\([^)]*\)\s*\{[^}]*\b(?:fit|fitFocus)\s*\(|fit\s*,|fitFocus\s*,)/g;
+    /* setInterval 도 본다 — setTimeout 만 보다가 시간 방향 뒤집기의
+       setInterval(…alpha<0.03…fit()) 를 놓쳤다. 그건 가라앉음을 보긴 했지만
+       기준이 refitWhenSettled 와 달라 따로 관리되는 자리였다. */
+    const re = /set(?:Timeout|Interval)\(\s*(?:function\s*\([^)]*\)\s*\{[^}]*\b(?:fit|fitFocus)\s*\(|fit\s*,|fitFocus\s*,)/g;
     let m;
     while ((m = re.exec(src))) {
       const line = src.slice(0, m.index).split('\n').length;

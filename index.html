@@ -740,6 +740,10 @@ details.railcard>summary.raillab:focus-visible{outline:2px solid var(--gold);out
     transform:translateY(101%);transition:transform .26s ease;
     -webkit-overflow-scrolling:touch}
   body.legendon .rail{transform:translateY(0)}
+  /* 서랍은 화면 전체 폭이라 설명을 한 줄로 붙일 수 있다.
+     왼쪽 패널(212px)에서는 줄이 세 줄로 꺾여 오히려 커지므로 거기선 그대로 둔다.
+     이 24px 이 있고 없고로 서랍에 스크롤이 생겼다 사라진다. */
+  .railbtn em{display:inline;margin-top:0;margin-left:8px}
   body.legendon .hint{opacity:0}
   /* 닫기 바 — 서랍 안 맨 위에 붙어 스크롤해도 따라온다 */
   .railclose{display:flex;align-items:center;justify-content:center;gap:8px;
@@ -827,12 +831,15 @@ body.hasundo .rolebar{top:232px;width:calc(100vw - 24px);max-height:96px;overflo
     <p class="linesub">확대하거나 분야를 고르면 나머지 이름이 나옵니다.
       한 화면에 다 넣으면 글자가 겹쳐서 하나도 못 읽습니다.</p>
   </details>
-  <button class="timesw" id="ztime" aria-pressed="true">
-    <span class="tswl">시간 방향 바꾸기</span>
-    <span class="tswhint">지도가 고리 모양입니다. 눌러서 안과 밖을 뒤집습니다.</span>
-    <span class="tswrow"><b>가운데</b><em id="ztimeIn">지금</em></span>
-    <span class="tswrow"><b>바깥</b><em id="ztimeOut">최근</em></span>
-  </button>
+  <!-- 조작 버튼을 서랍에서 뺐다. 아래 바에 ⇄ 시간 방향 이 이미 있어 중복이었고,
+       그 162px 때문에 폰 서랍이 스크롤돼야 했다.
+       지금 어느 쪽이 과거인지는 정보라서 남긴다 — 접히는 카드로. -->
+  <details class="railcard" id="ztime">
+    <summary class="raillab">시간 방향</summary>
+    <p class="linesub">지도가 고리 모양입니다. 아래 <b>⇄ 시간 방향</b> 을 누르면 안과 밖이 뒤집힙니다.</p>
+    <p class="tswrow"><b>가운데</b><em id="ztimeIn">지금</em></p>
+    <p class="tswrow"><b>바깥</b><em id="ztimeOut">최근</em></p>
+  </details>
   <button class="railbtn" id="zrst"><span aria-hidden="true">⟲</span><b>배치 다시</b>
     <em>점들이 엉키면 처음부터 다시 놓습니다</em></button>
   <details class="railcard">
@@ -3420,7 +3427,6 @@ function ztLabel(){
 ztLabel();
 function toggleTimeDir(){
   timeOut=!timeOut;
-  zt.setAttribute('aria-pressed',timeOut?'true':'false');
   var zd=document.getElementById('zdir');
   if(zd)zd.setAttribute('aria-pressed',timeOut?'true':'false');
   ztLabel();
@@ -3429,8 +3435,7 @@ function toggleTimeDir(){
     var R=ringR(n),a=(typeof n.ang==='number'&&isFinite(n.ang))?n.ang:0;
     n.x=Math.cos(a)*R;n.y=Math.sin(a)*R*0.86;n.vx=0;n.vy=0});
   reheat(0.9);
-  var iv=setInterval(function(){if(alpha<0.03){clearInterval(iv);fit()}},60)}
-zt.onclick=toggleTimeDir;
+  refitWhenSettled(true)}
 var zdirBtn=document.getElementById('zdir');
 if(zdirBtn)zdirBtn.onclick=function(){toggleTimeDir();if(innerWidth<=900)setLegend(false)};
 var railEl=document.getElementById('rail');
@@ -3630,7 +3635,7 @@ function renderNList(){
 }
 document.getElementById('zrst').onclick=function(){
   N.forEach(function(n){n.fixed=false});init();reheat(1);
-  var iv=setInterval(function(){if(alpha<0.02){clearInterval(iv);fit()}},60)};
+  refitWhenSettled(true)};
 
 
 /* ===== 검색 ===== */

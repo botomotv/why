@@ -785,6 +785,43 @@ body.hasundo .rolebar{top:232px;width:calc(100vw - 24px);max-height:96px;overflo
   .ub span{font-size:13.5px}
 
 }
+
+/* ── 낮은 가로 화면 (폰·폴드를 눕힌 경우) ──
+   실측 915x412: 위 바 114px + 아래 카드 38dvh(157px) 를 빼면 지도가 915x141 이다.
+   이어진 것이 6개 중 1개만 보이고 이름표가 3개였다. 아래 카드로는 답이 없다.
+   카드를 옆으로 붙이면 지도가 535x298 이 되고 화면안 5/6 · 이름표 4개가 된다.
+
+     아래 카드 38dvh (915x141) → 화면안 3/6 · 이웃이름표 1/6
+     아래 카드 50%   (915x206) → 화면안 3/6 · 이웃이름표 1/6
+     옆 카드 448px   (467x298) → 화면안 5/6 · 이웃이름표 2/6
+     옆 카드 380px   (535x298) → 화면안 5/6 · 이웃이름표 3/6   ← 고름
+     옆 카드 300px   (615x298) → 화면안 5/6 · 이웃이름표 3/6
+
+   조건은 폭이 아니라 **높이**다. 낮으면 아래를 못 내준다.
+   폭 조건을 같이 두는 이유: 아주 좁고 낮은 화면에서는 옆으로도 못 준다.
+
+   이 블록은 파일 맨 끝이다. 같은 특정도면 뒤엣것이 이기므로
+   앞의 620/900/1000 규칙을 여기서 덮는다. 뒤에 일반 규칙을 쓰지 않는다. */
+@media (max-height:520px) and (min-width:620px){
+  .pop{width:min(380px,46vw);height:auto;top:58px;right:0;bottom:0;left:auto;
+    border-left:1px solid var(--line2);border-top:0;border-radius:0;
+    transform:translateX(100%)}
+  .pop.on{transform:translateX(0)}
+  .pop:before{display:none}
+  body.panelon #stage{right:min(380px,46vw);bottom:0}
+  body.panelon .zoomctl{right:calc(min(380px,46vw) + 16px)}
+  /* 왼쪽 패널도 서랍으로. 폭이 900 을 넘어도 높이가 낮으면 지도를 다 먹는다. */
+  .legendbtn{display:flex}
+  body.legendon .legendbtn{display:none}
+  .rail{display:flex;position:fixed;left:0;right:0;bottom:0;top:auto;width:auto;
+    max-height:84vh;max-height:84dvh;overflow-y:auto;z-index:26;gap:8px;
+    padding:0 14px calc(14px + env(safe-area-inset-bottom,0px));
+    background:rgba(14,15,18,.975);border-top:1px solid var(--line2);
+    transform:translateY(101%);transition:transform .26s ease}
+  body.legendon .rail{transform:translateY(0)}
+  .railclose{display:flex}
+  .railbtn em{display:inline;margin-top:0;margin-left:8px}
+}
 </style>
 </head>
 <body>

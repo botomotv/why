@@ -26,6 +26,7 @@ const VIEWPORTS = [
   [984, 1092],   // 폴드 펼침 후보 B (900 위 — 왼쪽 고정 패널)
   [1440, 900],   // 노트북
   [1920, 1080],  // 데스크톱
+  [915, 412],    // 폰 가로 — 높이가 낮아 카드를 옆으로 붙인다
 ];
 /* 이름표는 캔버스 배율(cam.s)에 곱해져 그려진다. 소스의 고정 폰트 크기가 12px 이므로
    화면상 크기는 12 × cam.s 다. 배율이 0.5면 6px 이 되어 읽을 수 없다. */
@@ -915,10 +916,19 @@ function boot(w, h) {
            <=620 은 32dvh, 621~1000 은 38dvh, 그 위는 오른쪽 448px.
            상단바+검색은 실측 104px. 폰 412x915 에서 지도 412x518 로 맞았다.
            이 숫자가 CSS 와 어긋나면 검사가 실물보다 넓은 화면을 가정하게 된다. */
+        /* 카드가 열리면 지도가 줄어든다. CSS 의 카드 규칙과 맞춘다 —
+           높이 <=520 이고 폭 >=620 이면 옆으로 붙는다 (min(380px,46vw)),
+           그 밖에는 아래로: <=620 은 32dvh, 621~1000 은 38dvh, >1000 은 오른쪽 448px.
+           상단바+검색은 실측 104px(가로 화면은 58px). 폰 412x915 에서 412x518 로 맞았다. */
         var pw=${w}, ph=${h};
-        W = pw>1000 ? pw-448 : pw;
-        H = pw>1000 ? ph-104
-          : Math.round(ph*(pw<=620?0.68:0.62)-104);
+        if(ph<=520&&pw>=620){
+          var cw=Math.min(380, pw*0.46);
+          W = pw-cw; H = ph-114;
+        } else {
+          W = pw>1000 ? pw-448 : pw;
+          H = pw>1000 ? ph-104
+            : Math.round(ph*(pw<=620?0.68:0.62)-104);
+        }
         if(typeof gatherFan==='function')gatherFan();   /* 크기를 고친 뒤에 모은다 */
         for(var i=0;i<420;i++)tick();
         if(typeof fitFocus==='function')fitFocus();
@@ -1250,6 +1260,29 @@ function boot(w, h) {
       if (!r.lbl) F(`26. ${w}×${h} — 첫 화면에 이름표가 하나도 없다. 색깔 점만 보인다`);
       if (ep > EMPTY_MAX) W(`26. ${w}×${h} — 노드가 놓인 상자 안에서 ${ep}% 가 비어 있다 (${r.emptyIn}/${r.inBox}칸). 한쪽에 뭉쳤을 수 있다`);
     }
+  }
+
+  // 27. 카드 규칙이 CSS 와 검사에서 같은 값인가
+  //     검사 20·26 은 지도 크기를 근사한다 — jsdom 이 레이아웃을 안 하기 때문이다.
+  //     그 근사값이 CSS 와 어긋나면 검사가 실물보다 넓은 화면을 가정하고 통과한다.
+  //     실제로 카드를 62dvh → 38dvh 로 바꿨을 때 검사는 62dvh 로 재고 있었다.
+  //     그래서 CSS 원문에서 값을 읽어 검사의 가정과 맞는지 본다.
+  {
+    const want = [
+      { re: /@media \(max-width:620px\)[\s\S]{0,4000}?body\.panelon #stage\{[^}]*bottom:(\d+)vh/, want: 32, nm: '≤620 카드 높이(dvh)' },
+      { re: /@media \(max-width:1000px\)[\s\S]{0,4000}?body\.panelon #stage\{[^}]*bottom:(\d+)vh/, want: 38, nm: '621~1000 카드 높이(dvh)' },
+      { re: /@media \(max-height:520px\)[\s\S]*?body\.panelon #stage\{right:min\((\d+)px/, want: 380, nm: '낮은 가로 카드 폭(px)' },
+    ];
+    let ok = 0;
+    want.forEach(w2 => {
+      const m = html.match(w2.re);
+      if (!m) { F(`27. CSS 에서 ${w2.nm} 을 못 찾았다 — 검사의 가정이 근거를 잃었다`); return }
+      const got = Number(m[1]);
+      if (got !== w2.want) F(`27. ${w2.nm} 이 CSS 에서 ${got} 인데 검사는 ${w2.want} 로 가정한다. 검사가 실물과 다른 화면을 재고 있다`);
+      else ok++;
+    });
+    console.log(`27. 카드 규칙       CSS 와 맞는 값 ${ok}/${want.length}개`);
+    if (!ok) F('27. 하나도 못 맞췄다 — 검사가 아무것도 안 보고 있다');
   }
 
   /* ── 요약 ── */

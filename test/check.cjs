@@ -468,19 +468,28 @@ function boot(w, h) {
     //   (1) 이름표가 몇 개나 실제로 그려지는가  (2) 이름표끼리 몇 쌍이 겹치는가
     //   (3) 화면상 글자가 몇 px 인가
     const camS = (win.cam && win.cam.s) || 1;
+    /* 이름표 배치는 200ms 캐시가 걸려 있다. 물리가 그 뒤에도 움직이므로
+       옛 위치로 배치한 결과를 지금 위치로 재면 없던 겹침이 나온다.
+       재기 직전에 다시 계획시킨다 — 화면이 실제로 그리는 것과 같아진다. */
+    try { win.labelSet = null; win.labelKey = ''; win.draw() } catch (e) {}
     const labeled = act.filter(n =>
       typeof win.labelOn === 'function' && win.labelOn(n) && n.a > 0.16 &&
       isFinite(n.x) && isFinite(n.__hw) && isFinite(n.__hh));
 
+    /* 상자를 여기서 다시 계산하지 않는다. 페이지의 labelBox() 를 그대로 부른다.
+       검사가 자기 식으로 계산하면 화면과 갈라지고, 그때 우리는 검사를 안 의심한다.
+       (전에 화면 글자 크기를 따로 계산하다가 거짓 경보를 며칠 냈다.) */
     let labOverlap = 0;
     const labPairs = [];
-    for (let i = 0; i < labeled.length; i++) for (let j = i + 1; j < labeled.length; j++) {
-      const a = labeled[i], b = labeled[j];
-      // 이름표는 점 아래에 가운데 정렬로 그려진다 (n.y + n.r + 14 부근)
-      const ay = a.y + (a.r || 8) + a.__hh, by = b.y + (b.r || 8) + b.__hh;
-      if (Math.abs(a.x - b.x) < (a.__hw + b.__hw) && Math.abs(ay - by) < (a.__hh + b.__hh)) {
-        labOverlap++;
-        if (labPairs.length < 3) labPairs.push(`${a.lab} × ${b.lab}`);
+    if (typeof win.labelBox !== 'function') F(`${w}px: labelBox() 가 없다 — 검사가 이름표 상자를 못 읽는다`);
+    else {
+      const boxes = labeled.map(n => Object.assign(win.labelBox(n), { lab: n.lab }));
+      for (let i = 0; i < boxes.length; i++) for (let j = i + 1; j < boxes.length; j++) {
+        const a = boxes[i], b = boxes[j];
+        if (Math.abs(a.x - b.x) < (a.w + b.w) && Math.abs(a.y - b.y) < (a.h + b.h)) {
+          labOverlap++;
+          if (labPairs.length < 3) labPairs.push(`${a.lab} × ${b.lab}`);
+        }
       }
     }
     /* 화면상 글자 크기는 배율 × 글꼴크기가 아니다.
@@ -902,10 +911,14 @@ function boot(w, h) {
            통과하는데 실물은 화면 밖인 상태가 생긴다.
            CSS 의 카드 규칙(<=620 bottom:32dvh, <=1000 62dvh, 그 위 right:448px)으로
            지도 크기를 근사한다. 실물 브라우저 값과 대조해 맞췄다. */
+        /* 카드가 열리면 지도가 줄어든다. CSS 의 카드 높이와 맞춘다 —
+           <=620 은 32dvh, 621~1000 은 38dvh, 그 위는 오른쪽 448px.
+           상단바+검색은 실측 104px. 폰 412x915 에서 지도 412x518 로 맞았다.
+           이 숫자가 CSS 와 어긋나면 검사가 실물보다 넓은 화면을 가정하게 된다. */
         var pw=${w}, ph=${h};
         W = pw>1000 ? pw-448 : pw;
-        H = pw<=620 ? Math.round((ph-58)*0.63)
-          : pw<=1000 ? Math.round((ph-58)*0.38) : ph-58;
+        H = pw>1000 ? ph-104
+          : Math.round(ph*(pw<=620?0.68:0.62)-104);
         if(typeof gatherFan==='function')gatherFan();   /* 크기를 고친 뒤에 모은다 */
         for(var i=0;i<420;i++)tick();
         if(typeof fitFocus==='function')fitFocus();
@@ -1077,6 +1090,55 @@ function boot(w, h) {
     if (!has) F('23. refitWhenSettled 가 없다 — 가라앉음을 보고 맞추는 경로가 사라졌다');
     /* 0 은 의심한다. 아무 데서도 안 쓰면 검사가 통과해도 의미가 없다. */
     if (has && uses < 3) F(`23. refitWhenSettled 를 ${uses}군데서만 쓴다 — 대부분이 아직 시계로 기다리는 것일 수 있다`);
+  }
+
+  // 24. 상수를 쓰는 곳보다 뒤에 선언했는가 (var 호이스팅)
+  //     var 는 선언만 끌어올리고 값은 안 끌어올린다.
+  //     NARROW_MIN_S = LABEL_FAR 를 LABEL_FAR 선언보다 앞에 두었더니
+  //     undefined 가 됐고, 이름표가 171/171 개 그려지며 겹침이 314쌍 났다.
+  //     문법 오류가 아니고 에러도 안 난다. 화면을 보기 전까지 모른다.
+  {
+    const a = html.indexOf('<script>'), b = html.lastIndexOf('</script>');
+    const js = a >= 0 ? html.slice(a + 8, b) : '';
+    const lines = js.split('\n');
+    /* 줄 맨 앞에서 시작하는 var 만 본다 — 함수 안쪽은 실행 시점이 달라 판단이 다르다 */
+    const decl = new Map();                 // 이름 → 선언 줄
+    const inits = [];                       // {name, line, expr}
+    lines.forEach((ln, i) => {
+      const m = ln.match(/^var\s+(.*)$/);
+      if (!m) return;
+      /* var A=1, B=2 형태를 쉼표로 나눈다 (괄호 안 쉼표는 무시) */
+      let depth = 0, cur = '', parts = [];
+      for (const ch of m[1]) {
+        if ('([{'.includes(ch)) depth++;
+        if (')]}'.includes(ch)) depth--;
+        if (ch === ',' && depth === 0) { parts.push(cur); cur = ''; continue }
+        cur += ch;
+      }
+      parts.push(cur);
+      parts.forEach(pt => {
+        const mm = pt.match(/^\s*([A-Za-z_$][\w$]*)\s*(=\s*([\s\S]*))?$/);
+        if (!mm) return;
+        if (!decl.has(mm[1])) decl.set(mm[1], i + 1);
+        if (mm[3]) inits.push({ name: mm[1], line: i + 1, expr: mm[3] });
+      });
+    });
+
+    const bad = [];
+    inits.forEach(d => {
+      /* 초기값에 쓰인 이름 중, 같은 최상위 var 인데 더 뒤에서 선언된 것 */
+      const ids = d.expr.match(/[A-Za-z_$][\w$]*/g) || [];
+      new Set(ids).forEach(id => {
+        if (id === d.name) return;
+        const at = decl.get(id);
+        if (at && at > d.line) bad.push(`${d.name}(${d.line}줄)이 ${id}(${at}줄)를 먼저 쓴다 — undefined 다`);
+      });
+    });
+
+    console.log(`24. 선언 순서       최상위 var ${decl.size}개 · 값 있는 것 ${inits.length}개 · 뒤엣것을 먼저 쓰는 자리 ${bad.length}곳`);
+    bad.forEach(m2 => F(`24. ${m2}`));
+    /* 0 은 의심한다. 아무것도 못 읽었으면 검사가 빈손이다. */
+    if (!decl.size) F('24. 최상위 var 를 하나도 못 찾았다 — 검사가 아무것도 안 보고 있다');
   }
 
   /* ── 요약 ── */

@@ -588,15 +588,42 @@ body.editmode .reflist li{padding-right:60px}
    test/check.cjs 11번 검사가 이 규칙을 강제한다.
    ══════════════════════════════════════════════════════════ */
 
+
+/* ── 보는 법 항목 접기/펴기 ──
+   전에는 접기 기능이 아예 없었다. 폰에서 접혀 보인 건 패널이 아래 서랍이라
+   서랍 자체가 닫혀 있었을 뿐이고, 데스크톱·폴드 펼침에서는 전부 펼쳐진 채였다.
+   '폰은 접힘, 데스크톱은 펼침' 은 의도가 아니라 부작용이었다.
+   그래서 해상도로 나누지 않고 기능으로 만든다. 모든 화면에서 접힌 채 시작한다.
+   <details> 를 쓰면 키보드·스크린리더가 그냥 되고 열림 상태를 브라우저가 관리한다. */
+details.railcard>summary.raillab{
+  list-style:none;cursor:pointer;margin-bottom:0;
+  display:flex;align-items:center;gap:8px;
+  padding:1px 0;user-select:none;-webkit-tap-highlight-color:transparent}
+details.railcard>summary.raillab::-webkit-details-marker{display:none}
+/* 무엇이 접혀 있는지 보이게 — 화살표가 펴지면 아래를 가리킨다 */
+details.railcard>summary.raillab:after{
+  content:'⌄';margin-left:auto;font-size:15px;line-height:1;color:#6C737E;
+  transform:rotate(-90deg);transform-origin:50% 45%;transition:transform .18s;flex:0 0 auto}
+details.railcard[open]>summary.raillab:after{transform:rotate(0)}
+details.railcard>summary.raillab:hover:after{color:var(--gold)}
+details.railcard[open]>summary.raillab{margin-bottom:10px}
+/* 안내문은 펼쳤을 때만. 접힌 한 줄에 넣으면 줄이 꺾여 '보 기' 처럼 잘린다 */
+details.railcard>summary.raillab em{display:none}
+details.railcard[open]>summary.raillab em{display:inline}
+details.railcard>summary.raillab:focus-visible{outline:2px solid var(--gold);outline-offset:3px;border-radius:4px}
+
 @media (max-width:1000px){
   .note{display:none}
-  .pop{width:100%;top:auto;left:0;right:0;height:62vh;height:62dvh;border-left:0;
+  .pop{width:100%;top:auto;left:0;right:0;height:38vh;height:38dvh;border-left:0;
     border-top:1px solid var(--line2);border-radius:16px 16px 0 0;transform:translateY(100%)}
   .pop.on{transform:translateY(0)}
   .pop:before{content:'';position:absolute;top:8px;left:50%;transform:translateX(-50%);
     width:40px;height:4px;border-radius:4px;background:#3A3F48}
   .c-head{padding-top:26px}
-  body.panelon #stage{right:0;bottom:62vh;bottom:62dvh}
+  /* 카드 높이. 전에는 62dvh 였는데, 폰(<=620)이 32dvh 인 것보다 오히려 컸다.
+     820x1180 태블릿에서 지도가 820x426 밖에 안 남아 이어진 것을 못 담았다.
+     넓은 화면일수록 카드가 커지는 건 앞뒤가 안 맞는다. 폰과 같은 비율로 내린다. */
+  body.panelon #stage{right:0;bottom:38vh;bottom:38dvh}
   body.panelon 
   body.panelon .legend,body.panelon .hint{display:none}
   
@@ -778,28 +805,28 @@ body.hasundo .rolebar{top:232px;width:calc(100vw - 24px);max-height:96px;overflo
 <button class="legendbtn" id="legendBtn" aria-expanded="false" aria-controls="rail"><span aria-hidden="true">☰</span><b>보는 법</b></button>
 <aside class="rail" id="rail">
   <button class="railclose" id="railClose"><span aria-hidden="true">✕</span>보는 법 닫기</button>
-  <div class="railcard linecard">
-    <p class="raillab">선이 뜻하는 것</p>
+  <details class="railcard linecard">
+    <summary class="raillab">선이 뜻하는 것</summary>
     <p class="linetop">선은 <b>관련이 있다</b>는 표시입니다.<br><b>"이것 때문"</b>이라는 뜻이 아닙니다.</p>
     <p class="linesub">어느 쪽이 원인인지는 이 지도가 말하지 않습니다. 판단은 보는 사람이 합니다.</p>
-  </div>
+  </details>
   <!-- 대립을 자동으로 못 그린다는 한계. 실측 근거는 docs/인물법안카드.md 에 있다.
        21대 의원발의 23,655건 중 임기만료폐기 67.8% · 부결은 10만 건 중 19건.
        못 그린다는 사실을 밝히는 것이 지금 할 수 있는 정직한 일이다. -->
-  <div class="railcard limitcard">
-    <p class="raillab">여기 안 나오는 것</p>
+  <details class="railcard limitcard">
+    <summary class="raillab">여기 안 나오는 것</summary>
     <p class="linetop"><b>국회의 대립은 대부분 기록에 남지 않습니다.</b></p>
     <p class="linesub">법안은 상정조차 안 된 채 임기가 끝나 사라지는 경우가 가장 많습니다.
       그건 반대인지 무관심인지 기록만으로 가릴 수 없습니다.
       본회의 표결까지 간 법안은 이미 걸러진 뒤라 대체로 찬성이 압도합니다.
       <b>그래서 이 지도에 보이는 것보다 실제 대립은 많습니다.</b></p>
-  </div>
-  <div class="railcard zoomcard">
-    <p class="raillab">이름이 안 보일 때</p>
+  </details>
+  <details class="railcard zoomcard">
+    <summary class="raillab">이름이 안 보일 때</summary>
     <p class="linetop"><b>먼저 결과 숫자부터</b> 보여줍니다.</p>
     <p class="linesub">확대하거나 분야를 고르면 나머지 이름이 나옵니다.
       한 화면에 다 넣으면 글자가 겹쳐서 하나도 못 읽습니다.</p>
-  </div>
+  </details>
   <button class="timesw" id="ztime" aria-pressed="true">
     <span class="tswl">시간 방향 바꾸기</span>
     <span class="tswhint">지도가 고리 모양입니다. 눌러서 안과 밖을 뒤집습니다.</span>
@@ -808,15 +835,15 @@ body.hasundo .rolebar{top:232px;width:calc(100vw - 24px);max-height:96px;overflo
   </button>
   <button class="railbtn" id="zrst"><span aria-hidden="true">⟲</span><b>배치 다시</b>
     <em>점들이 엉키면 처음부터 다시 놓습니다</em></button>
-  <div class="railcard">
-    <p class="raillab">모양 · <em>눌러서 그 종류만 보기</em></p>
+  <details class="railcard">
+    <summary class="raillab">모양<em> · 눌러서 그 종류만 보기</em></summary>
     <button class="lg lgbtn kdbtn" data-kind="res"><span class="sh sh-res"></span><b>결과 숫자</b></button>
     <button class="lg lgbtn kdbtn" data-kind="bill"><span class="sh sh-fill"></span><b>법·정책</b></button>
     <button class="lg lgbtn kdbtn" data-kind="who"><span class="sh sh-ring"></span><b>사람·정당·기관</b></button>
     <button class="lg lgbtn kdbtn" data-kind="event"><span class="sh sh-dia"></span><b>사건</b></button>
-  </div>
-  <div class="railcard">
-    <p class="raillab">색 · <em>눌러서 그 진영만 보기</em></p>
+  </details>
+  <details class="railcard">
+    <summary class="raillab">색<em> · 눌러서 그 진영만 보기</em></summary>
     <button class="lg lgbtn" data-side="blue"><span class="sh sh-blue"></span><b>민주당 계열</b></button>
     <button class="lg lgbtn" data-side="red"><span class="sh sh-red"></span><b>국민의힘 계열</b></button>
     <button class="lg lgbtn" data-side="both"><span class="sh sh-both"></span><b>여야 공동</b></button>
@@ -825,19 +852,19 @@ body.hasundo .rolebar{top:232px;width:calc(100vw - 24px);max-height:96px;overflo
     <button class="lg lgbtn" data-side="labor"><span class="sh sh-labor"></span><b>노동단체</b></button>
     <button class="lg lgbtn" data-side="civic"><span class="sh sh-civic"></span><b>시민·장애인단체</b></button>
     <div class="lg"><span class="shl"></span><b>반대·대립</b></div>
-  </div>
-  <div class="railcard" id="roleCard" hidden>
-    <p class="raillab">지금 보고 있는 관계</p>
+  </details>
+  <details class="railcard" id="roleCard" hidden>
+    <summary class="raillab">지금 보고 있는 관계</summary>
     <div class="lg"><span class="sh" style="background:#7FB2EE"></span><b>같은 주제</b><i>원인이란 뜻이 아님</i></div>
     <div class="lg"><span class="sh" style="background:#6FBF8E"></span><b>밀어붙임</b></div>
     <div class="lg"><span class="sh" style="background:#E2635A"></span><b>반대·대립</b></div>
     <div class="lg"><span class="sh" style="background:#A08BC7"></span><b>그때 정권</b><i>한 건 아님</i></div>
     <div class="lg"><span class="sh" style="background:#E3AE55"></span><b>결과</b></div>
-  </div>
+  </details>
   <p class="sidebar-note" id="kindNote" hidden></p>
   <p class="sidebar-note" id="sideNote" hidden></p>
-  <div class="railcard usecard">
-    <p class="raillab">가져다 쓰기</p>
+  <details class="railcard usecard">
+    <summary class="raillab">가져다 쓰기</summary>
     <p class="usetop">이 지도는 누구나 무료로 보고 인용할 수 있습니다.<br>다만 세 가지를 지켜주세요.</p>
     <ul class="uselist">
       <li>출처를 <b>'왜'</b>로 밝혀주세요</li>
@@ -845,7 +872,7 @@ body.hasundo .rolebar{top:232px;width:calc(100vw - 24px);max-height:96px;overflo
       <li>이 데이터로 뭔가 만들면, 그것도 무료로 공개해주세요</li>
     </ul>
     <p class="usefoot" id="useFoot"></p>
-  </div>
+  </details>
 </aside>
 
 <div class="zoomctl">
@@ -2427,7 +2454,12 @@ function measure(){
     if(n.t==='bill'&&n.yr&&n.pres){
       w=Math.max(w,wOf(n.yr+(n.check?'':' · '+n.pres),13.5,'400'));lines=2}
     n.lw=w;
-    n.lh=15+(lines-1)*14+18;   /* 첫 줄 위치(yy=r+15) + 추가 줄 + 글자 높이 */
+    /* 글자 덩어리의 실제 높이. 첫 줄은 노드 아래 15px 지점에 그려지고
+       줄마다 14px 씩 내려간다. 위아래 여백 6px 씩.
+       노드 반지름은 넣지 않는다 — 박스가 이미 y+r 에서 시작하기 때문이다.
+       여기에 r 을 넣었더니 반지름을 두 번 세서 박스가 3배로 커졌고,
+       초점 이웃 이름표가 6개 중 0개만 남았다. */
+    n.lh=15+(lines-1)*14+12;
   });
   /* 역할 배지는 초점 이웃에만 뜬다. 모든 노드에 더하면
      짧은 이름의 박스가 두 배가 돼 이름표가 62/171 → 5/171 로 무너진다.
@@ -2829,6 +2861,18 @@ var labelSet=null, labelKey='', labelAt=0, labelStat={shown:0,total:0,side:{}};
 
 function labelFontScale(){ return LABEL_PX/(12*cam.s) }
 
+/* 이름표가 화면에서 차지하는 상자. 겹침 판정과 화면 밖 판정이 모두 이걸 쓴다.
+   **검사도 이 함수를 불러서 쓴다.** 검사가 자기 식으로 다시 계산하면
+   화면과 갈라지고, 그때 우리는 검사 쪽을 안 의심한다 —
+   실제로 화면 글자 크기를 검사가 따로 계산하다가 거짓 경보를 며칠 냈다.
+   x,y 는 중심, w,h 는 반폭·반높이다 (겹침 판정이 그 꼴이라). */
+function labelBox(n,k){
+  if(k===undefined)k=labelFontScale();
+  var hasBadge=focus&&ring[n.id]===1&&roles[n.id];
+  var bw=hasBadge?Math.max(n.__hw,BADGE_W/2+7):n.__hw;
+  var lh=((n.lh||24)+(hasBadge?16:0))*k;
+  return {x:n.x, y:n.y+(n.r||8)+lh/2, w:bw*k, h:lh/2};
+}
 function planLabels(){
   var far=cam.s<LABEL_FAR;
   var key=[Math.round(cam.s*400),Math.round(cam.x/8),Math.round(cam.y/8),
@@ -2865,10 +2909,7 @@ function planLabels(){
   var offScreen=0;
   pool.forEach(function(n){
     /* 이 노드에 역할 배지가 뜨나 — 뜨면 그만큼 넓고 한 줄 더 높다 */
-    var hasBadge=focus&&ring[n.id]===1&&roles[n.id];
-    var bw=hasBadge?Math.max(n.__hw,BADGE_W/2+7):n.__hw;
-    var bh=hasBadge?n.__hh+14:n.__hh;
-    var b={x:n.x, y:n.y+(n.r||8)+bh*k, w:bw*k, h:bh*k};
+    var b=labelBox(n,k);
     /* 화면 밖으로 삐져나가는 이름표는 그리지 않는다.
        '의대 정원 2천명 3,058 → 5,09…' 처럼 오른쪽이 잘려 나오던 것이 이것이다.
        잘린 글자는 정보가 아니라 소음이다. */

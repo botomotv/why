@@ -1400,6 +1400,77 @@ function boot(w, h) {
     }
   }
 
+  // 30. 설명문이 읽을 수 있게 쓰였는가
+  //     "모르는 사람은 사건 설명이 어려워서 안 볼 것 같다" — 실제 사용자 말이다.
+  //     정치·정책을 아는 사람만 읽을 수 있으면 이 사이트는 실패다.
+  //     강제가 없으면 또 어려운 글이 들어온다. 특히 API 로 법안이 자동으로 들어오면
+  //     "~에 관한 법률 일부개정법률안" 같은 게 그대로 쌓인다. 그때를 대비한 검사다.
+  //
+  //     본보기는 이미 데이터 안에 있다 — tip 은 쉽고 body 만 어렵다.
+  //     새 기준을 만들 게 아니라 body 를 tip 의 말투로 옮기면 된다.
+  {
+    const d30 = boot(1440, 900);
+    await new Promise(r => setTimeout(r, 1200));
+    const r = d30.window.eval(`(function(){
+      if(typeof N==='undefined')return null;
+      /* 설명 없이 쓰면 안 되는 말. 법·행정 용어라 아는 사람만 안다. */
+      var HARD=['일부개정법률안','전부개정','제정법률안','부칙','시행령','시행규칙',
+        '소관위','의결','가결','부결','상정','계류','공포','재의','환부','위헌','합헌',
+        '제청','인준','탄핵소추','직무정지','권한대행','대통령령','부령','훈령',
+        '누진제','역진성','기저효과','실효세율','과표','공시가격','귀속','산정','추계',
+        '유예','소급','경과규정','준용','의제','기속','재량','불기소','이관','환수',
+        '상한제','민간택지','대표발의','자동 폐기','임기만료폐기','대안반영폐기'];
+      /* 문장 경계는 마침표만이 아니다. 줄바꿈도 경계다 —
+         '법원 판결이나 공식 처분으로 확정된 기록입니다' 같은 안내문이
+         \n\n 로 덧붙는데, 그걸 앞 문장과 한 덩어리로 세면 없는 문제가 생긴다.
+         실제로 60자 넘는 문장이 83개로 부풀어 있었다. */
+      function sents(t){return String(t||'').split(/(?<=[.!?])\\s+|\\n+/).map(function(x){return x.trim()}).filter(Boolean)}
+      var longs=[], hard=[], tone={seum:0, da:0, other:0}, toneBad=[];
+      N.forEach(function(n){
+        if(n.ghost)return;
+        var b=String(n.body||'').trim();
+        if(!b)return;
+        /* (1) 긴 문장 */
+        sents(b).forEach(function(x){ if(x.length>60)longs.push({lab:n.lab,len:x.length,s:x.slice(0,34)}) });
+        /* (2) 어려운 말을 설명 없이 — 그 말이 든 문장에 괄호가 없으면 설명이 없는 것이다 */
+        HARD.forEach(function(w){
+          if(b.indexOf(w)<0)return;
+          var has=sents(b).some(function(x){return x.indexOf(w)>=0 && /[（(][^)）]{2,}[)）]/.test(x)});
+          if(!has)hard.push({lab:n.lab,w:w});
+        });
+        /* (3) 말투.
+           존댓말은 '습니다' 만이 아니다 — 입니다·됩니다·아닙니다·다릅니다 도 존댓말이다.
+           '습니다' 로만 재다가 42개를 반말로 잘못 셌다. 없는 문제를 볼 뻔했다.
+           존댓말의 공통 꼬리는 '니다' 다. */
+        /* 끝의 마침표와 괄호 설명을 걷어내고 본다 — '…넘어갔습니다(이관).' 같은 꼴 때문이다.
+           그리고 인물 연표 항목은 문장이 아니라 명사구다 ('열린우리당 입당', '제19대 · 2014.06까지').
+           그런 것까지 존댓말로 바꾸면 오히려 어색하다. 서술어가 없으면 판정에서 뺀다.
+           27개를 말투 문제로 세다가 거짓 경보를 낼 뻔했다. */
+        var nb=b.replace(/\s*[（(][^)）]*[)）]\s*$/,'').replace(/[.]$/,'').trim();
+        if(!/(다|음|함)$/.test(nb)){tone.other++; return}     /* 명사구 — 연표 항목 */
+        if(/니다$/.test(nb))tone.seum++;
+        else {tone.da++; toneBad.push(n.lab)}
+      });
+      return {longs:longs, hard:hard, tone:tone, toneBad:toneBad,
+              total:N.filter(function(n){return !n.ghost&&String(n.body||'').trim()}).length};
+    })()`);
+    d30.window.close();
+    if (!r) F('30. 설명문을 못 읽었다');
+    else {
+      const uniqLong = new Set(r.longs.map(x => x.lab)).size;
+      const uniqHard = new Set(r.hard.map(x => x.lab)).size;
+      console.log(`30. 설명문 난이도   설명문 ${r.total}개 · 60자 넘는 문장 ${r.longs.length}개(${uniqLong}카드) · 설명 없는 어려운 말 ${r.hard.length}개(${uniqHard}카드) · 말투 존댓말 ${r.tone.seum} / 반말 ${r.tone.da} / 연표항목 ${r.tone.other}`);
+      if (!r.total) F('30. 설명문이 0개다 — 검사가 아무것도 안 보고 있다');
+      if (r.longs.length)
+        W(`30. 60자 넘는 문장 ${r.longs.length}개 — 두 줄을 넘으면 자른다 (예: ${r.longs.slice(0,2).map(x => x.lab + ' ' + x.len + '자').join(', ')})`);
+      if (r.hard.length)
+        W(`30. 어려운 말을 설명 없이 쓴 곳 ${r.hard.length}개 — 괄호로 쉬운 말을 붙인다 (예: ${r.hard.slice(0,3).map(x => x.lab + '의 "' + x.w + '"').join(', ')})`);
+      /* 명사구(연표 항목)는 세되 판정하지 않는다. 반말이 섞였을 때만 경고한다. */
+      if (r.tone.da)
+        W(`30. 말투가 섞여 있다 — 존댓말 ${r.tone.seum}개 · 반말 ${r.tone.da}개 (문장 아닌 연표 항목 ${r.tone.other}개는 뺌). 두 사람 글로 느껴진다 (예: ${r.toneBad.slice(0, 3).join(', ')})`);
+    }
+  }
+
   /* ── 요약 ── */
   console.log('\n' + '─'.repeat(50));
   console.log('노드 진영 분포:', JSON.stringify(bySide));

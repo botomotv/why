@@ -2579,7 +2579,8 @@ function size(){var b=document.getElementById('stage').getBoundingClientRect();
      가장 큰 결과 노드가 화면 중앙에서 147px 어긋났다.
      폰에서 "노드가 한쪽에 치우치고 화면이 텅 빈" 첫인상이 이것이었다. */
   if(!camUser&&!focus&&(Math.abs(W-pw)>2||Math.abs(H-ph)>2)&&isFinite(pw)&&pw>1){
-    fit();cam.s=cam.ts;cam.x=cam.tx;cam.y=cam.ty}}
+    fit();cam.s=cam.ts;cam.x=cam.tx;cam.y=cam.ty}
+  if(typeof decideRailOpen==='function')decideRailOpen()}
 function init(){
   N.forEach(function(n,i){var a=i/N.length*6.2832,R=ringR(n);
     n.x=Math.cos(a)*R+(Math.random()-0.5)*40;
@@ -2680,10 +2681,14 @@ function mapInsetLeft(){
   if(!r)return 0;
   var st=getComputedStyle(r);
   if(st.position!=='fixed'||st.display==='none')return 0;
-  var b=r.getBoundingClientRect();
-  /* 서랍은 아래에 깔리고 폭이 화면 전체다 — 가리는 게 아니다 */
-  if(b.width>=W*0.9||b.top>H*0.6)return 0;
-  return Math.max(0,Math.min(W*0.4,b.right));
+  /* getBoundingClientRect 는 transform 을 포함한다. 서랍은 translateY 로 숨는데,
+     전환이 멈춘 잔상을 읽으면 값이 틀린다 — 실제로 230px 이 0 으로 나왔다.
+     offsetLeft/offsetWidth 는 배치값이라 transform 에 안 휘둘린다. */
+  var w=r.offsetWidth, l=r.offsetLeft;
+  if(!(w>0))return 0;
+  /* 서랍은 화면 전체 폭이다 — 지도를 옆에서 가리는 게 아니다 */
+  if(w>=W*0.9)return 0;
+  return Math.max(0,Math.min(W*0.4,l+w));
 }
 /* 지도에서 실제로 보이는 영역의 가운데 */
 function viewCX(){return (mapInsetLeft()+W)/2}
@@ -3588,6 +3593,52 @@ function toggleTimeDir(){
   refitWhenSettled(true)}
 var zdirBtn=document.getElementById('zdir');
 if(zdirBtn)zdirBtn.onclick=function(){toggleTimeDir();if(innerWidth<=900)setLegend(false)};
+/* ── '보는 법' 항목을 접은 채 시작할지 ──
+   PC 만 펼침, 나머지(폰·폴드·태블릿)는 접힘이 기본이다.
+
+   무엇으로 PC 를 가르나 — 폭이 아니라 **포인터**로 가른다.
+   폭으로 가르면 폴드 펼침(984px)이 PC 로 잡힌다. 그건 손가락으로 쓰는 기기다.
+   (hover:hover) and (pointer:fine) 은 마우스가 있다는 뜻이고,
+   폰·태블릿·폴드는 (pointer:coarse) 로 온다. 안내 문구를 가를 때 쓴 것과 같은 기준이다.
+
+   폭 조건을 하나 더 두는 이유: 데스크톱 창을 좁게 줄이면 패널이 아래 서랍이 된다.
+   서랍이면 어차피 눌러서 열어야 하므로 접힌 채가 맞다.
+
+   **기억하지 않는다.** 처음 온 사람과 다시 온 사람이 같은 첫 화면을 봐야 한다.
+   이 사이트는 신뢰가 자산이라 "나는 저렇게 안 보였는데" 가 생기면 안 된다.
+   한 번 방문하는 동안에는 <details> 가 알아서 상태를 들고 있으므로
+   매번 다시 접히는 성가심은 없다. 값은 새로고침에만 되돌아간다. */
+/* 크기를 아는 시점에 정한다. 스크립트가 도는 순간에는 innerWidth 가 아직 0 일 수 있다 —
+   실제로 그래서 PC 인데도 전부 접힌 채 떴다. 첫 화면이 어긋났던 것과 같은 뿌리다.
+   size() 가 진짜 크기를 읽은 뒤 한 번만 정한다. */
+var railOpenDecided=false;   /* 지금 적용돼 있는 판정 ('pc' | 'small' | false) */
+var railUserToggled=false;   /* 보는 사람이 직접 접거나 폈나 */
+var railAuto=false;          /* 우리가 바꾸는 중 — 그때 나는 toggle 은 사람이 한 게 아니다 */
+function decideRailOpen(){
+  if(railUserToggled)return;                   /* 손댄 뒤에는 건드리지 않는다 */
+  if(!(W>1&&H>1))return;                       /* 아직 크기를 모른다 */
+  var pc = !!(window.matchMedia
+    && matchMedia('(hover:hover) and (pointer:fine)').matches
+    && W > 900 && H > 520);
+  var want = pc?'pc':'small';
+  if(railOpenDecided===want)return;             /* 이미 그 상태다 */
+  railOpenDecided=want;
+  /* 폴드는 접었다 폈다 한다. 그때마다 다시 정한다 —
+     단 보는 사람이 직접 손댔으면 그 선택이 이긴다. */
+  /* open 을 코드로 바꿔도 toggle 이 난다. 그걸 '사람이 손댔다' 로 세면
+     이 함수가 스스로를 막아버린다 — 실제로 폴드를 접었다 펴도 안 바뀌었다. */
+  railAuto=true;
+  document.querySelectorAll('details.railcard').forEach(function(d){d.open=pc});
+  /* toggle 은 **비동기**로 온다. finally 로 바로 끄면 이미 꺼진 뒤에 도착해
+     우리가 바꾼 것을 '사람이 손댔다' 로 센다 — 실제로 그랬다.
+     다음 차례에 끈다. */
+  setTimeout(function(){railAuto=false},0);
+}
+/* 직접 접거나 편 순간부터는 자동 판정을 멈춘다 */
+document.addEventListener('toggle',function(e){
+  if(railAuto)return;
+  if(e.target&&e.target.matches&&e.target.matches('details.railcard'))railUserToggled=true;
+},true);
 var railEl=document.getElementById('rail');
 var SIDEN={blue:'민주당 계열',red:'국민의힘 계열',both:'여야 공동',gov:'정부·기관',
  other:'정의당·조국혁신당 등',labor:'노동단체',civic:'시민·장애인단체'};

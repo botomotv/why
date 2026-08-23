@@ -2624,8 +2624,8 @@ function fitFocus(){
     var lw=(n.lw||60)/2;
     minx=Math.min(minx,n.x-n.r-lw);maxx=Math.max(maxx,n.x+n.r+lw);
     miny=Math.min(miny,n.y-n.r-24);maxy=Math.max(maxy,n.y+n.r+24)});
-  var pad=W<620?24:56;
-  var s=Math.min((W-pad*2)/Math.max(1,maxx-minx),(H-pad*2)/Math.max(1,maxy-miny));
+  var pad=W<620?24:56, ins=mapInsetLeft();
+  var s=Math.min((W-ins-pad*2)/Math.max(1,maxx-minx),(H-pad*2)/Math.max(1,maxy-miny));
   /* 이름표 하한(LABEL_FAR)을 되도록 지키되, 그것 때문에 연결이 화면 밖에 남으면
      하한을 FIT_MIN 까지 내린다. 우선순위는 '이어진 것이 보이는 것' 이다 —
      이름은 확대하면 나오고 그 안내가 화면에 있지만, 화면 밖에 있는 건 있는 줄도 모른다.
@@ -2633,7 +2633,24 @@ function fitFocus(){
      그건 이 함수가 아니라 카드 높이로 풀어야 할 문제다(docs/화면점검.md 3순위). */
   var want=Math.min(1.7,s);
   s=Math.max(FIT_MIN, want>=LABEL_FAR?want:Math.min(LABEL_FAR,want));
-  cam.ts=s;cam.tx=W/2-(minx+maxx)/2*s;cam.ty=H/2-(miny+maxy)/2*s}
+  cam.ts=s;cam.tx=viewCX()-(minx+maxx)/2*s;cam.ty=H/2-(miny+maxy)/2*s}
+/* 왼쪽 패널이 고정으로 떠 있으면 그만큼 지도가 가려진다 (984px 에서 23%).
+   '화면 중앙' 이 아니라 '보이는 영역의 중앙' 에 맞춰야 한다.
+   패널이 아래 서랍일 때(<=900)는 지도를 안 가리므로 0 이다.
+   검사도 이 함수를 불러 같은 기준으로 잰다 — 따로 계산하면 화면과 갈라진다. */
+function mapInsetLeft(){
+  var r=document.getElementById('rail');
+  if(!r)return 0;
+  var st=getComputedStyle(r);
+  if(st.position!=='fixed'||st.display==='none')return 0;
+  var b=r.getBoundingClientRect();
+  /* 서랍은 아래에 깔리고 폭이 화면 전체다 — 가리는 게 아니다 */
+  if(b.width>=W*0.9||b.top>H*0.6)return 0;
+  return Math.max(0,Math.min(W*0.4,b.right));
+}
+/* 지도에서 실제로 보이는 영역의 가운데 */
+function viewCX(){return (mapInsetLeft()+W)/2}
+
 function fit(showAll){
   var pool=A.length?A:N;
   var narrow = W<NARROW_W && !showAll && !focus && pool.length>40;
@@ -2645,9 +2662,28 @@ function fit(showAll){
     var res=pool.filter(function(n){return n.t==='result'&&isFinite(n.x)});
     if(res.length){
       var lead=res.reduce(function(a,b){return (b.r||0)>(a.r||0)?b:a});
-      cam.ts=NARROW_MIN_S;
-      cam.tx=W/2-lead.x*NARROW_MIN_S;
-      cam.ty=H/2-lead.y*NARROW_MIN_S;
+      var S=NARROW_MIN_S;
+      var cxv=viewCX();
+      var tx=cxv-lead.x*S, ty=H/2-lead.y*S;
+      /* 노드 하나만 중앙에 두면 **보이는 무리**는 한쪽으로 쏠린다.
+         실측: 폰에서 무리 중심이 화면 중심에서 205px(대각선의 20.4%) 어긋났다.
+         화면에 실제로 들어온 노드들의 중심을 잡아 카메라를 그만큼 민다.
+         어느 노드가 보이는지는 카메라에 달려 있으므로 몇 번 되풀이해 수렴시킨다.
+         3번이면 충분하다 — 4번째부터 움직임이 1px 아래로 떨어진다. */
+      for(var it=0;it<3;it++){
+        var sx=0, sy=0, cnt=0;
+        for(var i=0;i<pool.length;i++){
+          var n=pool[i]; if(!isFinite(n.x))continue;
+          var px=n.x*S+tx, py=n.y*S+ty;
+          if(px<mapInsetLeft()||px>W||py<0||py>H)continue;
+          sx+=px; sy+=py; cnt++;
+        }
+        if(!cnt)break;
+        var dx=cxv-sx/cnt, dy=H/2-sy/cnt;
+        if(Math.abs(dx)<1&&Math.abs(dy)<1)break;
+        tx+=dx; ty+=dy;
+      }
+      cam.ts=S; cam.tx=tx; cam.ty=ty;
       return}
   }
   var minx=1e9,maxx=-1e9,miny=1e9,maxy=-1e9;
@@ -2661,7 +2697,7 @@ function fit(showAll){
      실측: 904x1114 에서 배율 0.46 · 이름표 5개 → 하한을 두면 0.62 · 이름표 12개.
      다 보고 싶으면 ⛶ '전체 보기' 가 있다. 그 버튼이 showAll 로 이 하한을 끈다. */
   if(!showAll)s=Math.max(s,LABEL_FAR);
-  cam.ts=s;cam.tx=W/2-((minx+maxx)/2)*s;cam.ty=H/2-((miny+maxy)/2)*s}
+  cam.ts=s;cam.tx=viewCX()-((minx+maxx)/2)*s;cam.ty=H/2-((miny+maxy)/2)*s}
 rebuildLinks();refilter();size();init();fit();cam.s=cam.ts;cam.x=cam.tx;cam.y=cam.ty;
 var rzT=null;
 /* 물리가 가라앉은 뒤에 카메라를 맞춘다.

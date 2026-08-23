@@ -959,71 +959,40 @@ function boot(w, h) {
     }
   }
 
-  // 21. 첫 화면 — 가장 큰 결과 노드가 화면 중앙에 오는가
-  //     init 직후 fit() 을 한 번 부르고 끝냈더니, 그 뒤 물리가 가라앉으며
-  //     노드가 크게 움직여 카메라가 어긋났다. 실측 429px.
-  //     폰에서 "텅 빈 화면에 점 하나" 로 보이던 첫인상이 이것이었다.
-  //     size() 는 [0,60,200,500,1000]ms 에 다시 도는데 fit() 은 안 돌았다.
+  // 21. 화면 크기가 뒤늦게 바뀐 뒤에도 다시 맞추는가
+  //     폰·폴드는 주소창이 접히며 화면이 커진다. 그때 카메라가 다시 안 맞으면
+  //     한쪽으로 쏠린 채 남는다. 전에는 reheat 뒤 420ms 에 fit() 을 불렀는데
+  //     가라앉는 데 270틱(4.5초)이 걸려 한창 움직이는 중에 맞추고 있었다.
+  //     첫 화면 자체는 26번이 8개 해상도로 잰다. 여기는 '크기가 바뀐 뒤' 만 본다.
   {
-    for (const [w,h,nm] of [[412,915,'폰'],[820,1180,'태블릿 세로']]) {
-      const d21 = boot(w,h);
-      await new Promise(r => setTimeout(r, 1400));
-      const win = d21.window;
-      const r = win.eval(`(function(){
-        if(typeof fit!=='function'||!A.length)return null;
-        /* 실제 로드 순서: init 뒤 물리가 가라앉고, 그 뒤 재조준이 돈다 */
-        for(var i=0;i<400;i++)tick();
-        fit(); cam.s=cam.ts;cam.x=cam.tx;cam.y=cam.ty;
-        labelSet=null;labelKey='';draw();
-        var res=A.filter(function(n){return n.t==='result'&&isFinite(n.x)});
-        if(!res.length)return null;
-        var lead=res.reduce(function(a,b){return (b.r||0)>(a.r||0)?b:a});
-        var off=Math.hypot(lead.x*cam.s+cam.x-W/2, lead.y*cam.s+cam.y-H/2);
-        var on=A.filter(function(n){var sx=n.x*cam.s+cam.x,sy=n.y*cam.s+cam.y;
-          return sx>=0&&sx<=W&&sy>=0&&sy<=H}).length;
-        return {off:Math.round(off), on:on, tot:A.length, s:+cam.s.toFixed(2),
-                lbl:labelStat?labelStat.shown:0, dim:W+'×'+Math.round(H)};
-      })()`);
-      d21.window.close();
-      if (!r) { F(`21. ${nm} — 첫 화면을 못 쟀다`); continue }
-      console.log(`21. 첫 화면        ${nm} ${w}×${h} (지도 ${r.dim}) · 중앙과 ${r.off}px · 화면안 ${r.on}/${r.tot} · 배율 ${r.s} · 이름표 ${r.lbl}`);
-      /* 중앙에서 노드 반지름 이상 벗어나면 눈에 띈다. 넉넉히 60px 를 준다. */
-      if (r.off > 60) F(`21. ${nm} — 가장 큰 결과 노드가 화면 중앙에서 ${r.off}px 벗어났다`);
-      /* 0 은 의심한다. 화면에 노드가 거의 없으면 첫인상이 빈 화면이다. */
-      if (r.on < 10) F(`21. ${nm} — 첫 화면에 노드가 ${r.on}/${r.tot}개뿐이다. 빈 화면으로 보인다`);
-      if (!r.lbl) F(`21. ${nm} — 첫 화면에 이름표가 하나도 없다. 색깔 점만 보인다`);
-    }
-
-    /* 화면 크기가 뒤늦게 커지는 경우 — 폰·폴드는 주소창이 접히며 화면이 커진다.
-       그때 카메라가 다시 안 맞으면 한쪽으로 쏠린 채 남는다.
-       전에는 reheat 뒤 420ms 에 fit() 을 불렀는데 가라앉는 데 270틱(4.5초)이 걸려
-       한창 움직이는 중에 맞추고 있었다. */
-    {
-      const d21b = boot(344, 700);            // 주소창이 보이는 상태
-      await new Promise(r => setTimeout(r, 1300));
-      const win = d21b.window;
-      const r = win.eval(`(function(){
-        for(var i=0;i<400;i++)tick(); fit(); cam.s=cam.ts;cam.x=cam.tx;cam.y=cam.ty;
-        var res=A.filter(function(n){return n.t==='result'&&isFinite(n.x)});
-        var lead=res.reduce(function(a,b){return (b.r||0)>(a.r||0)?b:a});
-        var before=Math.round(Math.hypot(lead.x*cam.s+cam.x-W/2,lead.y*cam.s+cam.y-H/2));
-        /* 주소창이 접혀 화면이 커졌다 — stage 가 커지고 물리가 다시 데워진다 */
-        H=882; W=344;
-        setAngles(); reheat(0.35);
-        /* 실제 코드처럼 '가라앉을 때까지' 기다렸다가 맞춘다 */
-        var t=0; while(alpha>=0.02&&t<600){tick();t++}
-        fit(); cam.s=cam.ts;cam.x=cam.tx;cam.y=cam.ty;
-        var after=Math.round(Math.hypot(lead.x*cam.s+cam.x-W/2,lead.y*cam.s+cam.y-H/2));
-        /* 시계로 맞추면 어떻게 되는지도 같이 잰다 (25틱 = 420ms) */
-        return {before:before, after:after, ticks:t,
-                settled:+alpha.toFixed(4), has:typeof refitWhenSettled==='function'};
-      })()`);
-      d21b.window.close();
-      console.log(`21. 화면 커진 뒤    폴드 접힘 344 · 커지기 전 ${r.before}px → 가라앉은 뒤 ${r.after}px (${r.ticks}틱 기다림)`);
-      if (!r.has) F('21. refitWhenSettled 가 없다 — 화면이 커진 뒤 다시 맞추는 경로가 사라졌다');
-      if (r.after > 60) F(`21. 화면이 커진 뒤 중앙에서 ${r.after}px 벗어났다`);
-      if (r.ticks < 30) F(`21. ${r.ticks}틱 만에 가라앉았다 — 물리가 안 도는 것일 수 있다 (분모 확인)`);
-    }
+    const d21 = boot(344, 700);              // 주소창이 보이는 상태
+    await new Promise(r => setTimeout(r, 1300));
+    const win = d21.window;
+    const r = win.eval(`(function(){
+      var mid=function(){
+        var on=[];
+        A.forEach(function(n){var sx=n.x*cam.s+cam.x, sy=n.y*cam.s+cam.y;
+          if(sx>=0&&sx<=W&&sy>=0&&sy<=H)on.push([sx,sy])});
+        if(!on.length)return null;
+        var cx2=0,cy2=0; on.forEach(function(p){cx2+=p[0];cy2+=p[1]});
+        return Math.round(Math.hypot(cx2/on.length-W/2, cy2/on.length-H/2));
+      };
+      var t=0; while(alpha>=0.02&&t<900){tick();t++}
+      fit(); cam.s=cam.ts;cam.x=cam.tx;cam.y=cam.ty;
+      var before=mid();
+      /* 주소창이 접혀 화면이 커졌다 — 물리가 다시 데워진다 */
+      H=882; W=344; setAngles(); reheat(0.35);
+      var t2=0; while(alpha>=0.02&&t2<900){tick();t2++}    /* 가라앉음을 보고 기다린다 */
+      fit(); cam.s=cam.ts;cam.x=cam.tx;cam.y=cam.ty;
+      return {before:before, after:mid(), ticks:t2,
+              has:typeof refitWhenSettled==='function'};
+    })()`);
+    d21.window.close();
+    console.log(`21. 화면 커진 뒤    폴드 접힘 344 · 무리 중심 ${r.before}px → ${r.after}px (${r.ticks}틱 기다림)`);
+    if (!r.has) F('21. refitWhenSettled 가 없다 — 화면이 커진 뒤 다시 맞추는 경로가 사라졌다');
+    if (r.after == null) F('21. 화면이 커진 뒤 노드가 하나도 안 보인다');
+    else if (r.after > 60) F(`21. 화면이 커진 뒤 무리 중심이 ${r.after}px 어긋났다`);
+    if (r.ticks < 20) F(`21. ${r.ticks}틱 만에 가라앉았다 — 물리가 안 도는 것일 수 있다`);
   }
 
   // 22. 고리 밀도 — 어느 시기가 넘치는가
@@ -1209,6 +1178,77 @@ function boot(w, h) {
       }
       /* 0 은 의심한다. 재본 구간이 없으면 통과가 아니라 빈손이다. */
       if (!Object.keys(r).length) F('25. 재본 방향이 0개다');
+    }
+  }
+
+  // 26. 첫 화면 — 중앙에 오는가, 고루 퍼지는가
+  //     처음 들어왔을 때 화면이 이상한 문제가 계속 났다. 매번 원인은 달랐지만
+  //     (fit 을 시계로 기다림 / 낡은 H / 배율 1.0 / 노드 하나만 중앙에)
+  //     결과는 늘 같았다 — 들어오면 한쪽으로 쏠려 있거나 텅 비어 있다.
+  //     그래서 결과 쪽을 잰다. 원인이 무엇이든 이 숫자가 나빠지면 잡힌다.
+  //
+  //     반드시 '가라앉은 뒤' 를 잰다. 지금까지 틀린 이유가 전부 그거였다.
+  //     칸은 정사각형으로 나눈다 — 3×3 은 화면비에 휘둘린다.
+  //     빈 칸은 '노드가 놓인 상자 안' 에서만 센다.
+  //     고리 배치라 화면 네 귀퉁이는 원래 비는데, 그걸 세면 늘 나쁘게 나온다.
+  {
+    const OFF_MAX = 6;      // 중심 어긋남 한도 (화면 대각선의 %)
+    const EMPTY_MAX = 45;   // 노드 상자 안 빈 칸 한도 (%)
+    for (const [w, h] of VIEWPORTS) {
+      const d26 = boot(w, h);
+      await new Promise(r => setTimeout(r, 1100));
+      const r = d26.window.eval(`(function(){
+        if(typeof fit!=='function'||!A.length)return null;
+        var t=0; while(alpha>=0.02&&t<900){tick();t++}      /* 가라앉을 때까지 */
+        fit(); cam.s=cam.ts;cam.x=cam.tx;cam.y=cam.ty;
+        for(var i=0;i<30;i++)tick();
+        labelSet=null;labelKey='';draw();
+        var on=[];
+        A.forEach(function(n){var sx=n.x*cam.s+cam.x, sy=n.y*cam.s+cam.y;
+          if(sx>=0&&sx<=W&&sy>=0&&sy<=H)on.push([sx,sy])});
+        if(!on.length)return {ticks:t,on:0,tot:A.length};
+        var INS=(typeof mapInsetLeft==='function')?mapInsetLeft():0;
+        var cx2=0,cy2=0; on.forEach(function(p){cx2+=p[0];cy2+=p[1]});
+        cx2/=on.length; cy2/=on.length;
+        /* '화면 중앙' 이 아니라 '보이는 영역의 중앙' 이다 — 왼쪽 패널이 지도를 가린다.
+           페이지의 viewCX() 를 그대로 부른다. 여기서 따로 계산하면 화면과 갈라진다.
+           단 jsdom 은 레이아웃을 안 해 모든 요소가 창 전체 크기로 나오므로
+           여기서는 인셋이 늘 0 이다. 패널이 가리는 실제 효과는 브라우저로 확인한다. */
+        var CX=(typeof viewCX==='function')?viewCX():W/2;
+        var off=Math.hypot(cx2-CX, cy2-H/2), diag=Math.hypot(W,H);
+        /* 정사각형 칸 */
+        var cell=Math.max(80,Math.min(W,H)/4);
+        var gx=Math.ceil(W/cell), gy=Math.ceil(H/cell);
+        var g=new Array(gx*gy).fill(0);
+        var mnx=1e9,mxx=-1e9,mny=1e9,mxy=-1e9;
+        on.forEach(function(p){
+          g[Math.min(gy-1,Math.floor(p[1]/cell))*gx+Math.min(gx-1,Math.floor(p[0]/cell))]++;
+          mnx=Math.min(mnx,p[0]);mxx=Math.max(mxx,p[0]);
+          mny=Math.min(mny,p[1]);mxy=Math.max(mxy,p[1])});
+        /* 노드 상자와 겹치는 칸만 센다 */
+        var inBox=0, emptyIn=0;
+        for(var yy=0;yy<gy;yy++)for(var xx=0;xx<gx;xx++){
+          var l=xx*cell,rr=l+cell,tp=yy*cell,bt=tp+cell;
+          if(rr<mnx||l>mxx||bt<mny||tp>mxy)continue;
+          inBox++; if(!g[yy*gx+xx])emptyIn++;
+        }
+        return {ticks:t, off:Math.round(off), pct:+(off/diag*100).toFixed(1),
+                on:on.length, tot:A.length, lbl:labelStat?labelStat.shown:0,
+                emptyIn:emptyIn, inBox:inBox, cells:g.length,
+                emptyAll:g.filter(function(v){return v===0}).length,
+                s:+cam.s.toFixed(2)};
+      })()`);
+      d26.window.close();
+      if (!r) { F(`26. ${w}×${h} — 첫 화면을 못 쟀다`); continue }
+      if (!r.on) { F(`26. ${w}×${h} — 첫 화면에 노드가 하나도 없다 (전체 ${r.tot}개)`); continue }
+      const ep = Math.round(100 * r.emptyIn / Math.max(1, r.inBox));
+      console.log(`26. 첫 화면        ${String(w + '×' + h).padEnd(10)} 가라앉기 ${String(r.ticks).padStart(3)}틱 · 중심어긋남 ${String(r.off + 'px').padStart(6)} (${r.pct}%) · 화면안 ${r.on}/${r.tot} · 이름표 ${String(r.lbl).padStart(2)} · 빈칸 ${r.emptyIn}/${r.inBox} (${ep}%) · 배율 ${r.s}`);
+
+      if (r.ticks < 20) F(`26. ${w}×${h} — ${r.ticks}틱 만에 가라앉았다. 물리가 안 도는 것일 수 있다`);
+      if (r.pct > OFF_MAX) F(`26. ${w}×${h} — 노드 무리 중심이 화면 중심에서 ${r.off}px 어긋났다 (대각선의 ${r.pct}%, 한도 ${OFF_MAX}%)`);
+      if (r.on < 20) F(`26. ${w}×${h} — 첫 화면에 노드가 ${r.on}/${r.tot}개뿐이다. 빈 화면으로 보인다`);
+      if (!r.lbl) F(`26. ${w}×${h} — 첫 화면에 이름표가 하나도 없다. 색깔 점만 보인다`);
+      if (ep > EMPTY_MAX) W(`26. ${w}×${h} — 노드가 놓인 상자 안에서 ${ep}% 가 비어 있다 (${r.emptyIn}/${r.inBox}칸). 한쪽에 뭉쳤을 수 있다`);
     }
   }
 

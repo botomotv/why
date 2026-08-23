@@ -1304,6 +1304,102 @@ function boot(w, h) {
     }
   }
 
+  // 28. 로드 중에 화면을 만져도 첫 화면이 맞는가
+  //     검사 26 은 12개 해상도에서 통과하는데 실기기는 왼쪽에 확대된 채로 떴다.
+  //     갈라진 조건은 '손가락' 이었다 — camUser 가 1px 이동에도 켜져서
+  //     로드 중 한 번만 만져도 첫 화면 맞춤이 영원히 취소됐다.
+  //     탭도 미세한 이동을 만든다. 폰에서는 거의 항상 걸린다.
+  //     검사가 손가락을 흉내 내지 않아 못 잡았다.
+  {
+    for (const [w, h] of [[412, 915], [344, 882]]) {
+      const d28 = boot(w, h);
+      await new Promise(r => setTimeout(r, 1000));
+      const r = d28.window.eval(`(function(){
+        var mid=function(){
+          var on=[];
+          A.forEach(function(n){var sx=n.x*cam.s+cam.x, sy=n.y*cam.s+cam.y;
+            if(sx>=0&&sx<=W&&sy>=0&&sy<=H)on.push([sx,sy])});
+          if(!on.length)return null;
+          var cx2=0,cy2=0; on.forEach(function(p){cx2+=p[0];cy2+=p[1]});
+          return {off:Math.round(Math.hypot(cx2/on.length-viewCX(), cy2/on.length-H/2)), n:on.length};
+        };
+        /* 로드 직후 화면을 살짝 만진다 — 탭 한 번 (2px 흔들림) */
+        if(typeof down!=='function'||typeof move!=='function'||typeof up!=='function')
+          return {skip:'입력 함수를 못 찾음'};
+        down(W/2, H/2, true);
+        move(W/2+2, H/2+1);
+        up();
+        var touched = camUser;
+        /* 그 뒤 물리가 가라앉고 첫 화면 맞춤이 돈다 */
+        var t=0; while(alpha>=0.02&&t<900){tick();t++}
+        if(!camUser){ size(); fit(); cam.s=cam.ts;cam.x=cam.tx;cam.y=cam.ty }
+        for(var i=0;i<30;i++)tick();
+        var m=mid();
+        return {touched:touched, off:m?m.off:null, on:m?m.n:0, tot:A.length,
+                s:+cam.s.toFixed(2), diag:Math.round(Math.hypot(W,H))};
+      })()`);
+      d28.window.close();
+      if (r && r.skip) { F(`28. ${w}×${h} — ${r.skip}`); continue }
+      if (!r || r.off == null) { F(`28. ${w}×${h} — 만진 뒤 노드가 하나도 안 보인다`); continue }
+      const pct = +(r.off / r.diag * 100).toFixed(1);
+      console.log(`28. 만진 뒤 첫화면  ${w}×${h} · 탭으로 카메라 잡힘 ${r.touched} · 중심 ${r.off}px (${pct}%) · 화면안 ${r.on}/${r.tot} · 배율 ${r.s}`);
+      if (r.touched) F(`28. ${w}×${h} — 탭 한 번에 camUser 가 켜졌다. 첫 화면 맞춤이 영영 안 돈다`);
+      if (pct > 6) F(`28. ${w}×${h} — 만진 뒤 중심이 ${r.off}px (${pct}%) 어긋났다`);
+      if (r.on < 20) F(`28. ${w}×${h} — 만진 뒤 화면에 노드가 ${r.on}/${r.tot}개뿐이다`);
+    }
+  }
+
+  // 29. 노드를 누른 뒤 화면이 언제 멈추는가
+  //     "눌러서 사건을 볼 때도 동그라미들이 지랄같이 움직여서 별로다" — 실제 사용자 말이다.
+  //     매일 보는 우리는 익숙해져서 못 봤다.
+  //     실측: 초점 중 alpha 바닥이 0.014 로 깔려 있어 물리가 영영 안 멈췄고,
+  //     이어진 노드에 1.8~2.6px 궤도 애니메이션까지 돌고 있었다.
+  //     5초가 지나도 0.25초마다 2.5px 씩 움직였다.
+  //     "살아있는 느낌" 보다 "읽을 수 있는 것" 이 우선이다.
+  {
+    const d29 = boot(412, 915);
+    await new Promise(r => setTimeout(r, 1100));
+    const r = d29.window.eval(`(function(){
+      var t=0; while(alpha>=0.02&&t<900){tick();t++}
+      fit(); cam.s=cam.ts;cam.x=cam.tx;cam.y=cam.ty;
+      var c=A.filter(function(n){return n.t==='result'&&adj[n.id]});
+      if(!c.length)return null;
+      var tgt=c.reduce(function(a,b){return (adj[b.id]||[]).length>(adj[a.id]||[]).length?b:a});
+      var prev={}; A.forEach(function(n){prev[n.id]=[n.x,n.y]});
+      setFocus(tgt.id); if(typeof gatherFan==='function'){size();gatherFan()}
+      var jump=0; A.forEach(function(n){jump=Math.max(jump,Math.hypot(n.x-prev[n.id][0],n.y-prev[n.id][1]))});
+      A.forEach(function(n){prev[n.id]=[n.x,n.y]});
+      var stop=null, worstAfter=0;
+      for(var f=1;f<=300;f++){
+        tick();
+        if(f%15===0){
+          var sum=0,mx=0;
+          A.forEach(function(n){var d=Math.hypot(n.x-prev[n.id][0],n.y-prev[n.id][1]);
+            sum+=d; if(d>mx)mx=d; prev[n.id]=[n.x,n.y]});
+          var avg=sum/A.length;
+          /* '멈췄다' 의 기준: 0.25초 동안 평균 1px 미만, 어느 노드도 10px 미만.
+             10px/0.25초 = 40px/초 — 한 점이 그 정도 움직이는 건 눈에 안 띈다.
+             고치기 전에는 평균 8~10px 에 최대 24~130px 이 5초 넘게 이어졌다.
+             선을 여기 두면 그 상태는 확실히 잡고, 잔여 표류는 안 잡는다. */
+          if(stop===null&&avg<1.0&&mx<10)stop=f/60;
+          if(stop!==null&&f/60>stop+0.5&&mx>worstAfter)worstAfter=mx;
+        }
+      }
+      return {jump:Math.round(jump), stop:stop, alpha:+alpha.toFixed(5),
+              after:Math.round(worstAfter)};
+    })()`);
+    d29.window.close();
+    if (!r) F('29. 움직임을 못 쟀다');
+    else {
+      console.log(`29. 누른 뒤 움직임  재배치 1회 최대 ${r.jump}px · 멈춤 ${r.stop === null ? '5초 안에 안 멈춤' : r.stop.toFixed(2) + '초'} · 이후 최대 ${r.after}px · 마지막 alpha ${r.alpha}`);
+      if (r.stop === null) F('29. 5초가 지나도 안 멈춘다 — 화면이 계속 흔들린다');
+      else if (r.stop > 2) F(`29. 멈추는 데 ${r.stop.toFixed(2)}초 걸린다. 2초를 넘으면 흔들리는 걸로 보인다`);
+      /* 멈춘 뒤에도 계속 움직이면 영구 애니메이션이 남아 있다는 뜻이다 */
+      if (r.after > 10) F(`29. 멈춘 뒤에도 ${r.after}px 씩 움직인다 — 영구 애니메이션이 남아 있다`);
+      if (r.alpha > 0.01) F(`29. 마지막 alpha 가 ${r.alpha} 다 — 물리가 잠들지 않는다 (바닥이 깔려 있나)`);
+    }
+  }
+
   /* ── 요약 ── */
   console.log('\n' + '─'.repeat(50));
   console.log('노드 진영 분포:', JSON.stringify(bySide));

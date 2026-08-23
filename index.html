@@ -2573,11 +2573,34 @@ function fit(showAll){
   cam.ts=s;cam.tx=W/2-((minx+maxx)/2)*s;cam.ty=H/2-((miny+maxy)/2)*s}
 rebuildLinks();refilter();size();init();fit();cam.s=cam.ts;cam.x=cam.tx;cam.y=cam.ty;
 var rzT=null;
+/* 물리가 가라앉은 뒤에 카메라를 맞춘다.
+   시간으로 재면 틀린다 — reheat(0.35) 뒤 alpha 가 ALPHA_MIN 까지 내려가는 데
+   약 270틱(4.5초)이 걸리는데 420ms(약 25틱)에 맞추고 있었다.
+   한창 움직이는 중에 맞추니 그 뒤 노드가 더 움직여 화면이 한쪽으로 쏠렸다.
+   폴드를 접은 채 들어가면 주소창이 접히며 화면이 커지는데, 그때 이 경로를 탄다.
+   그래서 시계가 아니라 alpha 를 본다. */
+var refitT=null;
+/* force=true 는 사용자가 새 화면을 요청한 경우다 (분야·진영 바꾸기, 검색, 이 인물만 보기).
+   그때는 보던 자리를 유지하는 것보다 새로 맞추는 게 맞다.
+   force 가 없으면(첫 로드·화면 크기 변화) 사용자가 만진 카메라를 건드리지 않는다. */
+function refitWhenSettled(force,maxMs){
+  clearTimeout(refitT);
+  var t0=Date.now(), lim=maxMs||4000;
+  if(force)camUser=false;
+  (function poll(){
+    if(camUser||drag)return;
+    if(alpha<0.02||Date.now()-t0>lim){
+      size();
+      if(focus)fitFocus(); else fit();
+      return}
+    refitT=setTimeout(poll,120);
+  })();
+}
 window.addEventListener('resize',function(){
   clearTimeout(rzT);size();
-  rzT=setTimeout(function(){setAngles();reheat(0.35);setTimeout(fit,420)},160)});
+  rzT=setTimeout(function(){setAngles();reheat(0.35);refitWhenSettled(false)},160)});
 if(window.visualViewport){
-  window.visualViewport.addEventListener('resize',function(){size()});
+  window.visualViewport.addEventListener('resize',function(){size();refitWhenSettled(false,1500)});
   /* iOS 사파리는 주소창이 접힐 때 resize 없이 scroll 만 쏘는 경우가 있다. */
   window.visualViewport.addEventListener('scroll',function(){size()});
 }
@@ -2599,8 +2622,7 @@ window.addEventListener('pageshow',function(){size()});
    화면에 노드가 2개뿐이었다. 첫인상이 "텅 빈 화면에 점 하나" 였다.
    size() 만 다시 부르고 fit() 은 안 불렀던 게 원인이다.
    사용자가 카메라를 만졌으면 건드리지 않는다 — 보던 자리를 빼앗는 게 더 나쁘다. */
-[700,1500].forEach(function(ms){setTimeout(function(){
-  if(camUser||focus)return; fit()},ms)});
+refitWhenSettled(false);   /* 첫 로드 — 가라앉으면 맞춘다 */
 if(document.fonts&&document.fonts.ready)document.fonts.ready.then(function(){measure();reheat(0.25)});
 
 /* ===== 분야 탭 ===== */
@@ -2618,7 +2640,7 @@ function setCat(k){
     b.setAttribute('aria-pressed',b.dataset.k===k?'true':'false')});
   if(focus&&!inCat(map[focus]))closePop();
   reheat(0.75);
-  setTimeout(fit,260);
+  refitWhenSettled(true);
 }
 
 
@@ -2659,7 +2681,7 @@ function setFocus(id){
     if(typeof syncSide==='function')syncSide();
     refilter();setAngles();reheat(0.85);
     setTimeout(function(){if(focus===id){size();gatherFan()}},80);
-    setTimeout(function(){if(focus===id){size();fitFocus()}},480);
+    refitWhenSettled(true);
   }
   /* 모았던 각도를 먼저 전부 푼다. setAngles() 가 결정적이라 정확히 제자리로 간다. */
   N.forEach(function(n){n.tang=undefined});fanKept=null;
@@ -2713,7 +2735,7 @@ function setFocus(id){
     /* 카드가 열리며 지도가 줄어든 뒤에 크기를 다시 읽고 부채꼴을 만든다.
        그 다음 물리가 자리를 잡으면 카메라를 맞춘다. 순서가 바뀌면 둘 다 틀린다. */
     setTimeout(function(){ if(focus===id){ size(); gatherFan() } },70);
-    setTimeout(function(){ if(focus===id){ size(); fitFocus() } },520);
+    refitWhenSettled(true);
   }
 }
 function closePop(){focus=null;ring={};roles={};hiddenEdges=0;
@@ -3386,7 +3408,7 @@ function setSide(k){
     document.querySelectorAll('.cat').forEach(function(b){b.setAttribute('aria-pressed','false')})}
   else if(!cat)cat='all';
   syncSide();refilter();setAngles();reheat(0.85);
-  setTimeout(fit,320)}
+  refitWhenSettled(true)}
 function syncKind(){
   document.querySelectorAll('.kdbtn').forEach(function(b){
     b.setAttribute('aria-pressed',b.dataset.kind===kindF?'true':'false')});
@@ -3400,7 +3422,7 @@ function setKind(k){
   if(kindF){onlyP=null;sideF=null;syncSide();
     document.querySelectorAll('.cat').forEach(function(b){b.setAttribute('aria-pressed','false')})}
   syncKind();refilter();setAngles();reheat(0.85);
-  setTimeout(fit,320)}
+  refitWhenSettled(true)}
 document.querySelectorAll('.kdbtn').forEach(function(b){
   b.onclick=function(){setKind(b.dataset.kind)}});
 document.querySelectorAll('.lgbtn:not(.kdbtn)').forEach(function(b){
@@ -3676,7 +3698,7 @@ function autoMake(raw){
   qEl.value='';qClose();
   refilter();setAngles();reheat(0.7);
   setFocus(id);
-  setTimeout(fit,320);
+  refitWhenSettled(true);
   toast('사건을 만들었습니다'+(linked?' · 관련 항목 '+linked+'개와 이어짐':'')+' · 내용을 채워 주세요');
 }
 function toast(msg){
@@ -3971,7 +3993,7 @@ function setOnly(id){
   onlyP=id;sideF=null;syncSide();refilter();reheat(0.8);
   document.querySelectorAll('.cat').forEach(function(b){b.setAttribute('aria-pressed','false')});
   setFocus(id);
-  setTimeout(fit,300);
+  refitWhenSettled(true);
 }
 /* ===== 새 사건 만들기 ===== */
 var MYN=[];
@@ -4084,7 +4106,9 @@ document.getElementById('mAdd').onclick=function(){
   setAngles();reheat(0.9);renderMList();
   ['mU','mT','mY','mBig','mTip','mBody','mV'].forEach(function(k){var e=document.getElementById(k);if(e)e.value=''});
   document.getElementById('mP').hidden=true;document.getElementById('mSug').hidden=true;mPick=null;
-  setTimeout(function(){closeMake();setFocus(id);fit()},450)};
+  /* 450ms 는 서랍 닫히는 시간이지 물리가 가라앉는 시간이 아니다.
+     닫기만 시계로 하고, 카메라는 가라앉음을 보고 맞춘다. */
+  setTimeout(function(){closeMake();setFocus(id);refitWhenSettled(true)},450)};
 function renderMList(){
   var el=document.getElementById('mList');
   if(!MYN.length){el.innerHTML='<p class="nlab">아직 직접 넣은 항목이 없습니다.</p>';return}
@@ -4126,7 +4150,7 @@ function resetAllView(){
     b.setAttribute('aria-pressed',b.dataset.k==='all'?'true':'false')});
   syncSide();syncKind();refilter();setAngles();reheat(0.9);
   var qq=document.getElementById('q');if(qq){qq.value='';if(typeof qClose==='function')qClose()}
-  setTimeout(fit,300);syncReset()}
+  refitWhenSettled(true);syncReset()}
 if(resetBtn)resetBtn.onclick=resetAllView;
 /* 상태가 바뀌는 모든 길목에 syncReset 을 건다 */
 ['setKind','setSide','setCat','setFocus','closePop'].forEach(function(fn){
@@ -4144,7 +4168,7 @@ mountMYN();setAngles();
    (2) 포커스 중에는 alpha 바닥이 0.014로 고정돼 애니메이션이 멈추지 않는다. */
 closePop();
 reheat(0.9);
-setTimeout(fit,260);
+refitWhenSettled(true);
 
 /* 편집 UI 는 방문자에게 하나도 보이면 안 된다. 이 사이트에서 데이터는 신뢰의 전부다.
    숨기는 게 아니라 DOM 에서 지운다 — 숨긴 것은 언제든 다시 열리고,

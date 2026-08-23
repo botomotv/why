@@ -980,6 +980,37 @@ function boot(w, h) {
       if (r.on < 10) F(`21. ${nm} — 첫 화면에 노드가 ${r.on}/${r.tot}개뿐이다. 빈 화면으로 보인다`);
       if (!r.lbl) F(`21. ${nm} — 첫 화면에 이름표가 하나도 없다. 색깔 점만 보인다`);
     }
+
+    /* 화면 크기가 뒤늦게 커지는 경우 — 폰·폴드는 주소창이 접히며 화면이 커진다.
+       그때 카메라가 다시 안 맞으면 한쪽으로 쏠린 채 남는다.
+       전에는 reheat 뒤 420ms 에 fit() 을 불렀는데 가라앉는 데 270틱(4.5초)이 걸려
+       한창 움직이는 중에 맞추고 있었다. */
+    {
+      const d21b = boot(344, 700);            // 주소창이 보이는 상태
+      await new Promise(r => setTimeout(r, 1300));
+      const win = d21b.window;
+      const r = win.eval(`(function(){
+        for(var i=0;i<400;i++)tick(); fit(); cam.s=cam.ts;cam.x=cam.tx;cam.y=cam.ty;
+        var res=A.filter(function(n){return n.t==='result'&&isFinite(n.x)});
+        var lead=res.reduce(function(a,b){return (b.r||0)>(a.r||0)?b:a});
+        var before=Math.round(Math.hypot(lead.x*cam.s+cam.x-W/2,lead.y*cam.s+cam.y-H/2));
+        /* 주소창이 접혀 화면이 커졌다 — stage 가 커지고 물리가 다시 데워진다 */
+        H=882; W=344;
+        setAngles(); reheat(0.35);
+        /* 실제 코드처럼 '가라앉을 때까지' 기다렸다가 맞춘다 */
+        var t=0; while(alpha>=0.02&&t<600){tick();t++}
+        fit(); cam.s=cam.ts;cam.x=cam.tx;cam.y=cam.ty;
+        var after=Math.round(Math.hypot(lead.x*cam.s+cam.x-W/2,lead.y*cam.s+cam.y-H/2));
+        /* 시계로 맞추면 어떻게 되는지도 같이 잰다 (25틱 = 420ms) */
+        return {before:before, after:after, ticks:t,
+                settled:+alpha.toFixed(4), has:typeof refitWhenSettled==='function'};
+      })()`);
+      d21b.window.close();
+      console.log(`21. 화면 커진 뒤    폴드 접힘 344 · 커지기 전 ${r.before}px → 가라앉은 뒤 ${r.after}px (${r.ticks}틱 기다림)`);
+      if (!r.has) F('21. refitWhenSettled 가 없다 — 화면이 커진 뒤 다시 맞추는 경로가 사라졌다');
+      if (r.after > 60) F(`21. 화면이 커진 뒤 중앙에서 ${r.after}px 벗어났다`);
+      if (r.ticks < 30) F(`21. ${r.ticks}틱 만에 가라앉았다 — 물리가 안 도는 것일 수 있다 (분모 확인)`);
+    }
   }
 
   // 22. 고리 밀도 — 어느 시기가 넘치는가
@@ -1021,6 +1052,31 @@ function boot(w, h) {
       });
       if (over.length) W(`22. 고리 밀도 — ${over.map(x => x.y + '년대 ' + (x.p*100).toFixed(0) + '%').join(', ')} 가 고리 넓이를 넘는다. 흩뿌리는 방식을 바꿔야 한다 (docs/고리밀도.md)`);
     }
+  }
+
+  // 23. 물리가 끝나길 시계로 기다리는 자리가 있는가
+  //     reheat(0.85) 뒤 alpha 가 0.02 까지 내려가는 데 약 180틱(3초)이 걸린다.
+  //     그런데 setTimeout(fit, 260~320) 으로 16~19틱 만에 맞추던 자리가 여덟 군데 있었다.
+  //     420ms 짜리는 폰에서만 우연히 맞았고 폴드 접힘에서 화면이 한쪽으로 쏠렸다.
+  //     시계로 물리를 기다리면 기기마다 다르게 틀린다. 가라앉음(alpha)을 보고 맞춰야 한다.
+  {
+    const src = html;
+    /* reheat 뒤에 시계로 fit 을 부르는 꼴을 찾는다 */
+    const bad = [];
+    const re = /setTimeout\(\s*(?:function\s*\([^)]*\)\s*\{[^}]*\b(?:fit|fitFocus)\s*\(|fit\s*,|fitFocus\s*,)/g;
+    let m;
+    while ((m = re.exec(src))) {
+      const line = src.slice(0, m.index).split('\n').length;
+      const near = src.slice(Math.max(0, m.index - 260), m.index);
+      if (/reheat\s*\(/.test(near)) bad.push(`${line}줄`);
+    }
+    const has = /function\s+refitWhenSettled/.test(src);
+    const uses = (src.match(/refitWhenSettled\s*\(/g) || []).length;
+    console.log(`23. 물리 대기        시계로 기다리는 자리 ${bad.length}곳 · refitWhenSettled ${has ? '있음' : '없음'} · 쓰는 곳 ${uses}군데`);
+    if (bad.length) F(`23. reheat 뒤 시계로 fit 을 부르는 자리 ${bad.length}곳 (${bad.join(', ')}) — 기기마다 다르게 틀린다. refitWhenSettled 를 써라`);
+    if (!has) F('23. refitWhenSettled 가 없다 — 가라앉음을 보고 맞추는 경로가 사라졌다');
+    /* 0 은 의심한다. 아무 데서도 안 쓰면 검사가 통과해도 의미가 없다. */
+    if (has && uses < 3) F(`23. refitWhenSettled 를 ${uses}군데서만 쓴다 — 대부분이 아직 시계로 기다리는 것일 수 있다`);
   }
 
   /* ── 요약 ── */

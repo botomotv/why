@@ -1063,7 +1063,9 @@ function boot(w, h) {
         const bar = '█'.repeat(Math.min(20, Math.round(x.p * 10)));
         console.log(`     ${x.y}년대 ${String(x.n).padStart(3)}개  ${String((x.p*100).toFixed(0)+'%').padStart(5)} ${bar}${x.p > 1 ? '  ← 넘침' : ''}`);
       });
-      if (over.length) W(`22. 고리 밀도 — ${over.map(x => x.y + '년대 ' + (x.p*100).toFixed(0) + '%').join(', ')} 가 고리 넓이를 넘는다. 흩뿌리는 방식을 바꿔야 한다 (docs/고리밀도.md)`);
+      /* 넘치면 FAIL 이다. 수집기가 데이터를 넣으면 다시 넘칠 텐데,
+         그때 조용히 뭉치면 화면만 나빠지고 아무도 모른다. */
+      if (over.length) F(`22. 고리 밀도 — ${over.map(x => x.y + '년대 ' + (x.p*100).toFixed(0) + '%').join(', ')} 가 고리 넓이를 넘는다 (100% 초과). 고리 폭 배분을 다시 봐야 한다 (docs/고리밀도.md)`);
     }
   }
 
@@ -1142,6 +1144,72 @@ function boot(w, h) {
     bad.forEach(m2 => F(`24. ${m2}`));
     /* 0 은 의심한다. 아무것도 못 읽었으면 검사가 빈손이다. */
     if (!decl.size) F('24. 최상위 var 를 하나도 못 찾았다 — 검사가 아무것도 안 보고 있다');
+  }
+
+  // 25. 반지름 순서가 연도 순서와 맞는가
+  //     C안은 고리 폭을 노드 개수에 비례해 나눈다. 비례는 잃어도 **순서는 지켜야 한다.**
+  //     안쪽이 항상 과거, 바깥이 항상 최근(또는 시간 방향을 뒤집으면 그 반대).
+  //     이게 깨지면 지도가 거짓말이 된다 — 1970년 법안이 2020년 법안보다 바깥에 놓인다.
+  {
+    const d25 = boot(1440, 900);
+    await new Promise(r => setTimeout(r, 1200));
+    const r = d25.window.eval(`(function(){
+      if(typeof radY!=='function')return null;
+      var out={};
+      [false,true].forEach(function(dir){
+        timeOut=dir;
+        if(typeof ringLUT!=='undefined')ringLUTKey='';   /* 표를 다시 만들게 */
+        var ys=[];
+        for(var y=RY0;y<=RY1;y++)ys.push({y:y,r:radY(y)});
+        /* 방향을 정한다 — 첫 값과 끝 값 중 어느 쪽이 큰가 */
+        var inc = ys[ys.length-1].r > ys[0].r;
+        var bad=[];
+        for(var i=1;i<ys.length;i++){
+          var d=ys[i].r-ys[i-1].r;
+          if(inc? d < -0.01 : d > 0.01)
+            bad.push(ys[i-1].y+'→'+ys[i].y+' ('+ys[i-1].r.toFixed(1)+'→'+ys[i].r.toFixed(1)+')');
+        }
+        out[dir?'timeOut':'timeIn']={
+          bad:bad, n:ys.length, dir:inc?'연도↑ 반지름↑':'연도↑ 반지름↓',
+          rin:+ys[0].r.toFixed(1), rout:+ys[ys.length-1].r.toFixed(1)};
+      });
+      timeOut=true; ringLUTKey='';
+      return out;
+    })()`);
+    d25.window.close();
+    if (!r) F('25. radY 를 못 불렀다');
+    else {
+      Object.keys(r).forEach(k => {
+        const x = r[k];
+        console.log(`25. 반지름 순서     ${k.padEnd(8)} ${x.dir} · ${x.rin}→${x.rout}px · 어긋난 곳 ${x.bad.length}/${x.n - 1}`);
+        if (x.bad.length) F(`25. ${k} — 반지름 순서가 연도 순서와 어긋난 곳 ${x.bad.length}곳 (${x.bad.slice(0,3).join(', ')}). 안쪽이 항상 과거여야 한다`);
+      });
+
+      /* 고리 간격이 실제 시간 간격과 다르다는 것을 화면에 밝히는가.
+         C안은 시간 축을 비선형으로 만든다. 밝히지 않으면 시간을 왜곡해 보여주는 게 된다.
+         정확성 문제라 문구가 사라지면 FAIL 이다.
+         워터마크 검사(16번)와 같은 방식으로 fillText 를 가로채 실제로 그려지는지 본다. */
+      for (const [vw, vh] of [[412, 915], [1440, 900]]) {
+        const dN = boot(vw, vh);
+        await new Promise(rr => setTimeout(rr, 1100));
+        const drawn = dN.window.eval(`(function(){
+          var seen=[];
+          var g=cv.getContext('2d');
+          var real=g.fillText;
+          g.fillText=function(t){seen.push(String(t));return real&&real.apply(g,arguments)};
+          try{draw()}catch(e){}
+          g.fillText=real;
+          return seen;
+        })()`) || [];
+        dN.window.close();
+        const hit = drawn.some(t => /고리 간격은 실제 시간 간격과 다릅니다/.test(t));
+        console.log(`25. 간격 안내       ${vw}px · ${hit ? '그려짐' : '없음'} (그린 글자 ${drawn.length}개)`);
+        if (!drawn.length) F(`25. ${vw}px — fillText 를 하나도 못 잡았다. 검사가 화면을 안 보고 있다`);
+        else if (!hit) F(`25. ${vw}px — '고리 간격은 실제 시간 간격과 다릅니다' 가 화면에 없다. 시간 축이 비선형인데 밝히지 않으면 왜곡이다`);
+      }
+      /* 0 은 의심한다. 재본 구간이 없으면 통과가 아니라 빈손이다. */
+      if (!Object.keys(r).length) F('25. 재본 방향이 0개다');
+    }
   }
 
   /* ── 요약 ── */

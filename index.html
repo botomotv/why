@@ -837,6 +837,9 @@ body.hasundo .rolebar{top:232px;width:calc(100vw - 24px);max-height:96px;overflo
   <details class="railcard" id="ztime">
     <summary class="raillab">시간 방향</summary>
     <p class="linesub">지도가 고리 모양입니다. 아래 <b>⇄ 시간 방향</b> 을 누르면 안과 밖이 뒤집힙니다.</p>
+    <p class="linesub"><b>고리 간격은 실제 시간 간격과 다릅니다.</b>
+      일이 많았던 시기일수록 고리를 넓게 잡습니다. 그래야 그 시기 항목이 서로 겹치지 않습니다.
+      순서는 그대로입니다 — 안쪽이 언제나 더 이른 때입니다. 고리에 적힌 연도는 정확합니다.</p>
     <p class="tswrow"><b>가운데</b><em id="ztimeIn">지금</em></p>
     <p class="tswrow"><b>바깥</b><em id="ztimeOut">최근</em></p>
   </details>
@@ -2424,10 +2427,59 @@ var PY={k1:1998,k2:2003,k3:2008,k4:2013,p5:2017,k5:2022,p4:2025,
  y7:2015,y8:2024,y9:2024,o2:2020,o3:2026,t1:2014,t2:2019,t3:2020};
 var RY0=1943,RY1=2027,RIN=150,ROUT=830;
 var timeOut=true; /* true: 안쪽이 과거 · false: 안쪽이 최근 */
+/* ── 고리 반지름 ──
+   전에는 연도에 선형이었다. 84년을 680px 에 넣어 1년당 8.1px 인데
+   노드 지름은 12~74px 이라, 노드가 많은 시기는 고리 넓이보다 노드 면적이 커진다.
+   실측: 2020년대 채움률 205%(넘침) · 1950년대 6% · 32배 차이.
+   그래서 '전체 보기'에서 최근 쪽이 뭉치고 옛날 쪽이 텅 비었다.
+   수집기가 22대 자료를 넣으면 더 심해진다 — 지금 안 고치면 넣을수록 나빠진다.
+
+   C안: 고리 폭을 **그 시기의 노드 개수**에 비례해 나눈다.
+   원의 넓이는 반지름 제곱에 비례하므로 누적 비율의 제곱근을 쓴다.
+   실측으로 최대 채움률 205% → 61%, 넘치는 연대 1개 → 0개.
+
+   **순서는 반드시 지킨다.** 연도가 이르면 반지름도 항상 작거나 같다(timeOut 이면 반대).
+   깨지면 지도가 거짓말이 된다. 검사 25번이 강제한다.
+
+   잃는 것: 비례. '2배 멀면 2배 오래전'이 성립하지 않는다.
+   고리에 그려지는 연도 숫자는 radY() 로 같이 움직이므로 계속 정확하고,
+   화면에 '고리 간격은 실제 시간 간격과 다릅니다'를 밝힌다. */
+var ringLUT=null;                /* [{y, t}] — 연도 → 누적 비율. A 가 바뀌면 다시 만든다 */
+var ringLUTKey='';
+
+function buildRingLUT(){
+  var key=A.length+'|'+cat+'|'+(sideF||'')+'|'+(kindF||'')+'|'+(onlyP||'');
+  if(ringLUT&&ringLUTKey===key)return ringLUT;
+  var cnt={};
+  (A.length?A:N).forEach(function(n){
+    var y=Math.max(RY0,Math.min(RY1,pyOf(n)));
+    cnt[y]=(cnt[y]||0)+1});
+  var years=Object.keys(cnt).map(Number).sort(function(a,b){return a-b});
+  var tot=0; years.forEach(function(y){tot+=cnt[y]});
+  var lut=[], acc=0;
+  years.forEach(function(y){acc+=cnt[y]; lut.push({y:y, t:acc/tot})});
+  ringLUT=lut; ringLUTKey=key;
+  return lut}
+
+/* 연도 → 0~1 누적 비율. 사이 값은 선형 보간해서 순서가 끊기지 않게 한다. */
+function ringT(y){
+  var lut=buildRingLUT();
+  if(!lut.length)return (y-RY0)/(RY1-RY0);
+  if(y<=lut[0].y)return lut[0].t*((y-RY0)/Math.max(1,lut[0].y-RY0));
+  for(var i=0;i<lut.length;i++){
+    if(y<=lut[i].y){
+      var p=lut[i-1]||{y:RY0,t:0};
+      var span=lut[i].y-p.y;
+      return span<=0?lut[i].t:p.t+(lut[i].t-p.t)*((y-p.y)/span)}}
+  return 1}
+
 function radY(y){
-  var t=(RY1-y)/(RY1-RY0);t=Math.max(0,Math.min(1,t));
+  var t=ringT(Math.max(RY0,Math.min(RY1,y)));
+  t=1-t;                          /* 기본은 이른 연도가 바깥 — 원래 식과 같은 방향 */
   if(timeOut)t=1-t;
-  return RIN+t*(ROUT-RIN)}
+  t=Math.max(0,Math.min(1,t));
+  /* 넓이 등분: 반지름은 누적 넓이의 제곱근에 비례한다 */
+  return Math.sqrt(RIN*RIN+t*(ROUT*ROUT-RIN*RIN))}
 function pyOf(n){var y=yr(n);if(y!==null)return y;if(PY[n.id])return PY[n.id];return 2010}
 function ringR(n){return radY(pyOf(n))}
 function setAngles(){
@@ -3078,15 +3130,26 @@ function arrow(ax,ay,bx,by,rr,col,wid){
 function draw(){
   cx.setTransform(DPR,0,0,DPR,0,0);cx.clearRect(0,0,W,H);
   cx.setTransform(DPR*cam.s,0,0,DPR*cam.s,DPR*cam.x,DPR*cam.y);cx.lineCap='round';
-  [2025,2020,2015,2010,2005,2000,1995].forEach(function(yy){
-    var R=radY(yy);
-    cx.beginPath();cx.ellipse(0,0,R,R*0.86,0,0,7);
-    cx.strokeStyle=(yy%10===0||yy===2025)?'rgba(255,255,255,0.055)':'rgba(255,255,255,0.025)';
-    cx.lineWidth=1/cam.s;cx.stroke();
-    if(cam.s>0.42){
-      cx.font=(12/cam.s)+"px 'Noto Sans KR',sans-serif";cx.textAlign='center';
-      cx.fillStyle='rgba(255,255,255,0.20)';
-      cx.fillText(yy,0,-R*0.86-6/cam.s)}});
+  /* 연도 눈금. 전에는 [2025…1995] 만 그렸는데, 고리 폭이 시기마다 달라지면서
+     옛 고리가 좁아져 연도를 읽을 수 없게 된다.
+     그래서 눈금을 '반지름 여유가 생길 때마다' 그린다 — 촘촘한 쪽은 건너뛰고
+     넓은 쪽은 5년마다. 눈금이 정확해야 비선형 간격을 읽을 수 있다. */
+  (function(){
+    var ticks=[], lastR=-1e9;
+    for(var yy=RY1;yy>=RY0;yy-=5){
+      var R=radY(yy);
+      if(Math.abs(R-lastR)<34/Math.max(cam.s,0.35))continue;   /* 화면상 34px 이상 벌어질 때만 */
+      ticks.push({y:yy,R:R}); lastR=R;
+    }
+    ticks.forEach(function(t){
+      cx.beginPath();cx.ellipse(0,0,t.R,t.R*0.86,0,0,7);
+      cx.strokeStyle=(t.y%10===0)?'rgba(255,255,255,0.055)':'rgba(255,255,255,0.025)';
+      cx.lineWidth=1/cam.s;cx.stroke();
+      if(cam.s>0.42){
+        cx.font=(12/cam.s)+"px 'Noto Sans KR',sans-serif";cx.textAlign='center';
+        cx.fillStyle='rgba(255,255,255,0.20)';
+        cx.fillText(t.y,0,-t.R*0.86-6/cam.s)}});
+  })();
   L.forEach(function(l){var a=map[l[0]],b=map[l[1]],lit=Math.max(a.gl,b.gl);
     var al=Math.min(a.a,b.a)*(focus?(0.10+lit*0.85):(0.16+lit*0.72));
     if(al<0.02)return;
@@ -3318,6 +3381,20 @@ function draw(){
   cx.textAlign='right';cx.textBaseline='alphabetic';
   cx.fillStyle='rgba(227,174,85,0.28)';
   cx.fillText(SITE.name+' · '+SITE.host, W-12, narrowWm?58:24);
+
+  /* 고리 간격이 실제 시간 간격과 다르다는 것을 밝힌다.
+     고리 폭을 그 시기의 항목 수에 비례해 나누므로 10년당 18~167px 로 9배까지 벌어진다.
+     밝히지 않으면 우리가 시간을 왜곡해 보여주는 게 된다. 정확성 문제라 빼지 않는다.
+     월드 좌표(고리 옆)에 두었더니 확대·축소에 따라 화면 밖으로 나갔다.
+     그래서 화면 좌표로 그린다 — 워터마크와 같은 방식이다. 언제나 보인다. */
+  cx.textAlign='left';
+  cx.font=(narrowWm?10:11)+"px 'Noto Sans KR',-apple-system,sans-serif";
+  cx.fillStyle='rgba(255,255,255,0.34)';
+  cx.fillText('고리 간격은 실제 시간 간격과 다릅니다', 12, narrowWm?58:24);
+  cx.fillStyle='rgba(255,255,255,0.20)';
+  cx.font=(narrowWm?9.5:10.5)+"px 'Noto Sans KR',-apple-system,sans-serif";
+  cx.fillText('일이 많았던 시기일수록 고리가 넓습니다 · 순서는 그대로입니다',
+              12, (narrowWm?58:24)+13);
 }
 (function loop(){tick();fade();placePop();draw();requestAnimationFrame(loop)})();
 

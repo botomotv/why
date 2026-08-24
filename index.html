@@ -2625,6 +2625,7 @@ var NARROW_W = 900, NARROW_MIN_S = LABEL_FAR;
    실측: 벌림 0.24rad 에서 배율 0.96, 이름표 58/171 (A안은 0.24 / 5개).
    덤으로 남는 거리가 반지름 차이뿐이라 화면상 거리가 곧 연도 차이가 된다. */
 var FAN = 0.24, FAN_FEW = 0.34;   /* 부채꼴 벌림(rad). 이웃이 적으면 넓게 */
+var LAY_EASE = 0.22;              /* 각도를 제자리로 당기는 세기 */
 var FAN_EASE = 0.36;              /* 각도를 목표로 당기는 세기. 1이면 순간이동.
                                      0.16 이면 자리를 잡는 데 3초가 넘었다 —
                                      0.36 이면 0.4초 안에 끝난다. */
@@ -3130,22 +3131,34 @@ function tick(){
      당긴 뒤 충돌 해소가 겹친 것을 접선 방향으로 밀어낸다 — 그 결과를 살린다. */
   /* alpha 가 바닥나면 손대지 않는다. 충돌 분리와 반지름 복원이 서로 밀어
      멈춘 뒤에도 13px 씩 진동했다 — 끝나지 않는 움직임이다. */
-  if(focus&&alpha>0.012)A.forEach(function(n){
+  /* ── 배치는 데이터가 정한다 ──
+     반지름 = 연도, 각도 = 흩뿌린 값(n.ang). 초점 중이면 부채꼴(n.tang).
+     전에는 링크 스프링에 맡겼는데, 노드가 목표에서 중앙값 111px 끌려 나가고
+     각도 분포가 12방향에 2~19개로 무너졌다 (목표는 14~15개씩).
+     허브가 세게 당긴다 — 이재명 35선, 윤석열 30선.
+     그래서 첫 화면이 부채꼴로 한쪽에 몰렸다. 연도 탓이 아니라 링크 탓이었다.
+     선은 관련을 보여주는 것이지 자리를 정하는 것이 아니다. */
+  A.forEach(function(n){
     if(n===drag||n.fixed)return;
-    if(typeof n.tang!=='number')return;
     var R=ringR(n); if(!(R>0)||!isFinite(n.x)||!isFinite(n.y))return;
-    if(n.x===0&&n.y===0)return;
+    if(n.x===0&&n.y===0){n.x=R;n.y=0}
+    var want=(typeof n.tang==='number'&&isFinite(n.tang))?n.tang
+            :((typeof n.ang==='number'&&isFinite(n.ang))?n.ang:0);
+    want=want%(Math.PI*2);
     var a=Math.atan2(n.y/0.86,n.x);
-    var d=((n.tang-a+Math.PI*3)%(Math.PI*2))-Math.PI;
-    a+=d*FAN_EASE;
+    /* 가라앉으면 각도는 그대로 둔다 — 충돌이 밀어낸 결과를 살린다 */
+    if(alpha>0.012){
+      var d=((want-a+Math.PI*3)%(Math.PI*2))-Math.PI;
+      a+=d*LAY_EASE;
+    }
     n.x=Math.cos(a)*R; n.y=Math.sin(a)*R*0.86;
-    n.vx*=0.6;n.vy*=0.6});
+    n.vx*=0.5; n.vy*=0.5});
   var CA=[];
   A.forEach(function(n){n.__hw=hw(n);n.__hh=hh(n);CA.push(n)});
   /* 초점 중에는 일찍 쉰다. gatherFan 이 노드를 이미 제자리에 놓았으므로
      겹친 것만 풀면 되고, 그 뒤로는 돌수록 진동만 남는다.
      초점이 아닐 때는 원래대로 — 배치가 아직 자리를 잡는 중이다. */
-  var COLL=(!focus||alpha>0.012)?8:0;
+  var COLL=(alpha>0.008)?8:0;
   for(var it=0;it<COLL;it++){
     var relax=it===0?1:(it<4?0.8:0.5);
     for(var p=0;p<CA.length;p++){var P=CA[p];
@@ -3176,9 +3189,10 @@ function tick(){
   /* 반지름 복원은 **언제나** 돌린다. 이걸 같이 얼렸더니 충돌에 밀려난 자리가
      그대로 굳어 반지름이 최대 124px 흔들렸다 — 연도가 거짓말이 된다.
      충돌 해소가 쉬면 싸울 상대가 없으므로 이것만으로는 진동하지 않는다. */
-  if(focus)A.forEach(function(n){
+  /* 충돌 해소가 밀어낸 뒤 반지름을 되돌린다. 각도는 밀린 대로 둔다.
+     반지름은 연도다 — 흔들리면 연도가 거짓말이 된다. 초점일 때만이 아니라 언제나. */
+  A.forEach(function(n){
     if(n===drag||n.fixed)return;
-    if(typeof n.tang!=='number')return;
     var R=ringR(n); if(!(R>0)||!isFinite(n.x)||!isFinite(n.y))return;
     if(n.x===0&&n.y===0)return;
     var a=Math.atan2(n.y/0.86,n.x);

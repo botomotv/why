@@ -724,8 +724,18 @@ function boot(w, h) {
 
     over.slice(0, 12).forEach(n => {
       try { we17.setFocus(n.id) } catch (e) { capProblems.push(`${n.lab} 카드가 깨진다: ${e.message}`); return }
-      // 배지는 draw() 안에서 그려진다. setFocus 직후에는 아직 한 프레임도 안 돌았다.
-      // 기다리는 대신 직접 부른다 — 무엇을 그렸는지 그 자리에서 받아 적어야 한다.
+      /* 앱은 초점을 잡은 뒤 카메라를 맞추고 나서 그린다(refitWhenSettled).
+         그 순서를 안 밟고 바로 그리면 노드가 화면 밖에 있어 배지가 안 그려진다 —
+         배치를 데이터가 정하게 바꾼 뒤 실제로 그렇게 됐다.
+         검사는 사람이 보는 상태를 재야 한다. */
+      try {
+        we17.size(); if (typeof we17.gatherFan === 'function') we17.gatherFan();
+        let t = 0; while (we17.alpha >= 0.02 && t < 400) { we17.tick(); t++ }
+        we17.size();
+        if (typeof we17.fitFocus === 'function') we17.fitFocus();
+        we17.cam.s = we17.cam.ts; we17.cam.x = we17.cam.tx; we17.cam.y = we17.cam.ty;
+      } catch (e) {}
+      // 배지는 draw() 안에서 그려진다. 기다리는 대신 직접 부른다.
       we17.__drawn.length = 0;
       try { we17.draw() } catch (e) { capProblems.push(`${n.lab} draw 실패: ${e.message}`); return }
       checked17++;
@@ -1238,11 +1248,22 @@ function boot(w, h) {
           g[Math.min(gy-1,Math.floor(p[1]/cell))*gx+Math.min(gx-1,Math.floor(p[0]/cell))]++;
           mnx=Math.min(mnx,p[0]);mxx=Math.max(mxx,p[0]);
           mny=Math.min(mny,p[1]);mxy=Math.max(mxy,p[1])});
-        /* 노드 상자와 겹치는 칸만 센다 */
+        /* 빈 칸을 '노드 상자 안' 에서만 세면 아무것도 못 잡는다 —
+           노드가 부채꼴로 몰리면 그 상자 자체가 부채꼴이라 빈 곳이 상자 밖으로 빠진다.
+           실제로 화면 절반이 비었는데 검사는 0~25% 로 통과했다.
+           그래서 **고리가 덮는 타원 안** 을 기준으로 센다.
+           고리 배치라 화면 네 귀퉁이가 비는 건 정상이지만,
+           고리 안쪽이 비는 건 정상이 아니다. */
+        var cx0=0*cam.s+cam.x, cy0=0*cam.s+cam.y;      /* 고리 중심(월드 원점) */
+        var RX=ROUT*cam.s, RY=ROUT*0.86*cam.s;
         var inBox=0, emptyIn=0;
         for(var yy=0;yy<gy;yy++)for(var xx=0;xx<gx;xx++){
-          var l=xx*cell,rr=l+cell,tp=yy*cell,bt=tp+cell;
-          if(rr<mnx||l>mxx||bt<mny||tp>mxy)continue;
+          var l=xx*cell,rr=Math.min(W,l+cell),tp=yy*cell,bt=Math.min(H,tp+cell);
+          if(l>=W||tp>=H)continue;
+          /* 칸의 가운데가 고리 타원 안에 있고 화면 안이면 센다 */
+          var mx2=(l+rr)/2, my2=(tp+bt)/2;
+          var u=(mx2-cx0)/Math.max(1,RX), v=(my2-cy0)/Math.max(1,RY);
+          if(u*u+v*v>1)continue;
           inBox++; if(!g[yy*gx+xx])emptyIn++;
         }
         return {ticks:t, off:Math.round(off), pct:+(off/diag*100).toFixed(1),
@@ -1255,13 +1276,13 @@ function boot(w, h) {
       if (!r) { F(`26. ${w}×${h} — 첫 화면을 못 쟀다`); continue }
       if (!r.on) { F(`26. ${w}×${h} — 첫 화면에 노드가 하나도 없다 (전체 ${r.tot}개)`); continue }
       const ep = Math.round(100 * r.emptyIn / Math.max(1, r.inBox));
-      console.log(`26. 첫 화면        ${String(w + '×' + h).padEnd(10)} 가라앉기 ${String(r.ticks).padStart(3)}틱 · 중심어긋남 ${String(r.off + 'px').padStart(6)} (${r.pct}%) · 화면안 ${r.on}/${r.tot} · 이름표 ${String(r.lbl).padStart(2)} · 빈칸 ${r.emptyIn}/${r.inBox} (${ep}%) · 배율 ${r.s}`);
+      console.log(`26. 첫 화면        ${String(w + '×' + h).padEnd(10)} 가라앉기 ${String(r.ticks).padStart(3)}틱 · 중심어긋남 ${String(r.off + 'px').padStart(6)} (${r.pct}%) · 화면안 ${r.on}/${r.tot} · 이름표 ${String(r.lbl).padStart(2)} · 고리 안 빈칸 ${r.emptyIn}/${r.inBox} (${ep}%) · 배율 ${r.s}`);
 
       if (r.ticks < 20) F(`26. ${w}×${h} — ${r.ticks}틱 만에 가라앉았다. 물리가 안 도는 것일 수 있다`);
       if (r.pct > OFF_MAX) F(`26. ${w}×${h} — 노드 무리 중심이 화면 중심에서 ${r.off}px 어긋났다 (대각선의 ${r.pct}%, 한도 ${OFF_MAX}%)`);
       if (r.on < 20) F(`26. ${w}×${h} — 첫 화면에 노드가 ${r.on}/${r.tot}개뿐이다. 빈 화면으로 보인다`);
       if (!r.lbl) F(`26. ${w}×${h} — 첫 화면에 이름표가 하나도 없다. 색깔 점만 보인다`);
-      if (ep > EMPTY_MAX) W(`26. ${w}×${h} — 노드가 놓인 상자 안에서 ${ep}% 가 비어 있다 (${r.emptyIn}/${r.inBox}칸). 한쪽에 뭉쳤을 수 있다`);
+      if (ep > EMPTY_MAX) F(`26. ${w}×${h} — 고리가 덮는 영역 안에서 ${ep}% 가 비어 있다 (${r.emptyIn}/${r.inBox}칸). 노드가 한쪽에 뭉쳤다`);
     }
   }
 

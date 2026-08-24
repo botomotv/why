@@ -1222,7 +1222,14 @@ function boot(w, h) {
   //     빈 칸은 '노드가 놓인 상자 안' 에서만 센다.
   //     고리 배치라 화면 네 귀퉁이는 원래 비는데, 그걸 세면 늘 나쁘게 나온다.
   {
-    const OFF_MAX = 6;      // 중심 어긋남 한도 (화면 대각선의 %)
+    /* 중심 어긋남 한도.
+       6% 였는데, 첫 화면 중심을 '모든 노드' 가 아니라 '결과 노드에 무게를 준 값' 으로
+       바꾸면서 전체 무리중심은 조금 나빠졌다. 그게 맞는 맞바꿈이다 —
+       눈은 큰 노란 원을 보기 때문이다.
+       **한도를 풀기만 하면 아무것도 안 잡는 검사가 된다.**
+       그래서 두 지표를 같이 본다: 전체 무리중심(느슨) + 결과 사분면(엄격).
+       하나가 느슨해져도 다른 하나가 잡는다. */
+    const OFF_MAX = 9;      // 중심 어긋남 한도 (화면 대각선의 %)
     const EMPTY_MAX = 45;   // 노드 상자 안 빈 칸 한도 (%)
     for (const [w, h] of VIEWPORTS) {
       const d26 = boot(w, h);
@@ -1273,7 +1280,19 @@ function boot(w, h) {
           if(u*u+v*v>1)continue;
           inBox++; if(!g[yy*gx+xx])emptyIn++;
         }
-        return {ticks:t, off:Math.round(off), pct:+(off/diag*100).toFixed(1),
+        /* 큰 노란 원(결과 노드)이 한쪽에만 몰리면 '쏠려 보인다'.
+           작은 점이 고루 퍼져 있어도 눈은 큰 원을 본다 — 실제로 갈라졌다. */
+        var R=[]; A.forEach(function(n){ if(n.t!=='result')return;
+          var sx=n.x*cam.s+cam.x, sy=n.y*cam.s+cam.y;
+          if(sx>=0&&sx<=W&&sy>=0&&sy<=H)R.push([sx,sy])});
+        var q=[0,0,0,0];
+        R.forEach(function(p){q[(p[1]>H/2?2:0)+(p[0]>CX?1:0)]++});
+        var rOff=-1;
+        if(R.length){var rx=0,ry=0;R.forEach(function(p){rx+=p[0];ry+=p[1]});
+          rOff=Math.round(Math.hypot(rx/R.length-CX, ry/R.length-H/2))}
+        var empties=q.filter(function(v){return v===0}).length;
+        return {resN:R.length, quad:q.join('/'), rOff:rOff, emptyQuad:empties,
+                ticks:t, off:Math.round(off), pct:+(off/diag*100).toFixed(1),
                 on:on.length, tot:A.length, lbl:labelStat?labelStat.shown:0,
                 emptyIn:emptyIn, inBox:inBox, cells:g.length,
                 emptyAll:g.filter(function(v){return v===0}).length,
@@ -1283,13 +1302,17 @@ function boot(w, h) {
       if (!r) { F(`26. ${w}×${h} — 첫 화면을 못 쟀다`); continue }
       if (!r.on) { F(`26. ${w}×${h} — 첫 화면에 노드가 하나도 없다 (전체 ${r.tot}개)`); continue }
       const ep = Math.round(100 * r.emptyIn / Math.max(1, r.inBox));
-      console.log(`26. 첫 화면        ${String(w + '×' + h).padEnd(10)} 가라앉기 ${String(r.ticks).padStart(3)}틱 · 중심어긋남 ${String(r.off + 'px').padStart(6)} (${r.pct}%) · 화면안 ${r.on}/${r.tot} · 이름표 ${String(r.lbl).padStart(2)} · 고리 안 빈칸 ${r.emptyIn}/${r.inBox} (${ep}%) · 배율 ${r.s}`);
+      console.log(`26. 첫 화면        ${String(w + '×' + h).padEnd(10)} 가라앉기 ${String(r.ticks).padStart(3)}틱 · 중심어긋남 ${String(r.off + 'px').padStart(6)} (${r.pct}%) · 화면안 ${r.on}/${r.tot} · 이름표 ${String(r.lbl).padStart(2)} · 고리 안 빈칸 ${r.emptyIn}/${r.inBox} (${ep}%) · 배율 ${r.s} · 결과 ${r.resN}개 사분면 ${r.quad} 중심에서 ${r.rOff}px`);
 
       if (r.ticks < 20) F(`26. ${w}×${h} — ${r.ticks}틱 만에 가라앉았다. 물리가 안 도는 것일 수 있다`);
       if (r.pct > OFF_MAX) F(`26. ${w}×${h} — 노드 무리 중심이 화면 중심에서 ${r.off}px 어긋났다 (대각선의 ${r.pct}%, 한도 ${OFF_MAX}%)`);
       if (r.on < 20) F(`26. ${w}×${h} — 첫 화면에 노드가 ${r.on}/${r.tot}개뿐이다. 빈 화면으로 보인다`);
       if (!r.lbl) F(`26. ${w}×${h} — 첫 화면에 이름표가 하나도 없다. 색깔 점만 보인다`);
       if (ep > EMPTY_MAX) F(`26. ${w}×${h} — 고리가 덮는 영역 안에서 ${ep}% 가 비어 있다 (${r.emptyIn}/${r.inBox}칸). 노드가 한쪽에 뭉쳤다`);
+      /* 결과 노드가 세 사분면 이상 비면 큰 원이 한쪽에 몰린 것이다.
+         '무리중심' 만 보면 이걸 못 잡는다 — 실제로 못 잡았다. */
+      if (r.resN >= 4 && r.emptyQuad >= 3)
+        F(`26. ${w}×${h} — 결과 노드 ${r.resN}개가 사분면 ${r.quad} 로 한쪽에 몰렸다. 큰 원이 쏠려 보인다`);
     }
   }
 
@@ -1370,7 +1393,7 @@ function boot(w, h) {
       if (r && r.skip) { F(`28. ${w}×${h} — ${r.skip}`); continue }
       if (!r || r.off == null) { F(`28. ${w}×${h} — 만진 뒤 노드가 하나도 안 보인다`); continue }
       const pct = +(r.off / r.diag * 100).toFixed(1);
-      console.log(`28. 만진 뒤 첫화면  ${w}×${h} · 탭으로 카메라 잡힘 ${r.touched} · 중심 ${r.off}px (${pct}%) · 화면안 ${r.on}/${r.tot} · 배율 ${r.s}`);
+      console.log(`28. 만진 뒤 첫화면  ${w}×${h} · 탭으로 카메라 잡힘 ${r.touched} · 중심 ${r.off}px (${pct}%) · 화면안 ${r.on}/${r.tot} · 배율 ${r.s} · 결과 ${r.resN}개 사분면 ${r.quad} 중심에서 ${r.rOff}px`);
       if (r.touched) F(`28. ${w}×${h} — 탭 한 번에 camUser 가 켜졌다. 첫 화면 맞춤이 영영 안 돈다`);
       if (pct > 6) F(`28. ${w}×${h} — 만진 뒤 중심이 ${r.off}px (${pct}%) 어긋났다`);
       if (r.on < 20) F(`28. ${w}×${h} — 만진 뒤 화면에 노드가 ${r.on}/${r.tot}개뿐이다`);

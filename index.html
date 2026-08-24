@@ -3503,14 +3503,30 @@ function draw(){
      밝히지 않으면 우리가 시간을 왜곡해 보여주는 게 된다. 정확성 문제라 빼지 않는다.
      월드 좌표(고리 옆)에 두었더니 확대·축소에 따라 화면 밖으로 나갔다.
      그래서 화면 좌표로 그린다 — 워터마크와 같은 방식이다. 언제나 보인다. */
-  cx.textAlign='left';
-  cx.font=(narrowWm?10:11)+"px 'Noto Sans KR',-apple-system,sans-serif";
-  cx.fillStyle='rgba(255,255,255,0.34)';
-  cx.fillText('고리 간격은 실제 시간 간격과 다릅니다', 12, narrowWm?58:24);
-  cx.fillStyle='rgba(255,255,255,0.20)';
-  cx.font=(narrowWm?9.5:10.5)+"px 'Noto Sans KR',-apple-system,sans-serif";
-  cx.fillText('일이 많았던 시기일수록 고리가 넓습니다 · 순서는 그대로입니다',
-              12, (narrowWm?58:24)+13);
+  /* 글자만 얹으면 지도 위에서 이름표와 겹쳐 둘 다 안 읽힌다 — 실기기에서 그랬다.
+     뒤에 판을 깔아 떼어 놓는다. 좁은 화면은 한 줄로 줄인다. */
+  cx.textAlign='left'; cx.textBaseline='alphabetic';
+  var nL=narrowWm
+    ? ['고리 간격 ≠ 시간 간격']
+    : ['고리 간격은 실제 시간 간격과 다릅니다',
+       '일이 많았던 시기일수록 고리가 넓습니다 · 순서는 그대로입니다'];
+  var nF=narrowWm?10.5:11, nF2=narrowWm?10.5:10.5, nY=narrowWm?58:24, nLH=13;
+  cx.font='500 '+nF+"px 'Noto Sans KR',-apple-system,sans-serif";
+  var nW=cx.measureText(nL[0]).width;
+  if(nL[1]){cx.font=nF2+"px 'Noto Sans KR',-apple-system,sans-serif";
+    nW=Math.max(nW,cx.measureText(nL[1]).width)}
+  cx.fillStyle='rgba(14,15,18,0.78)';
+  cx.beginPath();
+  var pX=12-7, pY=nY-nF-3, pW=nW+14, pH=nF+3+(nL[1]?nLH:0)+8;
+  if(cx.roundRect)cx.roundRect(pX,pY,pW,pH,7);else cx.rect(pX,pY,pW,pH);
+  cx.fill();
+  cx.font='500 '+nF+"px 'Noto Sans KR',-apple-system,sans-serif";
+  cx.fillStyle='rgba(255,255,255,0.46)';
+  cx.fillText(nL[0], 12, nY);
+  if(nL[1]){
+    cx.font=nF2+"px 'Noto Sans KR',-apple-system,sans-serif";
+    cx.fillStyle='rgba(255,255,255,0.26)';
+    cx.fillText(nL[1], 12, nY+nLH)}
 }
 (function loop(){tick();fade();placePop();draw();requestAnimationFrame(loop)})();
 

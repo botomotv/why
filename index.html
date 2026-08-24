@@ -2803,7 +2803,53 @@ if(window.ResizeObserver){
 }
 /* 첫 페인트 직후 iOS 는 뷰포트가 한 번 더 흔들린다. 안정될 때까지 몇 번 더 맞춘다. */
 window.addEventListener('orientationchange',function(){setTimeout(size,120)});
-window.addEventListener('pageshow',function(){size()});
+window.addEventListener('pageshow',function(){size();refitWhenSettled(false,1500)});
+/* #stage 에 right/bottom 전환이 걸려 있다. 전환 도중에 재면 중간값이 나온다 —
+   getBoundingClientRect 는 전환에 휘둘린다(CLAUDE.md).
+   끝난 뒤 한 번 더 재고 맞춘다. */
+/* ── 진단 표시 (?diag=1) ──
+   아이폰 사파리는 여기서 흉내 낼 수 없다. 주소창이 접히며 화면이 두 번 바뀌는 것,
+   position:fixed 가 레이아웃 뷰포트를 기준으로 잡히는 것, visualViewport 와
+   innerHeight 가 다른 것 — 전부 실기기에서만 난다.
+   그래서 기기에서 숫자를 직접 읽을 수 있게 해 둔다. 주소 끝에 ?diag=1 을 붙이면 뜬다.
+   평소에는 아무것도 하지 않는다. */
+(function(){
+  if(!/[?&]diag=1/.test(location.search))return;
+  var d=document.createElement('div');
+  d.style.cssText='position:fixed;left:0;right:0;bottom:0;z-index:99;background:rgba(0,0,0,.86);'+
+    'color:#9FE8B0;font:11px/1.45 ui-monospace,Menlo,monospace;padding:8px 10px;white-space:pre-wrap;'+
+    'max-height:44vh;overflow:auto;-webkit-user-select:text;user-select:text';
+  document.body.appendChild(d);
+  var vv=window.visualViewport;
+  var f=function(x){return Math.round(x)};
+  var upd=function(){
+    var b=document.getElementById('stage').getBoundingClientRect();
+    var res=A.filter(function(n){return n.t==='result'&&isFinite(n.x)});
+    var on=[];
+    A.forEach(function(n){var sx=n.x*cam.s+cam.x, sy=n.y*cam.s+cam.y;
+      if(sx>=0&&sx<=W&&sy>=0&&sy<=H)on.push([sx,sy])});
+    var cx2=0,cy2=0; on.forEach(function(p){cx2+=p[0];cy2+=p[1]});
+    var off = on.length ? f(Math.hypot(cx2/on.length-viewCX(), cy2/on.length-H/2)) : -1;
+    d.textContent=[
+      'inner   '+innerWidth+'x'+innerHeight+'   dpr '+(window.devicePixelRatio||1),
+      'visual  '+(vv?f(vv.width)+'x'+f(vv.height)+'  off '+f(vv.offsetLeft)+','+f(vv.offsetTop)+'  scale '+(vv.scale||1):'없음'),
+      'stage   '+f(b.width)+'x'+f(b.height)+'  top '+f(b.top)+'  left '+f(b.left),
+      'W,H     '+f(W)+'x'+f(H)+'   inset '+f(mapInsetLeft())+'   viewCX '+f(viewCX()),
+      'cam     s '+cam.s.toFixed(3)+'  x '+f(cam.x)+'  y '+f(cam.y)+'   camUser '+camUser,
+      'canvas  '+cv.width+'x'+cv.height+'  css '+f(cv.getBoundingClientRect().width)+'x'+f(cv.getBoundingClientRect().height),
+      '무리중심 화면중심에서 '+off+'px   화면안 '+on.length+'/'+A.length,
+      'safe    L'+getComputedStyle(document.documentElement).getPropertyValue('--sal')+
+        ' 터치 '+(navigator.maxTouchPoints||0)+'  focus '+(focus||'없음')
+    ].join('\n');
+  };
+  setInterval(upd,400); upd();
+})();
+
+(function(){var st=document.getElementById('stage');
+  if(st)st.addEventListener('transitionend',function(e){
+    if(e.target!==st)return;
+    if(e.propertyName!=='right'&&e.propertyName!=='bottom')return;
+    size(); refitWhenSettled(false,1200)})})();
 [0,60,200,500,1000].forEach(function(ms){setTimeout(size,ms)});
 /* 물리가 가라앉으면서 노드가 크게 움직인다.
    init 직후 한 번 맞춘 카메라는 그때쯤 이미 어긋나 있다 —
@@ -3695,9 +3741,17 @@ var railAuto=false;          /* 우리가 바꾸는 중 — 그때 나는 toggle
 function decideRailOpen(){
   if(railUserToggled)return;                   /* 손댄 뒤에는 건드리지 않는다 */
   if(!(W>1&&H>1))return;                       /* 아직 크기를 모른다 */
+  /* PC 판별. 포인터만으로는 부족했다 —
+     폴드를 펼치면 브라우저가 hover:hover / pointer:fine 을 보고하는 경우가 있다.
+     그래서 **손가락이 아예 없는 기기** 인지를 같이 본다.
+     navigator.maxTouchPoints 는 폰·태블릿·폴드에서 5 이상이고 마우스 전용 PC 는 0 이다.
+     터치 되는 노트북은 0 이 아니라 접힌 채로 시작한다 — 그쪽이 맞다.
+     터치로 쓰는 사람에게는 접힌 편이 낫기 때문이다. */
+  var noTouch = (navigator.maxTouchPoints || 0) === 0
+             && !('ontouchstart' in window);
   var pc = !!(window.matchMedia
     && matchMedia('(hover:hover) and (pointer:fine)').matches
-    && W > 900 && H > 520);
+    && noTouch && W > 900 && H > 520);
   var want = pc?'pc':'small';
   if(railOpenDecided===want)return;             /* 이미 그 상태다 */
   railOpenDecided=want;

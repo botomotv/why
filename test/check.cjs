@@ -1543,6 +1543,45 @@ function boot(w, h) {
     }
   }
 
+  // 32. 자동 수집이 못 채우는 시기를 화면에 밝히는가
+  //     실측: 열린국회 발의법률안은 제1~9대(1948~1979)가 전부 0건이고,
+  //     법제처는 현행법령만 준다 (사회보호법·반공법 둘 다 0건).
+  //     그 시기는 손으로 넣은 것이다. 밝히지 않으면 자동으로 모은 것처럼 보인다.
+  //     "말없이 바꾸면 아무도 모른다" 와 같은 종류다.
+  {
+    const d32 = boot(1440, 900);
+    await new Promise(r => setTimeout(r, 1200));
+    const r = d32.window.eval(`(function(){
+      if(typeof N==='undefined')return null;
+      var old=N.filter(function(n){return !n.ghost&&typeof yr==='function'&&yr(n)&&yr(n)<1980});
+      var recent=N.filter(function(n){return !n.ghost&&yr(n)&&yr(n)>=2000});
+      var say=function(id){
+        try{setFocus(id)}catch(e){return null}
+        var d=document.getElementById('detail');
+        return ((d&&d.textContent)||'').indexOf('손으로 넣었습니다')>=0;
+      };
+      var hitOld=old.slice(0,5).map(function(n){return say(n.id)});
+      var hitNew=recent.slice(0,3).map(function(n){return say(n.id)});
+      try{setFocus(null)}catch(e){}
+      /* 왼쪽 설명 카드에도 있어야 한다 */
+      var rail=(document.getElementById('rail')||{}).textContent||'';
+      return {old:old.length, recent:recent.length,
+              onOld:hitOld.filter(Boolean).length, oldN:hitOld.length,
+              onNew:hitNew.filter(Boolean).length,
+              inRail:rail.indexOf('1980년 이전은 손으로 넣었습니다')>=0};
+    })()`);
+    d32.window.close();
+    if (!r) F('32. 못 쟀다');
+    else {
+      console.log(`32. 옛 시기 안내     1980년 이전 노드 ${r.old}개 · 카드에 뜬 것 ${r.onOld}/${r.oldN} · 최근 노드에 잘못 뜬 것 ${r.onNew} · 설명 카드 ${r.inRail ? '○' : '×'}`);
+      /* 0 은 의심한다 — 옛 노드가 없으면 검사가 빈손이다 */
+      if (!r.old) F('32. 1980년 이전 노드가 0개다 — 검사가 아무것도 안 보고 있다');
+      else if (r.onOld !== r.oldN) F(`32. 1980년 이전 노드 카드에 안내가 ${r.onOld}/${r.oldN}만 뜬다 — 손으로 넣은 시기를 안 밝히면 자동으로 모은 것처럼 보인다`);
+      if (r.onNew) F(`32. 1980년 이후 노드에도 옛 시기 안내가 ${r.onNew}개 떴다 — 틀린 자리에 붙었다`);
+      if (!r.inRail) F('32. 왼쪽 설명 카드에 1980년 이전 안내가 없다');
+    }
+  }
+
   /* ── 요약 ── */
   console.log('\n' + '─'.repeat(50));
   console.log('노드 진영 분포:', JSON.stringify(bySide));

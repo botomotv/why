@@ -2780,7 +2780,10 @@ function fit(showAll){
           if(n.t==='result'){rx+=px; ry+=py; rn++}
         }
         if(!cnt)break;
-        var wR=(rn>=3)?RESULT_W:0;
+        /* 결과가 서너 개만 보일 때 그것들로 중심을 정하면 흔들린다 —
+           882x230 에서 결과 3개로 잡다가 어긋남이 9.0~9.1% 를 오갔다.
+           다섯 개는 돼야 '분포' 라고 할 수 있다. 그 미만이면 전체 중심을 쓴다. */
+        var wR=(rn>=5)?RESULT_W:0;
         var ax=wR*(rx/(rn||1))+(1-wR)*(sx/cnt), ay=wR*(ry/(rn||1))+(1-wR)*(sy/cnt);
         var dx=cxv-ax, dy=H/2-ay;
         if(Math.abs(dx)<1&&Math.abs(dy)<1)break;

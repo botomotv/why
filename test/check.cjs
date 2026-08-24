@@ -78,14 +78,31 @@ function stubCanvas(win) {
     arc(){},arcTo(){},bezierCurveTo(){},quadraticCurveTo(){},rect(){},
     fill(){},stroke(){},fillRect(){},clearRect(){},strokeRect(){},
     /* 그려진 글자를 기록한다. 캔버스는 픽셀이라 '무엇을 그렸는지' 를
-       나중에 물어볼 수 없다. 그리는 순간에 받아 적어야 한다. */
-    fillText(t){ win.__drawn && win.__drawn.push(String(t)) },
-    strokeText(){},translate(){},scale(){},rotate(){},setTransform(){},
+       나중에 물어볼 수 없다. 그리는 순간에 받아 적어야 한다.
+       좌표와 변환도 같이 적는다 — 겹침을 재려면 화면 어디에 그렸는지 알아야 한다.
+       이름표만 따로 계산하면 선 라벨·연도 눈금·배지가 빠진다. 실제로 빠져 있었다. */
+    fillText(t, x, y){
+      if (!win.__drawn) return;
+      win.__drawn.push(String(t));
+      const m = this.__m || [1,0,0,1,0,0];
+      const sx = m[0]*x + m[2]*y + m[4];
+      const sy = m[1]*x + m[3]*y + m[5];
+      const sc = Math.sqrt(Math.abs(m[0]*m[3] - m[1]*m[2])) || 1;
+      const px = fontPxOf(this.font) * sc;
+      win.__texts && win.__texts.push({
+        t: String(t), x: sx, y: sy, px,
+        w: textWidth(String(t), fontPxOf(this.font)) * sc,
+        align: this.textAlign || 'start'
+      });
+    },
+    strokeText(){},translate(){},scale(){},rotate(){},
+    setTransform(a,b,c,d,e,f){ this.__m = [a,b,c,d,e,f] },
     setLineDash(){},drawImage(){},clip(){},ellipse(){},
     createLinearGradient:()=>({addColorStop(){}}),
     createRadialGradient:()=>({addColorStop(){}})
   };
   win.__drawn = [];
+  win.__texts = [];
   win.HTMLCanvasElement.prototype.getContext = function(){ ctx.canvas=this; return ctx; };
 }
 
@@ -1606,6 +1623,60 @@ function boot(w, h) {
         W(`33. **지금 화면은 배포본과 다르다** — 커밋 안 된 파일 ${nDirty}개${files ? ' (' + files + ')' : ''} · push 안 된 커밋 ${nAhead}개. ` +
           `사용자가 보는 것은 배포본이다. 고쳤다고 말하기 전에 push 하거나 "로컬에만 있음" 이라고 밝혀야 한다`);
       }
+    }
+  }
+
+  // 34. 화면에 그려진 글자끼리 겹치는가 — 실제로 그린 것 전부
+  //     이름표만 재던 검사는 '겹침 0쌍' 이라고 했는데 화면에서는 겹쳤다.
+  //     선 위 관계 라벨('같은 주제', '6년 뒤 2020 → 2026'), 고리 연도 눈금,
+  //     역할 배지, 잘림 배지, 워터마크, 상단 안내가 전부 빠져 있었다.
+  //     그래서 상자를 따로 계산하지 않고 **fillText 를 가로채** 실제로 그린 것을 잰다.
+  //     좌표와 변환까지 받아 적으므로 월드 좌표(이름표)와 화면 좌표(배지)가 섞여도 맞다.
+  {
+    for (const [w, h, nm] of [[412, 915, '폰'], [1440, 900, '노트북']]) {
+      const d34 = boot(w, h);
+      await new Promise(r => setTimeout(r, 1200));
+      const win = d34.window;
+      const r = win.eval(`(function(){
+        var t=0; while(alpha>=0.02&&t<600){tick()}
+        fit(); cam.s=cam.ts;cam.x=cam.tx;cam.y=cam.ty;
+        /* 초점을 잡은 상태도 본다 — 관계 라벨과 배지는 그때만 그려진다 */
+        var c=A.filter(function(n){return n.t==='result'&&adj[n.id]});
+        if(c.length){
+          var tg=c.reduce(function(a,b){return (adj[b.id]||[]).length>(adj[a.id]||[]).length?b:a});
+          setFocus(tg.id);
+          if(typeof gatherFan==='function'){size();gatherFan()}
+          var t2=0; while(alpha>=0.02&&t2<600){tick()}
+          size(); if(typeof fitFocus==='function')fitFocus();
+          cam.s=cam.ts;cam.x=cam.tx;cam.y=cam.ty;
+        }
+        labelSet=null;labelKey='';
+        window.__texts.length=0;
+        draw();
+        return window.__texts.slice();
+      })()`);
+      d34.window.close();
+      if (!r || !r.length) { F(`34. ${nm} — 그려진 글자를 하나도 못 받았다. 검사가 화면을 안 보고 있다`); continue }
+
+      /* 글자 상자를 만든다. align 에 따라 x 기준이 다르다. */
+      const box = r.map(o => {
+        const half = o.w / 2;
+        const cx0 = o.align === 'center' ? o.x : (o.align === 'right' || o.align === 'end' ? o.x - half : o.x + half);
+        /* 한 줄 글자가 실제로 차지하는 세로는 글꼴 크기의 약 0.75 배다.
+           절반(h)은 0.38. 1.24 배로 잡았더니 같은 노드의 이름과 숫자가
+           서로 겹친 것으로 나왔다 — 그건 원래 위아래로 쌓는 것이다. */
+        return { t: o.t, x: cx0, y: o.y - o.px * 0.30, w: half, h: o.px * 0.38 };
+      }).filter(b => b.t.trim() && b.x + b.w > 0 && b.x - b.w < w && b.y + b.h > 0 && b.y - b.h < h);
+
+      let over = 0; const ex = [];
+      for (let i = 0; i < box.length; i++) for (let j = i + 1; j < box.length; j++) {
+        const a = box[i], b = box[j];
+        if (Math.abs(a.x - b.x) < (a.w + b.w) * 0.92 && Math.abs(a.y - b.y) < (a.h + b.h) * 0.92) {
+          over++; if (ex.length < 3) ex.push(`"${a.t.slice(0,12)}" × "${b.t.slice(0,12)}"`);
+        }
+      }
+      console.log(`34. 그려진 글자 겹침 ${nm} ${w}×${h} · 화면 안 글자 ${box.length}개 · 겹친 쌍 ${over}`);
+      if (over) W(`34. ${nm} — 화면에 그려진 글자 ${over}쌍이 겹친다 (${ex.join(', ')})`);
     }
   }
 

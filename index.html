@@ -2554,12 +2554,12 @@ function measure(){
     if(n.t==='bill'&&n.yr&&n.pres){
       w=Math.max(w,wOf(n.yr+(n.check?'':' · '+n.pres),13.5,'400'));lines=2}
     n.lw=w;
-    /* 글자 덩어리의 실제 높이. 첫 줄은 노드 아래 15px 지점에 그려지고
-       줄마다 14px 씩 내려간다. 위아래 여백 6px 씩.
+    /* 글자 덩어리의 실제 높이. draw() 가 쌓는 간격과 같아야 한다 —
+       첫 줄 15px, 결과 노드 숫자 +22px, 법안 연도 +14px, 배지 +18px.
        노드 반지름은 넣지 않는다 — 박스가 이미 y+r 에서 시작하기 때문이다.
        여기에 r 을 넣었더니 반지름을 두 번 세서 박스가 3배로 커졌고,
        초점 이웃 이름표가 6개 중 0개만 남았다. */
-    n.lh=15+(lines-1)*14+12;
+    n.lh=15+(big&&n.big?22:0)+((n.t==='bill'&&n.yr&&n.pres)?14:0)+12;
   });
   /* 역할 배지는 초점 이웃에만 뜬다. 모든 노드에 더하면
      짧은 이름의 박스가 두 배가 돼 이름표가 62/171 → 5/171 로 무너진다.
@@ -3028,7 +3028,7 @@ function labelBox(n,k){
   if(k===undefined)k=labelFontScale();
   var hasBadge=focus&&ring[n.id]===1&&roles[n.id];
   var bw=hasBadge?Math.max(n.__hw,BADGE_W/2+7):n.__hw;
-  var lh=((n.lh||24)+(hasBadge?16:0))*k;
+  var lh=((n.lh||24)+(hasBadge?18+12:0))*k;
   return {x:n.x, y:n.y+(n.r||8)+lh/2, w:bw*k, h:lh/2};
 }
 function planLabels(){
@@ -3446,18 +3446,24 @@ function draw(){
       var big=n.t==='result';
       var rl=(focus&&ring[n.id]===1)?roles[n.id]:null;
       cx.font=(big?(hot?'700 ':'500 '):(hot?'500 ':'400 '))+((big?(hot?17:15.5):(hot?13.5:12.5))*labelFontScale())+"px 'Noto Sans KR',sans-serif";
-      cx.textAlign='center';cx.fillText(n.lab,n.x,yy+(big?4:0));
-      if(big&&n.big){cx.font='700 '+(14.5*labelFontScale())+"px 'Noto Sans KR',sans-serif";
+      /* 줄을 위에서부터 하나씩 쌓는다. 전에는 숫자 줄이 yy+22, 배지가 yy+14*배율 이라
+         결과 노드에서 숫자와 배지가 같은 자리에 겹쳤다 — 실측으로 잡혔다.
+         그리고 간격만 배율을 안 타서 확대하면 더 겹쳤다. 간격도 배율을 태운다. */
+      var LS=labelFontScale(), ly=yy;
+      cx.textAlign='center';cx.fillText(n.lab,n.x,ly+(big?4:0));
+      if(big&&n.big){ly+=22*LS;
+        cx.font='700 '+(14.5*LS)+"px 'Noto Sans KR',sans-serif";
         cx.fillStyle='rgba(227,174,85,'+Math.min(1,n.a).toFixed(2)+')';
-        cx.fillText(n.big,n.x,yy+22)}
-      if(n.t==='bill'&&n.yr&&n.pres){cx.font='400 '+(13.5*labelFontScale())+"px 'Noto Sans KR',sans-serif";
+        cx.fillText(n.big,n.x,ly)}
+      if(n.t==='bill'&&n.yr&&n.pres){ly+=14*LS;
+        cx.font='400 '+(13.5*LS)+"px 'Noto Sans KR',sans-serif";
         cx.fillStyle='rgba(120,128,140,'+Math.min(1,n.a).toFixed(2)+')';
-        cx.fillText(n.yr+(n.check?'':' · '+n.pres),n.x,yy+14)}
+        cx.fillText(n.yr+(n.check?'':' · '+n.pres),n.x,ly)}
       if(rl){
         var rt=ROLE[rl].t, rc=ROLE[rl].c;
-        cx.font='600 '+(12.5*labelFontScale())+"px 'Noto Sans KR',sans-serif";
+        cx.font='600 '+(12.5*LS)+"px 'Noto Sans KR',sans-serif";
         var tw3=cx.measureText(rt).width;
-        var by=yy+(n.t==='bill'&&n.pres?27:14)*labelFontScale()-(0);
+        var by=ly+18*LS;
         cx.fillStyle=rc+'22';
         cx.beginPath();
         var rx=n.x-tw3/2-7,rw=tw3+14,rh=17;

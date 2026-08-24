@@ -1582,6 +1582,31 @@ function boot(w, h) {
     }
   }
 
+  // 33. 지금 이 코드가 배포본과 같은가
+  //     "고쳤다" 고 보고했는데 push 를 안 해서, 나는 로컬을 보고 사용자는 배포본을 봤다.
+  //     화면이 다른 게 당연했는데 원인을 화면 코드에서 찾느라 시간을 버렸다.
+  //     사용자가 확인하는 것은 배포본이다. 로컬에서 고친 것은 볼 방법이 없다.
+  //     FAIL 은 아니다 — 작업 중에는 당연히 어긋난다. 다만 눈에 띄어야 한다.
+  {
+    const { execSync } = require('child_process');
+    const run = (c) => { try { return execSync(c, { cwd: ROOT, encoding: 'utf8', stdio: ['ignore','pipe','ignore'] }).trim() } catch (e) { return null } };
+    const dirty = run('git status --porcelain');
+    const ahead = run('git rev-list --count @{u}..HEAD');
+    const behind = run('git rev-list --count HEAD..@{u}');
+    if (dirty === null) console.log('33. 배포 상태        git 을 못 읽었다 (저장소가 아닐 수 있다)');
+    else {
+      const nDirty = dirty ? dirty.split('\n').length : 0;
+      const nAhead = Number(ahead || 0), nBehind = Number(behind || 0);
+      const ok = !nDirty && !nAhead;
+      console.log(`33. 배포 상태        ${ok ? '올린 것과 같음' : '다름'} · 커밋 안 된 파일 ${nDirty}개 · push 안 된 커밋 ${nAhead}개${nBehind ? ' · 원격이 앞선 것 ' + nBehind + '개' : ''}`);
+      if (nDirty || nAhead) {
+        const files = dirty ? dirty.split('\n').slice(0, 5).map(l => l.replace(/^.{2}\s+/, '')).join(', ') : '';
+        W(`33. **지금 화면은 배포본과 다르다** — 커밋 안 된 파일 ${nDirty}개${files ? ' (' + files + ')' : ''} · push 안 된 커밋 ${nAhead}개. ` +
+          `사용자가 보는 것은 배포본이다. 고쳤다고 말하기 전에 push 하거나 "로컬에만 있음" 이라고 밝혀야 한다`);
+      }
+    }
+  }
+
   /* ── 요약 ── */
   console.log('\n' + '─'.repeat(50));
   console.log('노드 진영 분포:', JSON.stringify(bySide));

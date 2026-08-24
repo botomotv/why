@@ -113,10 +113,10 @@ body{background:var(--bg);color:var(--t1);font-family:'Noto Sans KR',-apple-syst
    폰은 카드가 지도를 덮어서, 점을 눌러도 '무엇과 이어져 있는지' 를 볼 수 없었다.
    이 사이트에서 점을 누르는 이유는 "이게 뭐지" 가 아니라 "왜 이렇게 됐지" 다.
    그래서 카드를 두 단계로 나눈다: 처음엔 아래 40% 만, 끌어올리면 88%. */
-.popgrab{display:none;position:relative;flex:1 1 auto;height:26px;min-width:0;
+.popgrab{display:none;position:relative;flex:1 1 auto;height:22px;min-width:0;
   border:0;background:none;cursor:grab;
   touch-action:none;-webkit-tap-highlight-color:transparent}
-.popgrab:before{content:'';position:absolute;top:11px;left:50%;transform:translateX(-50%);
+.popgrab:before{content:'';position:absolute;top:9px;left:50%;transform:translateX(-50%);
   width:44px;height:4px;border-radius:4px;background:#3A3F48;transition:background .18s}
 .popgrab:hover:before{background:#565C67}
 .popgrab:focus-visible{outline:2px solid var(--gold);outline-offset:-3px}
@@ -133,13 +133,31 @@ body.panelon #stage{right:448px}
 /* 손잡이와 버튼을 한 줄로 묶어 카드 맨 위에 붙인다.
    전에는 .ptools 가 float:right 였는데, #detail 이 flex 컨테이너(=BFC)라
    float 을 피해 폭을 291px 로 줄였다. 카드 412px 중 오른쪽 121px 이 죽어 있었다. */
+/* 머리 줄은 얇을수록 좋다. 폰에서 카드가 279px 인데 머리가 52px 이었다 — 19% 다.
+   그만큼 관계 목록이 밀려서 접힘 상태에 항목이 1개밖에 안 들어갔다. */
 .pophead{position:sticky;top:0;z-index:3;display:flex;align-items:center;gap:8px;
-  padding:8px 12px 6px;background:var(--bg2)}
-.ptools{display:flex;align-items:center;gap:6px;margin:0;flex:0 0 auto}
-.ptools .pclose{position:static;float:none;margin:0}
+  padding:3px 10px;background:var(--bg2)}
+.ptools{display:flex;align-items:center;gap:10px;margin:0;flex:0 0 auto}
+/* ── 보이는 크기는 줄이되 누르는 자리는 줄이지 않는다 ──
+   손가락은 44px 를 원하는데 눈에는 28px 이면 충분하다.
+   보이지 않는 판을 덧대서 **눈에 보이는 크기와 누르는 크기를 따로** 둔다.
+   세로로 ±8px = 44px. 가로는 ±4px 만 준다 — 더 주면 옆 버튼의 판과 겹친다. */
+.ptools .pclose:after,.pexp:after,.popgrab:after{content:'';position:absolute;
+  top:-8px;bottom:-8px;left:-4px;right:-4px}
+/* position 은 여기서 정한다. 앞에서 relative 를 써 봐야 이 줄이 뒤에 있어서 이긴다 —
+   실제로 앞에 써 놨다가 .pclose 가 static 이 되고, 그 :after(누르는 자리)가
+   .pophead 를 기준으로 잡혀 **머리 줄 전체를 덮었다.**
+   펼치기와 손잡이가 눌리지 않았다. 화면은 멀쩡했고 닫기만 잘 됐다. */
+/* top 도 같이 끈다. position:static 일 때는 무시되던 기본 규칙의 top:12px 이
+   relative 로 바꾸는 순간 살아나 버튼이 12px 내려간다. 눈으로는 잘 안 보이고
+   누르는 자리만 머리 줄 밖으로 삐져나갔다. */
+.ptools .pclose{position:relative;top:0;float:none;margin:0}
 /* 카드를 위로 펴고 다시 접는 버튼.
    손잡이를 끌어도 되지만 그게 있다는 걸 알 방법이 없었다. 글자로 말해준다. */
-.pexp{height:26px;padding:0 10px;border:1px solid var(--line2);background:rgba(14,15,18,.85);
+/* position:relative 은 여기(정의하는 자리)에 둔다. 없으면 아래 .pexp:after 가
+   .pophead 를 기준으로 잡혀 **머리 줄 전체를 덮고 손잡이를 삼킨다.**
+   같은 사고를 .pclose 에서 한 번, 여기서 또 한 번 냈다 — 둘 다 화면은 멀쩡했다. */
+.pexp{position:relative;height:24px;padding:0 10px;border:1px solid var(--line2);background:rgba(14,15,18,.85);
   color:var(--t2);border-radius:6px;cursor:pointer;font-family:inherit;font-size:12.5px;
   line-height:1;display:flex;align-items:center;gap:5px;white-space:nowrap}
 .pexp .pex-i{font-size:12px;line-height:1;transition:transform .2s}
@@ -401,6 +419,26 @@ body.panelon .search{left:calc(50% - 224px)}
 .cat:hover{color:var(--t1);border-color:#4A505C;background:#1B1E24}
 .cat[aria-pressed="true"]{background:var(--gold);border-color:var(--gold);color:#1A1508;font-weight:500}
 .cat b{font-weight:400;opacity:.6;margin-left:6px;font-size:14px}
+/* ── 잘린 분야를 밝힌다 ──
+   분야는 19개인데 한 줄에 안 들어간다. 실측 1440px: 전체 2,401px 중 1,404px 만 보이고
+   **11개만 보인 채 997px 이 잘렸다.** 1920px 에서도 다 안 들어간다.
+   가로 스크롤은 되는데 스크롤바를 숨겨 놔서 더 있다는 걸 알 방법이 없었다.
+   말없이 자르면 "이게 전부" 라는 거짓말이 된다 — 지도에 그리는 선을 6개로 자를 때와 같다.
+   몇 개가 잘렸는지 버튼에 적고, 누르면 줄바꿈해서 19개를 다 보여준다. */
+.catmore{flex:0 0 auto;margin-left:10px;height:34px;padding:0 12px;border-radius:100px;
+  border:1px solid var(--line2);background:rgba(18,20,24,.94);color:var(--t2);
+  font-family:inherit;font-size:14px;cursor:pointer;white-space:nowrap;transition:.18s}
+.catmore:hover{color:var(--gold);border-color:var(--gold)}
+.catmore:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
+.catmore b{font-weight:500;color:var(--gold)}
+/* 잘린 쪽에 그늘 — 버튼이 말로 알려주고, 그늘이 눈으로 알려준다 */
+body.catscut .cats{-webkit-mask-image:linear-gradient(to right,#000 calc(100% - 34px),transparent);
+  mask-image:linear-gradient(to right,#000 calc(100% - 34px),transparent)}
+/* 펼침 — 줄바꿈해서 전부 보여준다. 지도 위에 잠깐 덮고, 하나 고르면 닫힌다.
+   #stage 를 밀지 않는 이유: 줄 수가 화면 폭마다 달라서 top 을 고정할 수 없다. */
+body.catsopen .catbar{height:auto;max-height:62vh;overflow-y:auto;
+  align-items:flex-start;padding-top:9px;padding-bottom:9px}
+body.catsopen .cats{flex-wrap:wrap;overflow-x:visible;row-gap:8px}
 
 #stage{position:fixed;top:114px;left:0;right:0;bottom:0;transition:right .3s cubic-bezier(.22,.9,.3,1),bottom .3s}
 
@@ -647,7 +685,7 @@ details.railcard>summary.raillab:focus-visible{outline:2px solid var(--gold);out
      전에는 여기 .pop:before 로 손잡이 **모양만** 그려 놓고 아무 동작이 없었다.
      끌 수 있어 보이는데 안 끌린다 — 폴드 펼침에서 카드가 38dvh 에 갇힌 이유다. */
   .popgrab{display:block}
-  .pophead{padding:7px 12px 5px;justify-content:space-between}
+  .pophead{padding:3px 10px;justify-content:space-between}
   .c-head{padding-top:6px}
   .pop{transition:transform .3s cubic-bezier(.22,.9,.3,1),height .26s ease}
   /* 카드 높이. 전에는 62dvh 였는데, 폰(<=620)이 32dvh 인 것보다 오히려 컸다.
@@ -662,7 +700,8 @@ details.railcard>summary.raillab:focus-visible{outline:2px solid var(--gold);out
   
   .lg i{font-style:normal;font-size:13.5px;color:var(--t3);margin-left:4px}
   
-  .pclose{width:34px;height:34px;font-size:16.5px}
+  /* 28px 은 눈에 보이는 크기다. 위 .pclose:after 가 누르는 자리를 44px 로 넓힌다. */
+  .pclose{width:28px;height:28px;font-size:15.5px}
 }
 @media (max-width:900px){
   .brand{font-size:24px}
@@ -838,7 +877,7 @@ body.hasundo .rolebar{top:232px;width:calc(100vw - 24px);max-height:96px;overflo
   <p class="brand">왜</p>
   <p class="tagline">왜 이렇게 됐는지 과거 정책을 확인해보세요</p>
 </header>
-<nav class="catbar"><div class="cats" id="cats" role="group" aria-label="분야 고르기"></div></nav>
+<nav class="catbar"><div class="cats" id="cats" role="group" aria-label="분야 고르기"></div><button class="catmore" id="catMore" aria-expanded="false" aria-controls="cats" hidden></button></nav>
 
 <div class="search">
   <span class="sicon">⌕</span>
@@ -2617,6 +2656,7 @@ function size(){var b=document.getElementById('stage').getBoundingClientRect();
   var bw=Math.round(W*DPR), bh=Math.round(H*DPR), wiped=false;
   if(cv.width!==bw||cv.height!==bh){cv.width=bw;cv.height=bh;wiped=true}
   if(typeof applyNodeScale==='function')applyNodeScale();
+  if(typeof syncCatMore==='function')syncCatMore();
   measure();
   if(wiped&&typeof draw==='function'){try{draw()}catch(e){}}
   /* 첫 로드 때 지도 크기가 뒤늦게 정해진다 —
@@ -2888,8 +2928,33 @@ CATS.forEach(function(c){
   b.innerHTML=c.lab+'<b>'+cnt+'</b>';
   b.onclick=function(){setCat(c.k)};
   catBox.appendChild(b)});
+/* 몇 개가 화면 밖인지 세어 버튼에 적는다.
+   개수는 화면 폭에 달렸으므로 size() 가 돌 때마다 다시 센다 — 폰을 돌리거나
+   폴드를 펴면 들어가는 개수가 달라진다. 값을 하드코딩하면 그때 거짓말이 된다. */
+var catMore=document.getElementById('catMore');
+function syncCatMore(){
+  if(!catMore||!catBox)return;
+  if(document.body.classList.contains('catsopen')){
+    catMore.hidden=false; catMore.textContent='접기';
+    catMore.setAttribute('aria-expanded','true');
+    catMore.setAttribute('aria-label','분야 목록 접기');
+    document.body.classList.remove('catscut'); return}
+  catMore.setAttribute('aria-expanded','false');
+  var bs=catBox.children, hid=0, tot=bs.length, avail=catBox.clientWidth;
+  for(var i=0;i<tot;i++)
+    if(bs[i].offsetLeft+bs[i].offsetWidth>avail+1)hid++;
+  document.body.classList.toggle('catscut',hid>0);
+  catMore.hidden=(hid===0);
+  catMore.innerHTML='<b>+'+hid+'</b> 더';
+  catMore.setAttribute('aria-label','분야 '+tot+'개 중 '+hid+'개가 화면 밖입니다. 모두 보기');
+}
+if(catMore)catMore.onclick=function(){
+  document.body.classList.toggle('catsopen'); syncCatMore()};
+syncCatMore();
 function setCat(k){
   cat=k;onlyP=null;sideF=null;kindF=null;syncSide();syncKind();refilter();
+  /* 하나 고르면 펼친 목록을 닫는다 — 지도를 덮고 있기 때문이다 */
+  document.body.classList.remove('catsopen'); syncCatMore();
   document.querySelectorAll('.cat').forEach(function(b){
     b.setAttribute('aria-pressed',b.dataset.k===k?'true':'false')});
   if(focus&&!inCat(map[focus]))closePop();

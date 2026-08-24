@@ -1797,6 +1797,104 @@ function boot(w, h) {
     console.log(`36. 카드 펼치기     끄는 규칙 ${off.length}개(0이어야) · 실제로 바뀌는 구간 ${acts}/2 · 가짜 손잡이 ${fake ? '있음' : '없음'}`);
   }
 
+  // 37. 분야 탭이 화면 밖으로 나가는데 표시가 없으면 FAIL
+  //     분야는 19개인데 한 줄에 안 들어간다. 브라우저 실측 1440px:
+  //     전체 2,401px 중 1,404px 만 보이고 11개만 보인 채 997px 이 잘렸다.
+  //     가로 스크롤은 되는데 스크롤바를 숨겨 놔서 더 있다는 걸 알 방법이 없었다.
+  //
+  //     **jsdom 은 레이아웃을 안 해 offsetWidth 가 전부 0 이다.**
+  //     그래서 '몇 개가 잘렸나' 를 여기서 잴 수 없다. 재는 척하지 않는다 —
+  //     대신 '세는 코드가 있고, 화면이 바뀔 때 다시 세고, 아무도 그 표시를 끄지 않는다'
+  //     를 강제한다. 픽셀 실측은 docs/화면점검.md 에 남긴다.
+  {
+    const css = html.slice(html.indexOf('<style>'), html.indexOf('</style>'))
+      .replace(/\/\*[\s\S]*?\*\//g, '');
+    let ok = 0;
+
+    /* ① 표시가 HTML 에 있다 */
+    const btn = html.match(/<button[^>]*id="catMore"[^>]*>/);
+    if (!btn) F('37. 분야 탭 — 잘린 개수를 알리는 표시(#catMore)가 없다');
+    else {
+      if (!/aria-expanded/.test(btn[0]) || !/aria-controls/.test(btn[0]))
+        F('37. 분야 탭 — 표시에 aria-expanded/aria-controls 가 없다. 읽어주는 기기에서 안 열린다');
+      else ok++;
+    }
+
+    /* ② 개수를 실제로 센다. 하드코딩이면 화면 폭이 바뀔 때 거짓말이 된다 */
+    const fn = html.match(/function syncCatMore\(\)[\s\S]*?\n\}/);
+    if (!fn) F('37. 분야 탭 — syncCatMore 를 못 찾았다');
+    else {
+      const b = fn[0];
+      if (!/clientWidth/.test(b) || !/offsetWidth/.test(b))
+        F('37. 분야 탭 — 개수를 화면 폭으로 세지 않는다. 하드코딩된 숫자는 화면이 바뀌면 거짓말이 된다');
+      else if (!/hid\s*\+\+|hid\s*\+=/.test(b))
+        F('37. 분야 탭 — 잘린 개수를 세는 곳이 없다');
+      else ok++;
+    }
+
+    /* ③ 화면 크기가 바뀌면 다시 센다 — 폰을 돌리거나 폴드를 펴면 들어가는 개수가 달라진다 */
+    const sz = html.match(/function size\(\)[\s\S]*?\n\}/);
+    if (!sz || !/syncCatMore/.test(sz[0]))
+      F('37. 분야 탭 — size() 가 다시 세지 않는다. 화면을 돌리면 옛 개수가 남는다');
+    else ok++;
+
+    /* ④ 아무도 그 표시를 끄지 않는다. 화면 크기로 기능을 없애지 않는다 */
+    const off = [...css.matchAll(/([^{}]*\.catmore[^{}]*)\{([^}]*)\}/g)]
+      .filter(m => /display\s*:\s*none/.test(m[2]))
+      .map(m => m[1].trim().split('\n').pop().trim());
+    if (off.length) F(`37. 분야 탭 — ${off.join(', ')} 가 표시를 끈다. 그 화면에서는 잘린 걸 알 수 없다`);
+    else ok++;
+
+    /* 요약 줄이 실패한 항목까지 '있음' 이라고 찍으면 사람이 FAIL 을 안 읽고 넘어간다.
+       무엇이 통과했는지를 그대로 쓴다. */
+    console.log(`37. 분야 탭 잘림    표시 ${btn ? 'O' : 'X'} · 폭으로 셈 ${fn && /clientWidth/.test(fn[0]) ? 'O' : 'X'} · 크기 바뀌면 다시 셈 ${sz && /syncCatMore/.test(sz[0]) ? 'O' : 'X'} · 끄는 규칙 ${off.length}개 — ${ok}/4 (픽셀은 jsdom 이 못 잰다)`);
+  }
+
+  // 38. '누르는 자리' 덧판이 다른 버튼을 덮지 않는가
+  //     카드 머리 줄을 52px → 40px 로 줄이면서, 보이는 크기는 줄이고 누르는 자리는
+  //     :after 로 넓혔다. 그런데 그 :after 는 **가장 가까운 positioned 조상**을 기준으로 잡힌다.
+  //     버튼 자신이 positioned 가 아니면 .pophead 를 기준으로 잡혀 머리 줄 전체를 덮는다.
+  //     실제로 두 번 냈다 — .pclose 가 덮어서 펼치기·손잡이가 안 눌렸고,
+  //     고친 뒤 .pexp 가 덮어서 손잡이가 안 눌렸다. **두 번 다 화면은 멀쩡했다.**
+  //     스크린샷으로도 못 잡는다. 눌러 봐야 안다.
+  //
+  //     jsdom 은 레이아웃을 안 하니 겹침을 픽셀로 못 잰다. CSS 원문으로 조건을 강제한다:
+  //     덧판을 가진 셀렉터는 **마지막에 이기는 position 이 relative/absolute/fixed** 여야 한다.
+  {
+    const css = html.slice(html.indexOf('<style>'), html.indexOf('</style>'))
+      .replace(/\/\*[\s\S]*?\*\//g, '');
+
+    /* 덧판(::after / ::before 로 만든 누르는 자리)을 가진 셀렉터를 찾는다 */
+    const pads = [...css.matchAll(/([^{}]+)\{([^}]*position\s*:\s*absolute[^}]*)\}/g)]
+      .filter(m => /::?(after|before)/.test(m[1]))
+      .filter(m => /(top|bottom|left|right)\s*:\s*-\d/.test(m[2]))   /* 음수 = 밖으로 넓힌 것 */
+      .flatMap(m => m[1].split(',').map(x => x.trim()))
+      .filter(x => /::?(after|before)$/.test(x))
+      .map(x => x.replace(/::?(after|before)$/, '').trim())
+      .filter(Boolean);
+
+    const uniq = [...new Set(pads)];
+    let bad = [];
+    uniq.forEach(sel => {
+      /* 그 셀렉터에 걸리는 position 선언을 **파일 순서대로** 모은다. 뒤엣것이 이긴다.
+         (특정도까지 따지지는 않는다 — 여기 셀렉터들은 다 같은 모양이다) */
+      const key = sel.split(/\s+/).pop();          /* .pclose, .pexp … */
+      const re = new RegExp('(^|[},])\\s*([^{},]*' + key.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + ')\\s*\\{([^}]*)\\}', 'g');
+      let last = null;
+      for (const m of css.matchAll(re)) {
+        if (/::?(after|before)/.test(m[2])) continue;
+        const p = m[3].match(/(?:^|;)\s*position\s*:\s*([a-z]+)/);
+        if (p) last = p[1];
+      }
+      if (!last) bad.push(`${sel} (position 선언이 아예 없다)`);
+      else if (!/^(relative|absolute|fixed)$/.test(last)) bad.push(`${sel} → ${last}`);
+    });
+
+    if (!uniq.length) F('38. 누르는 자리 — 덧판을 하나도 못 찾았다. 검사가 아무것도 안 보고 있다');
+    if (bad.length) F(`38. 누르는 자리 — ${bad.join(', ')} 가 positioned 가 아니다. 덧판이 조상 기준으로 잡혀 옆 버튼을 덮는다`);
+    console.log(`38. 누르는 자리     덧판 ${uniq.length}개 (${uniq.join(' ')}) · 기준 잘못된 것 ${bad.length}개`);
+  }
+
   /* ── 요약 ── */
   console.log('\n' + '─'.repeat(50));
   console.log('노드 진영 분포:', JSON.stringify(bySide));

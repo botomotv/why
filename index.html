@@ -122,8 +122,14 @@ body{background:var(--bg);color:var(--t1);font-family:'Noto Sans KR',-apple-syst
 .popgrab:focus-visible{outline:2px solid var(--gold);outline-offset:-3px}
 .pop::-webkit-scrollbar{width:9px}
 .pop::-webkit-scrollbar-thumb{background:#2A2E35;border-radius:9px}
-#stage{transition:right .3s cubic-bezier(.22,.9,.3,1)}
-body.panelon #stage{right:448px}
+/* ── 카드는 지도를 밀지 않는다. 위에 겹쳐 올라온다 ──
+   전에는 #stage 의 right/bottom 을 줄여 지도를 밀었다. 그러면
+     지도 크기가 바뀐다 → size() 가 돈다 → 캔버스가 지워진다 → 카메라를 다시 잡는다
+   이 사슬에서 여러 문제가 나왔다. 누르면 화면이 꺼졌다 켜지고, 원이 옆으로 밀리고,
+   첫 화면 맞춤이 취소됐다. **겹치게 하면 지도 크기가 안 변하고 사슬이 끊긴다.**
+   가려진 노드는 가려지게 둔다 — 대신 카드에 관계 목록이 있고(검사 20),
+   설명만 감추는 '숨기기' 가 있다. 카메라로 피하지 않는 이유는
+   '카드를 여는 것만으로는 아무것도 안 움직인다' 가 더 중요한 약속이기 때문이다. */
 
 .pclose{position:sticky;float:right;top:12px;margin:12px 12px 0 0;z-index:2;width:26px;height:26px;border:1px solid var(--line2);
   background:rgba(14,15,18,.85);color:var(--t2);border-radius:6px;cursor:pointer;font-family:inherit;font-size:15px;line-height:1}
@@ -165,6 +171,23 @@ body.popfull .pexp .pex-i{transform:rotate(180deg)}
 .pexp b{font-weight:500}
 .pexp:hover{color:var(--gold);border-color:var(--gold)}
 .pexp:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
+/* ── 숨기기 ──
+   닫기(✕)와 헷갈리면 안 된다. 둘은 뜻이 다르다.
+     닫기   — 고른 것을 **푼다.** 지도의 강조도 사라진다
+     숨기기 — 설명만 **감춘다.** 고른 것은 그대로 밝아 있다
+   그래서 아이콘도 다르다. ✕ 는 없앤다, ⇲ 는 구석으로 치운다는 뜻이다.
+   되돌리는 ⇱ 는 그 반대 방향이라 짝이 보인다. */
+.phide b{font-weight:500}
+/* 감춘 설명을 다시 부르는 칩. 감춘 상태에서 고른 것이 있을 때만 나온다.
+   말없이 사라지면 "설명이 없어졌다" 가 된다 — 되돌릴 자리를 항상 남긴다. */
+.popshow{display:flex;position:fixed;left:14px;bottom:66px;z-index:27;
+  align-items:center;gap:7px;height:38px;padding:0 14px;border-radius:8px;
+  border:1px solid var(--gold);background:rgba(21,23,27,.94);color:var(--gold);
+  font-family:inherit;font-size:14px;cursor:pointer;transition:.18s}
+.popshow:hover{background:#22252B}
+.popshow:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
+.popshow b{font-weight:500}
+.popshow[hidden]{display:none}
 /* 켜는 곳이 뒤에 있으면 앞에서 못 끈다 — 그래서 끄는 줄 자체를 없앤다.
    전에는 .pexp{display:none} 뒤에 620px 에서만 다시 켰다. 그 결과
    폴드를 펼치면(884px) 카드가 아래 38dvh 인데 펼칠 방법이 없었다.
@@ -691,11 +714,9 @@ details.railcard>summary.raillab:focus-visible{outline:2px solid var(--gold);out
   /* 카드 높이. 전에는 62dvh 였는데, 폰(<=620)이 32dvh 인 것보다 오히려 컸다.
      820x1180 태블릿에서 지도가 820x426 밖에 안 남아 이어진 것을 못 담았다.
      넓은 화면일수록 카드가 커지는 건 앞뒤가 안 맞는다. 폰과 같은 비율로 내린다. */
-  body.panelon #stage{right:0;bottom:38vh;bottom:38dvh}
   /* 펼침은 어느 아래 카드에서나 82dvh 다. 100% 로 안 덮는 건
      지도가 조금이라도 보여야 되돌아갈 수 있다는 신호가 되기 때문이다. */
   body.popfull .pop{height:82vh;height:82dvh}
-  body.panelon.popfull #stage{bottom:82vh;bottom:82dvh}
   body.panelon .legend,body.panelon .hint{display:none}
   
   .lg i{font-style:normal;font-size:13.5px;color:var(--t3);margin-left:4px}
@@ -741,8 +762,6 @@ details.railcard>summary.raillab:focus-visible{outline:2px solid var(--gold);out
      100% 로 덮지 않는 건, 지도가 조금이라도 보여야 되돌아갈 수 있다는 신호가 되기 때문이다. */
   .pop{height:32vh;height:32dvh;transition:transform .3s cubic-bezier(.22,.9,.3,1),height .26s ease}
   body.popfull .pop{height:82vh;height:82dvh}
-  body.panelon #stage{bottom:32vh;bottom:32dvh}
-  body.panelon.popfull #stage{bottom:82vh;bottom:82dvh}
   /* 아래 카드에서는 순서를 바꾼다 — 제목·큰 숫자 다음에 곧바로 '이어진 것들'.
      설명·근거는 끌어올려서 본다. JS 조립 순서는 그대로라 옆 패널은 영향이 없다. */
   #detail{display:flex;flex-direction:column}
@@ -835,9 +854,19 @@ body.hasundo .rolebar{top:232px;width:calc(100vw - 24px);max-height:96px;overflo
    448px 에서는 '2019년 12월 국가정보원법 개정' 같은 줄이 세 번 꺾인다.
    min() 을 쓰는 이유: 1100px 화면에서 760px 을 주면 지도가 340px 만 남는다. */
 @media (min-width:1001px){
+  /* ── PC 에서 '보는 법' 은 왼쪽 위, 더 크게 ──
+     처음 들어온 사람이 이 지도를 어떻게 읽는지 알아야 하는데, 그 입구가
+     화면 아래 구석에 작게 있으면 안 보인다. 마우스는 어디든 같은 거리다.
+     폰은 그대로 아래에 둔다 — 아래 세 버튼이 엄지가 닿는 자리다.
+     기능은 양쪽 다 있고 자리만 다르다. '화면 크기로 기능을 없애지 마라' 와 다른 얘기다. */
+  .legendbtn{top:126px;bottom:auto;left:18px;height:50px;padding:0 20px;
+    font-size:16.5px;gap:9px;border-color:#5A4A22;color:var(--gold);
+    background:rgba(24,22,16,.94)}
+  .legendbtn:hover{border-color:var(--gold);background:#241F12;color:var(--gold)}
+  /* 아래 왼쪽이 비었으니 '설명 보기' 칩이 그 자리로 내려온다 */
+  .popshow{bottom:16px}
   .pop{transition:transform .3s cubic-bezier(.22,.9,.3,1),width .26s ease}
   body.popfull .pop{width:min(760px,62vw)}
-  body.panelon.popfull #stage{right:min(760px,62vw)}
   body.panelon.popfull .zoomctl{right:calc(min(760px,62vw) + 20px)}
 }
 
@@ -862,7 +891,6 @@ body.hasundo .rolebar{top:232px;width:calc(100vw - 24px);max-height:96px;overflo
     border-left:1px solid var(--line2);border-top:0;border-radius:0;
     transform:translateX(100%)}
   .pop.on{transform:translateX(0)}
-  body.panelon #stage{right:min(380px,46vw);bottom:0}
   body.panelon .zoomctl{right:calc(min(380px,46vw) + 16px)}
   /* 서랍은 어느 화면에서나 기본이다. 여기서는 높이만 더 준다 —
      낮은 화면에서 62dvh 면 항목 두 개밖에 안 보인다. */
@@ -890,6 +918,7 @@ body.hasundo .rolebar{top:232px;width:calc(100vw - 24px);max-height:96px;overflo
 <div class="rolebar" id="roleBar" hidden></div>
 <div id="stage"><canvas id="gc"></canvas></div>
 
+<button class="popshow" id="popShow" hidden aria-label="감춘 설명을 다시 봅니다"><span aria-hidden="true">⇱</span><b>설명 보기</b></button>
 <button class="legendbtn" id="legendBtn" aria-expanded="false" aria-controls="rail"><span aria-hidden="true">☰</span><b>보는 법</b></button>
 <aside class="rail" id="rail">
   <button class="railclose" id="railClose"><span aria-hidden="true">✕</span>보는 법 닫기</button>
@@ -1061,7 +1090,7 @@ body.hasundo .rolebar{top:232px;width:calc(100vw - 24px);max-height:96px;overflo
   </div>
 </div>
 
-<div class="pop" id="pop"><div class="pophead"><button class="popgrab" id="popGrab" aria-label="끌어서 카드 높이 조절" aria-expanded="false"></button><div class="ptools"><button class="pexp" id="popExp" aria-expanded="false" aria-controls="detail"><span class="pex-i" aria-hidden="true">⌃</span><b id="popExpLab">펼치기</b></button><button class="pclose" id="pclose" aria-label="닫기">✕</button></div></div><div id="detail"></div></div>
+<div class="pop" id="pop"><div class="pophead"><button class="popgrab" id="popGrab" aria-label="끌어서 카드 높이 조절" aria-expanded="false"></button><div class="ptools"><button class="pexp" id="popExp" aria-expanded="false" aria-controls="detail"><span class="pex-i" aria-hidden="true">⌃</span><b id="popExpLab">펼치기</b></button><button class="pexp phide" id="popHide" aria-controls="pop" aria-label="설명을 감춥니다. 고른 것은 그대로 둡니다"><span aria-hidden="true">⇲</span><b>숨기기</b></button><button class="pclose" id="pclose" aria-label="닫기 — 고른 것을 풉니다">✕</button></div></div><div id="detail"></div></div>
 
 <script>
 var N=[
@@ -2657,6 +2686,14 @@ function size(){var b=document.getElementById('stage').getBoundingClientRect();
   if(cv.width!==bw||cv.height!==bh){cv.width=bw;cv.height=bh;wiped=true}
   if(typeof applyNodeScale==='function')applyNodeScale();
   if(typeof syncCatMore==='function')syncCatMore();
+  /* '보는 법' 버튼이 지도 왼쪽 위를 차지하면 안내 문구를 그 아래로 내린다.
+     offsetTop/offsetHeight 는 배치값이라 transform 잔상에 안 휘둘린다. */
+  noticeTop=24;
+  var lb0=document.getElementById('legendBtn'), stg0=document.getElementById('stage');
+  if(lb0&&stg0&&lb0.offsetHeight){
+    var lbTop=lb0.offsetTop-stg0.offsetTop;
+    if(lbTop>-40&&lbTop<H*0.4)noticeTop=lbTop+lb0.offsetHeight+20;
+  }
   measure();
   if(wiped&&typeof draw==='function'){try{draw()}catch(e){}}
   /* 첫 로드 때 지도 크기가 뒤늦게 정해진다 —
@@ -2680,6 +2717,7 @@ function init(){
    그래서 전체 보기 상태일 때만, 결과 노드(지도의 입구)를 중심에 두고
    읽을 수 있는 배율을 지킨다. 나머지는 끌어서 본다.
    ⛶ '전체 보기' 버튼은 showAll 로 이 동작을 꺼서 언제나 다 볼 수 있다. */
+var noticeTop=24;                /* 안내 문구의 세로 자리. size() 가 버튼을 보고 정한다 */
 var LABEL_PX=12;                 /* 화면상 글자 크기. 배율이 변해도 이 값을 지킨다 */
 var LABEL_FAR=0.62;              /* 이 배율 미만이면 결과 숫자만 이름을 단다 */
 /* LABEL_FAR 은 첫 화면 배율의 하한이기도 하다.
@@ -2716,7 +2754,6 @@ var FAN_EASE = 0.36;              /* 각도를 목표로 당기는 세기. 1이�
                                      0.36 이면 0.4초 안에 끝난다. */
 var FIT_MIN  = 0.45;              /* 배율 바닥. 이보다 줄이면 점만 남는다 */
 
-var fanKept=null;   /* 부채꼴에 넣을 이웃. setFocus 가 정하고 gatherFan 이 쓴다 */
 
 /* 부채꼴로 모은다. 반드시 size() 로 지도 크기를 갱신한 뒤에 부른다 —
    카드가 열리면 지도가 줄어드는데(폰 412x915 → 412x540),
@@ -2728,7 +2765,9 @@ var fanKept=null;   /* 부채꼴에 넣을 이웃. setFocus 가 정하고 gather
    **노드는 제자리에 둔다.** 눌러도 자리는 그대로고 빛만 흐른다.
    연결이 화면에 들어오게 하는 일은 카메라가 맡는다(fitFocus).
    위치는 데이터가 정한다 — 반지름은 연도, 각도는 흩뿌린 값. 초점은 자리를 안 바꾼다. */
-function gatherFan(){ return }
+/* gatherFan 은 빈 함수로 남겨뒀다가 여기서 지웠다. 같이 지운 것:
+   fanKept(아무도 안 읽었다) · n.tang(아무도 안 넣어서 늘 undefined 였다).
+   빈 함수와 죽은 변수는 "아직 뭔가 하고 있다" 는 착각을 남긴다. */
 
 function fitFocus(){
   if(!focus)return;
@@ -2742,8 +2781,11 @@ function fitFocus(){
     var lw=(n.lw||60)/2;
     minx=Math.min(minx,n.x-n.r-lw);maxx=Math.max(maxx,n.x+n.r+lw);
     miny=Math.min(miny,n.y-n.r-24);maxy=Math.max(maxy,n.y+n.r+24)});
+  /* 카드가 덮는 자리는 빼고 잰다. 카드가 지도를 밀지 않으므로 W·H 는 그대로인데,
+     그 안의 일부는 카드 뒤라 안 보인다. 안 보이는 자리에 이웃을 놓아봐야 소용없다. */
+  var vw=mapView();
   var pad=W<620?24:56;
-  var s=Math.min((W-pad*2)/Math.max(1,maxx-minx),(H-pad*2)/Math.max(1,maxy-miny));
+  var s=Math.min((vw.w-pad*2)/Math.max(1,maxx-minx),(vw.h-pad*2)/Math.max(1,maxy-miny));
   /* 이름표 하한(LABEL_FAR)을 되도록 지키되, 그것 때문에 연결이 화면 밖에 남으면
      하한을 FIT_MIN 까지 내린다. 우선순위는 '이어진 것이 보이는 것' 이다 —
      이름은 확대하면 나오고 그 안내가 화면에 있지만, 화면 밖에 있는 건 있는 줄도 모른다.
@@ -2758,8 +2800,8 @@ function fitFocus(){
   if(want>=LABEL_FAR){
     /* 이웃까지 다 담으면서 이름도 읽힌다 — 그렇게 맞춘다 */
     cam.ts=want;
-    cam.tx=viewCX()-(minx+maxx)/2*want;
-    cam.ty=H/2-(miny+maxy)/2*want;
+    cam.tx=vw.cx-(minx+maxx)/2*want;
+    cam.ty=vw.cy-(miny+maxy)/2*want;
     return}
   /* 다 담으려면 이름표 하한 밑으로 내려가야 하는 경우.
      폰(지도 412x518)이 그렇다 — 이웃이 고리 전체에 흩어져 있어
@@ -2768,8 +2810,32 @@ function fitFocus(){
      못 담은 이웃은 카드의 관계 목록이 받는다 — 검사 20번이 그걸 강제한다.
      '다 보이는데 뭔지 모르는 화면' 보다 '가운데 것은 확실히 읽히는 화면' 이 낫다. */
   cam.ts=LABEL_FAR;
-  cam.tx=viewCX()-self.x*LABEL_FAR;
-  cam.ty=H/2-self.y*LABEL_FAR}
+  cam.tx=vw.cx-self.x*LABEL_FAR;
+  cam.ty=vw.cy-self.y*LABEL_FAR}
+/* ── 카드가 안 가리는 자리 ──
+   카드는 지도를 밀지 않고 덮는다. 그래서 '화면 가운데' 와 '보이는 가운데' 가 다르다.
+   **첫 화면(fit)에는 안 쓴다** — 그때는 카드가 없다.
+   누른 뒤(fitFocus)에만 쓴다. 그때는 어차피 카메라가 움직이는 순간이라
+   '아무것도 안 움직인다' 는 약속을 깨지 않는다.
+
+   카드는 transform 으로 미끄러져 들어온다. getBoundingClientRect 는 transform 을
+   포함해서 전환 잔상을 읽는다 — 실제로 230px 이 0 으로 나온 적이 있다.
+   offset* 은 배치값이라 안 휘둘린다. */
+function mapView(){
+  var v={cx:W/2, cy:H/2, w:W, h:H};
+  var p=document.getElementById('pop'), st=document.getElementById('stage');
+  if(!p||!st||!document.body.classList.contains('panelon'))return v;
+  var pw=p.offsetWidth, ph=p.offsetHeight;
+  if(!(pw>0&&ph>0))return v;                 /* 레이아웃을 모르면 화면 전체로 둔다 */
+  if(pw>=innerWidth*0.9){                    /* 아래에서 올라오는 카드 — 세로를 깎는다 */
+    var top=p.offsetTop-st.offsetTop;
+    if(top>100&&top<H){v.h=top; v.cy=top/2}
+  }else{                                     /* 옆에서 들어오는 카드 — 가로를 깎는다 */
+    var left=p.offsetLeft-st.offsetLeft;
+    if(left>140&&left<W){v.w=left; v.cx=left/2}
+  }
+  return v;
+}
 /* 지도에서 실제로 보이는 영역의 가운데.
    왼쪽 고정 패널을 없앤 뒤로 인셋이 없다 — 화면 가운데가 곧 지도 가운데다.
    전에는 mapInsetLeft() 가 패널 폭(230px)을 빼줬는데, 그 함수가
@@ -2904,11 +2970,8 @@ window.addEventListener('pageshow',function(){size();refitWhenSettled(false,1500
   setInterval(upd,400); upd();
 })();
 
-(function(){var st=document.getElementById('stage');
-  if(st)st.addEventListener('transitionend',function(e){
-    if(e.target!==st)return;
-    if(e.propertyName!=='right'&&e.propertyName!=='bottom')return;
-    size(); refitWhenSettled(false,1200)})})();
+/* #stage 의 right/bottom 전환이 끝나면 size() 를 다시 부르던 곳이 여기 있었다.
+   카드가 지도를 안 미니 그 전환도 없다. 사슬의 마지막 고리를 뺀다. */
 [0,60,200,500,1000].forEach(function(ms){setTimeout(size,ms)});
 /* 물리가 가라앉으면서 노드가 크게 움직인다.
    init 직후 한 번 맞춘 카메라는 그때쯤 이미 어긋나 있다 —
@@ -2999,11 +3062,8 @@ function setFocus(id){
     if(typeof syncKind==='function')syncKind();
     if(typeof syncSide==='function')syncSide();
     refilter();setAngles();reheat(0.85);
-    setTimeout(function(){if(focus===id){size();gatherFan()}},80);
     refitWhenSettled(true);
   }
-  /* 모았던 각도를 먼저 전부 푼다. setAngles() 가 결정적이라 정확히 제자리로 간다. */
-  N.forEach(function(n){n.tang=undefined});fanKept=null;
   focus=id;ring={};keyRing={};energy={};roles={};
   if(id){ring[id]=0;
     adj[id].forEach(function(l){roles[other(l,id)]=roleOf(l,id)});
@@ -3041,29 +3101,58 @@ function setFocus(id){
       kept.push(l)});
     hiddenEdges=adj[id].length-kept.length;
     kept.forEach(function(l){ring[other(l,id)]=1});
-    fanKept=kept.slice();
     Object.keys(ring).forEach(function(k){
       if(ring[k]===1)adj[k].forEach(function(l){var o=other(l,k);if(!(o in ring))ring[o]=2})})}
   document.getElementById('hint').style.opacity=id?0:1;
   render(id);renderRoleBar();
-  if(id){pop.classList.add('on');setPanel(true)}else{pop.classList.remove('on');setPanel(false)}
+  applyPopVisible();
   /* A안 · 부채꼴이 자리를 잡은 뒤 카메라를 거기에 맞춘다.
      물리가 안정되기 전에 맞추면 그 뒤 노드가 더 움직여 다시 화면 밖으로 나간다.
      size() 는 카드가 열려 지도가 좁아진 뒤의 크기를 준다 — 그래서 카드에 안 가린다. */
   if(id){
-    /* 카드가 열리며 지도가 줄어든 뒤에 크기를 다시 읽고 부채꼴을 만든다.
-       그 다음 물리가 자리를 잡으면 카메라를 맞춘다. 순서가 바뀌면 둘 다 틀린다.
-       reheat 은 하지 않는다 — gatherFan 이 노드를 바로 놓기 때문이다. */
-    setTimeout(function(){ if(focus===id){ size(); gatherFan() } },70);
+    /* 여기서 size() 를 다시 부르던 것도 뺐다. 카드가 열려 지도가 줄어든 뒤의
+       크기를 읽으려던 것인데, 이제 줄어들지 않는다. size() 는 캔버스 크기를
+       다시 대입하는 순간 비트맵을 지운다(검사 35) — 부를 이유가 없으면 부르지 않는다.
+       부채꼴(gatherFan)도 이미 없다. */
     refitWhenSettled(true);
   }
 }
 function closePop(){focus=null;ring={};roles={};hiddenEdges=0;
-  N.forEach(function(n){n.tang=undefined});reheat(0.5);pop.classList.remove('on');setPanel(false);
+  /* 여기 있던 reheat(0.5) 도 뺐다. 부채꼴이 있던 시절에는 모아둔 노드를
+     제자리로 되돌리려고 물리를 데워야 했다. 지금은 노드가 애초에 안 움직인다 —
+     데우면 **닫는 것만으로 원들이 흔들린다.** 실측 최대 57px 이었다. */
+  pop.classList.remove('on');setPanel(false);
   document.body.classList.remove('popfull');
+  /* 닫기는 고른 것을 푸는 것이다 — 칩도 같이 사라져야 한다.
+     다만 popHidden(감춰 두겠다는 뜻)은 그대로 둔다. 다음에 사건을 눌러도 감춘 채다. */
+  var chip0=document.getElementById('popShow');if(chip0)chip0.hidden=true;
   var rc0=document.getElementById('roleCard');if(rc0)rc0.hidden=true;renderRoleBar();
   document.getElementById('hint').style.opacity=1}
 document.getElementById('pclose').onclick=closePop;
+
+/* ── 숨기기 ──
+   선만 따라가고 싶은 사람이 있다. 설명을 치우고 지도만 본다.
+   **고른 것은 안 푼다** — 누른 사건은 그대로 밝아 있다. 감추는 건 설명이지 선택이 아니다.
+
+   한 방문 동안은 기억한다. 선만 보려고 감춘 사람이 사건을 누를 때마다 다시
+   닫아야 하면 성가시다. 새로고침하면 돌아온다 — 처음 온 사람과 다시 온 사람이
+   같은 첫 화면을 봐야 하기 때문이다. 서랍을 기억하지 않는 것과 같은 이유다. */
+var popHidden=false;
+function applyPopVisible(){
+  var show=!!focus&&!popHidden;
+  pop.classList.toggle('on',show);
+  setPanel(show);          /* panelon 은 '카드가 화면에 있다' 는 뜻이다.
+                              감춘 동안에는 없는 것과 같다 — 그래야 ⛶ 버튼 자리도,
+                              mapView() 가 보는 '안 가리는 자리' 도 맞는다. */
+  var chip=document.getElementById('popShow');
+  if(chip)chip.hidden=!(focus&&popHidden);
+  document.body.classList.toggle('pophidden',popHidden);
+}
+function setPopHidden(on){popHidden=!!on;applyPopVisible()}
+var popHideBtn=document.getElementById('popHide');
+if(popHideBtn)popHideBtn.onclick=function(){setPopHidden(true)};
+var popShowBtn=document.getElementById('popShow');
+if(popShowBtn)popShowBtn.onclick=function(){setPopHidden(false)};
 
 /* 카드 펴기·접기. 손잡이 드래그와 같은 동작을 글자로 알려주는 버튼이다. */
 var popExpBtn=document.getElementById('popExp'),popExpLab=document.getElementById('popExpLab');
@@ -3116,14 +3205,12 @@ function setPanel(on){
   if(on===panelOn)return;
   panelOn=on;
   document.body.classList.toggle('panelon',on);
-  var prevW=W;
-  clearTimeout(resizeT);
-  resizeT=setTimeout(function(){
-    size();
-    var d=W-prevW;
-    cam.x+=d/2;cam.tx+=d/2;
-    reheat(0.1);
-  },320);
+  /* 여기 있던 것: 전환이 끝날 때쯤 size() 를 다시 부르고, 줄어든 폭의 절반만큼
+     카메라를 밀고, reheat(0.1) 로 물리를 다시 데웠다. 지도가 줄어드는 것을 보정하려던 코드다.
+     **카드가 지도를 안 미니 보정할 것이 없다.** 실측(1440x900): 카드를 열어도
+     W·H 가 1440x786 그대로고 캔버스도 그대로다.
+     이 세 줄이 "사건을 누르면 원들이 옆으로 움직인다" 의 절반이었다 —
+     나머지 절반은 아래 setFocus 의 size() 였다. */
 }
 function placePop(){}
 
@@ -3241,9 +3328,7 @@ function tick(){
   var LOOSE=drag?0.34:1;
   A.forEach(function(n){
     var R=ringR(n);
-    /* tang 이 있으면 그쪽으로 모은다. 없으면 원래 각도. 반지름은 어느 쪽이든 같다. */
-    var ang=(typeof n.tang==='number'&&isFinite(n.tang))?n.tang
-           :((typeof n.ang==='number'&&isFinite(n.ang))?n.ang:0);
+    var ang=(typeof n.ang==='number'&&isFinite(n.ang))?n.ang:0;
     var tx=Math.cos(ang)*R, ty=Math.sin(ang)*R*0.86;
     /* 이어진 노드를 1.8~2.6px 로 계속 흔드는 궤도 애니메이션이 있었다.
        멈추지 않는 움직임이라 읽는 것을 방해한다. 뺐다. */
@@ -3266,7 +3351,7 @@ function tick(){
   /* alpha 가 바닥나면 손대지 않는다. 충돌 분리와 반지름 복원이 서로 밀어
      멈춘 뒤에도 13px 씩 진동했다 — 끝나지 않는 움직임이다. */
   /* ── 배치는 데이터가 정한다 ──
-     반지름 = 연도, 각도 = 흩뿌린 값(n.ang). 초점 중이면 부채꼴(n.tang).
+     반지름 = 연도, 각도 = 흩뿌린 값(n.ang).
      전에는 링크 스프링에 맡겼는데, 노드가 목표에서 중앙값 111px 끌려 나가고
      각도 분포가 12방향에 2~19개로 무너졌다 (목표는 14~15개씩).
      허브가 세게 당긴다 — 이재명 35선, 윤석열 30선.
@@ -3295,7 +3380,7 @@ function tick(){
     n.vx*=0.5; n.vy*=0.5});
   var CA=[];
   A.forEach(function(n){n.__hw=hw(n);n.__hh=hh(n);CA.push(n)});
-  /* 초점 중에는 일찍 쉰다. gatherFan 이 노드를 이미 제자리에 놓았으므로
+  /* 초점 중에는 일찍 쉰다. 노드가 이미 제자리에 있으므로
      겹친 것만 풀면 되고, 그 뒤로는 돌수록 진동만 남는다.
      초점이 아닐 때는 원래대로 — 배치가 아직 자리를 잡는 중이다. */
   var COLL=(alpha>0.008)?8:0;
@@ -3656,7 +3741,12 @@ function draw(){
     ? ['고리 간격 ≠ 시간 간격']
     : ['고리 간격은 실제 시간 간격과 다릅니다',
        '일이 많았던 시기일수록 고리가 넓습니다 · 순서는 그대로입니다'];
-  var nF=narrowWm?10.5:11, nF2=narrowWm?10.5:10.5, nY=narrowWm?58:24, nLH=13;
+  var nF=narrowWm?10.5:11, nF2=narrowWm?10.5:10.5, nLH=13;
+  /* 안내 문구는 '보는 법' 버튼을 피해서 그린다.
+     PC 에서는 그 버튼이 왼쪽 위로 올라가 이 자리를 차지한다.
+     **여기서 화면 폭을 다시 판정하지 않는다** — 버튼에게 물어본다.
+     폭을 두 곳에서 판정하면 CSS 를 고칠 때 한쪽만 바뀌어 조용히 겹친다. */
+  var nY=narrowWm?58:(isFinite(noticeTop)?noticeTop:24);
   cx.font='500 '+nF+"px 'Noto Sans KR',-apple-system,sans-serif";
   var nW=cx.measureText(nL[0]).width;
   if(nL[1]){cx.font=nF2+"px 'Noto Sans KR',-apple-system,sans-serif";

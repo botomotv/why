@@ -943,10 +943,23 @@ function boot(w, h) {
         var t0=0; while(alpha>=0.02&&t0<600){tick();t0++}
         var before={}; A.forEach(function(n){before[n.id]=[n.x,n.y]});
         setFocus(t.id);
-        var pw=${w}, ph=${h};
-        if(ph<=520&&pw>=620){var cw=Math.min(380,pw*0.46); W=pw-cw; H=ph-114}
-        else{ W = pw>1000 ? pw-448 : pw;
-              H = pw>1000 ? ph-104 : Math.round(ph*(pw<=620?0.68:0.62)-104) }
+        /* 카드는 이제 지도를 밀지 않는다 — W·H 는 그대로 두고,
+           '카드가 안 가리는 자리' 만 따로 구해 거기 들어왔는지를 센다.
+           jsdom 은 레이아웃을 안 해 페이지의 mapView() 가 화면 전체를 돌려준다.
+           그래서 여기서는 CSS 값으로 그 자리를 만든다 — 그 값이 CSS 와 어긋나지
+           않는다는 것은 검사 27번이 지킨다. */
+        var pw=${w}, ph=${h}, VW, VH;
+        if(ph<=520&&pw>=620){VW=pw-Math.min(380,pw*0.46); VH=ph-114}
+        else if(pw>1000){VW=pw-448; VH=ph-104}
+        else{VW=pw; VH=Math.round(ph*(pw<=620?0.68:0.62)-104)}
+        /* jsdom 은 레이아웃을 안 해 mapView() 가 카드를 못 본다 — 늘 화면 전체를 돌려준다.
+           그래서 **검사가 그 자리를 넣어준다.** 여기서 보는 것은
+           'fitFocus 가 안 가리는 자리를 실제로 쓰는가' 다. 안 쓰면 아래 selfOff 가 어긋난다.
+           mapView() 자체가 맞는지는 브라우저 실측으로 대조한다 (docs/화면점검.md). */
+        var mvReal=(typeof mapView==='function')?mapView():null;
+        var mvUsed=false;
+        if(typeof mapView==='function'){
+          mapView=function(){mvUsed=true;return {cx:VW/2,cy:VH/2,w:VW,h:VH}}}
         var t2=0; while(alpha>=0.02&&t2<600){tick();t2++}
         if(typeof fitFocus==='function')fitFocus();
         cam.s=cam.ts;cam.x=cam.tx;cam.y=cam.ty;
@@ -957,20 +970,23 @@ function boot(w, h) {
         var nb=Object.keys(ring).filter(function(k){return ring[k]===1});
         var inn=nb.filter(function(k){var n=map[k];if(!n)return false;
           var sx=n.x*cam.s+cam.x,sy=n.y*cam.s+cam.y;
-          return sx>=0&&sx<=W&&sy>=0&&sy<=H}).length;
+          return sx>=0&&sx<=VW&&sy>=0&&sy<=VH}).length;
         /* 못 담은 것이 카드에 있나 */
         var card=(document.getElementById('detail')||{}).textContent||'';
         var inCard=nb.filter(function(k){return map[k]&&card.indexOf(map[k].lab)>=0}).length;
         var sf=map[focus];
-        var selfOff=sf?Math.round(Math.hypot(sf.x*cam.s+cam.x-(typeof viewCX==='function'?viewCX():W/2), sf.y*cam.s+cam.y-H/2)):-1;
+        var selfOff=sf?Math.round(Math.hypot(sf.x*cam.s+cam.x-VW/2, sf.y*cam.s+cam.y-VH/2)):-1;
         return {nb:nb.length, inn:inn, inCard:inCard, moved:moved, selfOff:selfOff,
                 s:+cam.s.toFixed(2), floor:(typeof FIT_MIN==='number')?FIT_MIN:null,
                 lbl:nb.filter(function(k){return map[k]&&labelOn(map[k])}).length,
-                mw:W, mh:Math.round(H)};
+                mw:VW, mh:Math.round(VH), fullW:W, fullH:Math.round(H),
+                mvW:mvReal?Math.round(mvReal.w):-1, mvUsed:mvUsed};
       })()`);
       d20.window.close();
       if (!r) { F(`20. ${nm} — 못 쟀다`); continue }
-      console.log(`20. 누른 뒤 화면     ${nm} ${w}×${h} (지도 ${r.mw}×${r.mh}) · 화면안 ${r.inn}/${r.nb} · 카드에 ${r.inCard}/${r.nb} · 배율 ${r.s}(바닥 ${r.floor}) · 이름표 ${r.lbl} · 움직인 노드 ${r.moved} · 누른 것 중앙에서 ${r.selfOff}px`);
+      console.log(`20. 누른 뒤 화면     ${nm} ${w}×${h} (지도 ${r.fullW}×${r.fullH} · 안 가려진 자리 ${r.mw}×${r.mh}) · 화면안 ${r.inn}/${r.nb} · 카드에 ${r.inCard}/${r.nb} · 배율 ${r.s}(바닥 ${r.floor}) · 이름표 ${r.lbl} · 움직인 노드 ${r.moved} · 누른 것 중앙에서 ${r.selfOff}px`);
+      /* (0) fitFocus 가 '안 가리는 자리' 를 쓰는가. 안 쓰면 카드 뒤를 겨눈다 */
+      if (!r.mvUsed) F(`20. ${nm} — fitFocus 가 mapView() 를 안 쓴다. 카드 뒤를 겨누게 된다`);
       /* (1) 노드는 제자리여야 한다 — 이게 새 약속의 핵심이다 */
       if (r.moved > 3) F(`20. ${nm} — 누르자 노드 ${r.moved}개가 움직였다. 자리는 그대로여야 한다`);
       /* (2) 못 담았으면 카메라가 바닥까지 갔어야 한다 */
@@ -981,7 +997,7 @@ function boot(w, h) {
       if (r.inCard < r.nb)
         F(`20. ${nm} — 이어진 것 ${r.nb}개 중 ${r.nb - r.inCard}개가 카드에도 없다. 지도에서 못 보면 카드에서는 보여야 한다`);
       if (r.inn < r.nb)
-        W(`20. ${nm} — 이어진 것 ${r.nb - r.inn}개가 화면 밖이다 (카드에는 있다). 지도가 ${r.mw}×${r.mh} 로 좁아서다`);
+        W(`20. ${nm} — 이어진 것 ${r.nb - r.inn}개가 카드 뒤이거나 화면 밖이다 (카드 목록에는 있다). 안 가려진 자리가 ${r.mw}×${r.mh} 라서다`);
     }
   }
 
@@ -1321,9 +1337,11 @@ function boot(w, h) {
   //     그래서 CSS 원문에서 값을 읽어 검사의 가정과 맞는지 본다.
   {
     const want = [
-      { re: /@media \(max-width:620px\)[\s\S]{0,4000}?body\.panelon #stage\{[^}]*bottom:(\d+)vh/, want: 32, nm: '≤620 카드 높이(dvh)' },
-      { re: /@media \(max-width:1000px\)[\s\S]{0,4000}?body\.panelon #stage\{[^}]*bottom:(\d+)vh/, want: 38, nm: '621~1000 카드 높이(dvh)' },
-      { re: /@media \(max-height:520px\)[\s\S]*?body\.panelon #stage\{right:min\((\d+)px/, want: 380, nm: '낮은 가로 카드 폭(px)' },
+      /* 전에는 body.panelon #stage 의 bottom/right 에서 읽었다. 카드가 지도를 밀지
+         않게 되면서 그 규칙이 사라졌다 — 이제 .pop 자신이 유일한 출처다. */
+      { re: /@media \(max-width:620px\)[\s\S]{0,6000}?\.pop\{[^}]*height:(\d+)vh/, want: 32, nm: '≤620 카드 높이(dvh)' },
+      { re: /@media \(max-width:1000px\)[\s\S]{0,4000}?\.pop\{[^}]*height:(\d+)vh/, want: 38, nm: '621~1000 카드 높이(dvh)' },
+      { re: /@media \(max-height:520px\)[\s\S]*?\.pop\{width:min\((\d+)px/, want: 380, nm: '낮은 가로 카드 폭(px)' },
     ];
     let ok = 0;
     want.forEach(w2 => {
@@ -1893,6 +1911,92 @@ function boot(w, h) {
     if (!uniq.length) F('38. 누르는 자리 — 덧판을 하나도 못 찾았다. 검사가 아무것도 안 보고 있다');
     if (bad.length) F(`38. 누르는 자리 — ${bad.join(', ')} 가 positioned 가 아니다. 덧판이 조상 기준으로 잡혀 옆 버튼을 덮는다`);
     console.log(`38. 누르는 자리     덧판 ${uniq.length}개 (${uniq.join(' ')}) · 기준 잘못된 것 ${bad.length}개`);
+  }
+
+  // 39. 카드가 열려도 지도 크기가 안 바뀌는가
+  //     전에는 카드가 열리면 #stage 의 right/bottom 을 줄여 지도를 밀었다. 그러면
+  //       지도 크기가 바뀐다 → size() 가 돈다 → 캔버스가 지워진다 → 카메라를 다시 잡는다
+  //     이 사슬에서 여러 문제가 나왔다 — 누르면 화면이 꺼졌다 켜지고(35번), 원이 옆으로
+  //     밀리고, 첫 화면 맞춤이 취소됐다. 카드를 겹치게 해서 사슬을 끊었다.
+  //
+  //     jsdom 은 레이아웃을 안 해 '지도가 실제로 줄었는지' 를 못 잰다
+  //     (getBoundingClientRect 가 늘 창 전체를 돌려주므로 W·H 는 언제나 그대로다).
+  //     그러니 그걸 재는 척하지 않는다 — **줄이는 규칙이 CSS 에 없다**를 강제한다.
+  {
+    const css = html.slice(html.indexOf('<style>'), html.indexOf('</style>'))
+      .replace(/\/\*[\s\S]*?\*\//g, '');
+    const GEO = /(^|;)\s*(top|right|bottom|left|width|height|inset|transform)\s*:/;
+    const bad = [...css.matchAll(/([^{}]+)\{([^}]*)\}/g)]
+      .filter(m => /#stage|\.stage\b/.test(m[1]))
+      .filter(m => /\.(panelon|popfull)\b/.test(m[1]))
+      .filter(m => GEO.test(m[2]))
+      .map(m => m[1].trim().split('\n').pop().trim());
+    if (bad.length)
+      F(`39. 카드가 지도를 민다 — ${bad.join(', ')} 가 #stage 의 자리·크기를 바꾼다. 크기가 바뀌면 size() 가 돌고 캔버스가 지워진다`);
+
+    /* 전환이 끝나면 다시 재던 고리도 없어야 한다 — 없는 전환을 기다리는 죽은 코드다 */
+    const dead = /addEventListener\(\s*['"]transitionend['"][\s\S]{0,240}?propertyName\s*!==\s*['"](right|bottom)['"]/.test(html);
+    if (dead) F("39. #stage 의 right/bottom 전환을 기다리는 코드가 남아 있다. 그 전환은 이제 없다");
+
+    /* 카드는 여전히 화면에 나타나야 한다 — 겹치기로 바꾸면서 통째로 지우지 않았는지 */
+    const shows = /\.pop\.on\{[^}]*transform:\s*translate/.test(css);
+    if (!shows) F('39. .pop.on 이 카드를 나타나게 하지 않는다. 겹치기로 바꾸면서 카드가 안 열리게 됐다');
+
+    console.log(`39. 카드는 겹친다    #stage 를 건드리는 규칙 ${bad.length}개(0이어야) · 죽은 전환 대기 ${dead ? '있음' : '없음'} · 카드 열림 ${shows ? 'O' : 'X'}`);
+  }
+
+  // 40. '숨기기' 가 설명만 감추고 선택은 그대로 두는가
+  //     닫기(✕)와 뜻이 다르다. 닫기는 고른 것을 풀고, 숨기기는 설명만 감춘다.
+  //     헷갈리면 "선만 보려고 눌렀는데 강조까지 사라졌다" 가 된다.
+  //     이건 레이아웃이 필요 없다 — 클래스와 상태만 보면 되므로 jsdom 으로 진짜 동작을 잰다.
+  {
+    const d = boot(1440, 900);
+    await new Promise(r => setTimeout(r, 1400));
+    const r = d.window.eval(`(function(){
+      var doc=document, B=doc.body;
+      var hide=doc.getElementById('popHide'), show=doc.getElementById('popShow');
+      if(!hide||!show)return {missing:!hide?'popHide':'popShow'};
+      var res=[], snap=function(tag){res.push({at:tag,
+        focus:focus||null, on:pop.classList.contains('on'),
+        chip:!show.hidden, panelon:B.classList.contains('panelon'),
+        /* '선택이 그대로인가' 는 빛(gl)이 아니라 **선택 자체**로 잰다.
+           gl 은 프레임마다 차오르는 값이라 몇 틱을 돌렸느냐에 따라 달라진다 —
+           검사가 실행마다 흔들리게 된다. ring 은 선택이 만드는 구조 그 자체다. */
+        ringN:Object.keys(ring).length })};
+      var c=A.filter(function(n){return n.t==='result'&&adj[n.id]&&adj[n.id].length});
+      if(c.length<2)return {few:c.length};
+      setFocus(c[0].id); for(var i=0;i<40;i++)tick(); snap('누름');
+      hide.onclick(); snap('숨김');
+      setFocus(c[1].id); for(var j=0;j<40;j++)tick(); snap('다른 사건');
+      show.onclick(); snap('다시 보기');
+      closePop(); snap('닫기');
+      return {steps:res,
+        hideLabel:(hide.textContent||'').trim(),
+        closeLabel:(doc.getElementById('pclose').getAttribute('aria-label')||''),
+        hideAria:(hide.getAttribute('aria-label')||'')};
+    })()`);
+    d.window.close();
+
+    if (!r || r.missing) F(`40. 숨기기 — ${r && r.missing ? r.missing + ' 가 없다' : '못 쟀다'}`);
+    else if (r.few !== undefined) F(`40. 숨기기 — 이어진 결과 노드가 ${r.few}개뿐이라 못 쟀다`);
+    else {
+      const S = Object.fromEntries(r.steps.map(x => [x.at, x]));
+      const S0 = S['누름'] ? S['누름'].ringN : -1;   /* 숨기기 전의 선택 구조 */
+      const want = [
+        ['누름',      s2 => s2.on && !s2.chip && s2.focus,            '눌렀는데 카드가 안 열리거나 칩이 떠 있다'],
+        ['숨김',      s2 => !s2.on && s2.chip && s2.focus && s2.ringN === S0,
+          '숨겼는데 고른 것이 풀렸거나(이어진 것이 바뀜) 되돌릴 칩이 없다'],
+        ['다른 사건', s2 => !s2.on && s2.chip && s2.focus,            '다른 사건을 눌렀더니 감춘 상태를 잊었다'],
+        ['다시 보기', s2 => s2.on && !s2.chip,                        '되돌렸는데 카드가 안 나오거나 칩이 남았다'],
+        ['닫기',      s2 => !s2.on && !s2.chip && !s2.focus,          '닫았는데 고른 것이 남았거나 칩이 남았다'],
+      ];
+      want.forEach(([k, ok, msg]) => { if (!S[k] || !ok(S[k])) F(`40. 숨기기 — ${k}: ${msg}`) });
+      /* 이름으로 차이가 드러나야 한다 — 둘 다 '닫기' 면 사람이 구별할 수 없다 */
+      if (!/숨기/.test(r.hideLabel)) F(`40. 숨기기 버튼 글자가 '${r.hideLabel}' 다. 무엇을 하는지 안 드러난다`);
+      if (!/닫기/.test(r.closeLabel) || !/푼|풉|풀/.test(r.closeLabel))
+        F(`40. 닫기 버튼 설명이 '${r.closeLabel}' 다. 숨기기와 어떻게 다른지 안 드러난다`);
+      console.log(`40. 숨기기          ${r.steps.map(x => x.at + (x.on ? '·카드' : '') + (x.chip ? '·칩' : '') + (x.focus ? '·선택' + x.ringN : '')).join(' → ')}`);
+    }
   }
 
   /* ── 요약 ── */

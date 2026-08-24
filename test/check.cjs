@@ -1999,6 +1999,89 @@ function boot(w, h) {
     }
   }
 
+  // 41. 카드가 조작 UI 를 밀지도, 덮지도 않는가
+  //     약속: **카드를 여는 것만으로는 아무것도 안 움직인다.
+  //           그리고 카드는 지도를 덮되 조작 UI 는 덮지 않는다.**
+  //     지도와 조작 UI 는 다르다 — 지도는 가려도 카드의 관계 목록이 받아주지만,
+  //     조작 UI 는 가리면 쓸 수 없다.
+  //     두 번 났다. (1) body.panelon .search{left:calc(50% - 224px)} 가 검색창을 밀었다.
+  //     (2) .pop{top:58px} 이 박혀 있어 1280x960 에서 카드 머리가 분야 탭 뒤로 들어가고
+  //         펼치면 검색창을 16,000px² 덮었다.
+  //
+  //     jsdom 은 레이아웃을 안 해 겹침을 픽셀로 못 잰다. 재는 척하지 않는다.
+  //     대신 (a) 미는 규칙이 없다 (b) 카드 높이가 --topsafe 에 묶여 있다
+  //     (c) --topsafe 를 숫자가 아니라 요소에게 물어서 정하고, 상태가 바뀔 때마다 다시 잰다
+  //     — 셋을 강제하고, (d) 그 계산식은 가짜 기하를 넣어 직접 돌려 본다.
+  //     픽셀 실측은 docs/화면점검.md 에 남긴다.
+  {
+    const css = html.slice(html.indexOf('<style>'), html.indexOf('</style>'))
+      .replace(/\/\*[\s\S]*?\*\//g, '');
+    const TOPSEL = ['.search', '.catbar', '.topbar', '.undo', '.ub', '.rolebar', '.legendbtn', '.cats', '.catmore'];
+    const MOVE = /(^|;)\s*(top|right|bottom|left|margin|transform|inset)\s*:/;
+
+    /* (a) 카드가 열렸다고 조작 UI 를 옮기는 규칙이 있으면 FAIL */
+    const push = [...css.matchAll(/([^{}]+)\{([^}]*)\}/g)]
+      .filter(m => /\.(panelon|popfull)\b/.test(m[1]))
+      .filter(m => TOPSEL.some(t => new RegExp('\\' + t + '(?![\\w-])').test(m[1])))
+      .filter(m => MOVE.test(m[2]))
+      .map(m => m[1].trim().split('\n').pop().trim());
+    if (push.length) F(`41. 카드가 조작 UI 를 민다 — ${push.join(', ')}. 카드를 여는 것만으로는 아무것도 안 움직여야 한다`);
+
+    /* (b) 카드가 위로 자랄 수 있는 한계가 --topsafe 에 묶여 있는가.
+           옆 패널은 top, 아래 카드는 max-height 로 묶인다. 둘 다 있어야 한다. */
+    /* **기본** .pop 규칙(position:fixed 를 가진 그것)을 봐야 한다.
+       그냥 '.pop 어딘가에 --topsafe 가 있나' 로 재면, 낮은 가로 화면 블록의
+       .pop 규칙이 대신 매칭돼서 기본에 top:58px 을 박아도 통과한다 — 실제로 그랬다. */
+    const sideTop = /\.pop\{[^}]*position:\s*fixed[^}]*top:\s*var\(--topsafe/.test(css);
+    const sheetCap = /@media \(max-width:1000px\)\{[\s\S]*?\.pop\{[^}]*max-height:\s*calc\([^}]*--topsafe/.test(css);
+    if (!sideTop) F('41. 옆 카드의 top 이 --topsafe 에 안 묶여 있다. 위쪽 UI 위로 올라갈 수 있다');
+    if (!sheetCap) F('41. 아래 카드에 max-height 상한이 없다. 펼치면 위쪽 UI 를 덮는다');
+
+    /* (c) --topsafe 를 요소에게 물어서 정하는가 · 상태가 바뀔 때마다 다시 재는가 */
+    const fn = html.match(/function updateTopSafe\(\)[\s\S]*?\n\}/);
+    if (!fn) F('41. updateTopSafe 를 못 찾았다');
+    else {
+      const b = fn[0];
+      if (!/offsetTop/.test(b) || !/offsetHeight/.test(b))
+        F('41. --topsafe 를 요소에게 안 묻는다. 숫자로 박으면 상단 구성이 바뀔 때 조용히 어긋난다');
+      if (/getBoundingClientRect/.test(b))
+        F('41. --topsafe 가 getBoundingClientRect 를 쓴다. transform 잔상을 읽는다 — offset* 을 써야 한다');
+    }
+    const callers = ['function size()', 'function applyPopVisible()', 'function setPopFull('];
+    const missing = callers.filter(c => {
+      const i = html.indexOf(c); if (i < 0) return true;
+      return !/updateTopSafe/.test(html.slice(i, i + 1400));
+    });
+    if (missing.length) F(`41. --topsafe 를 다시 재지 않는 곳: ${missing.join(', ')}. 상태가 바뀌면 낡은 값이 남는다`);
+
+    /* (d) 계산식을 직접 돌려 본다 — 가짜 기하를 넣고 '가장 아래 UI 의 아래끝 + 8' 이 나오는가.
+           위쪽 UI 만 세야 한다: 화면 아래쪽에 사는 것(폰의 '보는 법' 버튼)은 빼야 한다. */
+    {
+      const d41 = boot(1000, 800);
+      await new Promise(r => setTimeout(r, 1200));
+      const got = d41.window.eval(`(function(){
+        var W=window, D=document;
+        var fake={'.topbar':[0,60],'.catbar':[62,52],'.search':[128,110],
+                  '.undo':[0,0],'.rolebar':[0,0],'.legendbtn':[700,50]};
+        TOP_UI.forEach(function(sel){
+          var e=D.querySelector(sel); if(!e)return;
+          var v=fake[sel]||[0,0];
+          Object.defineProperty(e,'offsetTop',{value:v[0],configurable:true});
+          Object.defineProperty(e,'offsetHeight',{value:v[1],configurable:true});
+        });
+        updateTopSafe();
+        return D.documentElement.style.getPropertyValue('--topsafe');
+      })()`);
+      d41.window.close();
+      /* 검색창 아래끝 238 이 가장 아래다. '보는 법' 은 700 이라 아래쪽 — 빼야 한다.
+         빼지 않으면 758 이 나온다. */
+      if (got !== '246px')
+        F(`41. --topsafe 계산이 246px 이 아니라 '${got}' 다 (검색창 128+110=238, +8). ` +
+          (got === '758px' ? '아래쪽에 있는 보는 법 버튼까지 세고 있다' : '가장 아래 위쪽-UI 를 못 고른다'));
+      else console.log(`41. 카드 vs 조작UI  미는 규칙 ${push.length}개 · 옆카드 top ${sideTop ? 'O' : 'X'} · 아래카드 상한 ${sheetCap ? 'O' : 'X'} · 다시 재는 곳 ${callers.length - missing.length}/${callers.length} · 계산 ${got} (픽셀 겹침은 jsdom 이 못 잰다)`);
+    }
+  }
+
   /* ── 요약 ── */
   console.log('\n' + '─'.repeat(50));
   console.log('노드 진영 분포:', JSON.stringify(bySide));

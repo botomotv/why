@@ -105,7 +105,13 @@ body{background:var(--bg);color:var(--t1);font-family:'Noto Sans KR',-apple-syst
   pointer-events:none;transition:opacity .5s}
 
 /* ===== 팝업 카드 ===== */
-.pop{position:fixed;top:58px;right:0;bottom:0;width:448px;z-index:35;overflow-y:auto;
+/* ── 카드는 지도를 덮되 조작 UI 는 덮지 않는다 ──
+   지도와 조작 UI 는 다르다. 지도는 가려도 카드의 관계 목록이 받아주지만,
+   조작 UI 는 가리면 쓸 수 없다.
+   전에는 top:58px 이 박혀 있었다. 그래서 1280x960 에서 카드 머리(펼치기·숨기기·✕)가
+   분야 탭 줄(y 62~114) 뒤로 들어가 안 보였고, 펼치면 검색창(y 128~190)까지 덮었다.
+   --topsafe 는 위쪽 UI 에게 직접 물어서 정한다 (size() 의 updateTopSafe). */
+.pop{position:fixed;top:var(--topsafe,120px);right:0;bottom:0;width:448px;z-index:35;overflow-y:auto;
   background:var(--bg2);border-left:1px solid var(--line2);
   transform:translateX(100%);transition:transform .3s cubic-bezier(.22,.9,.3,1)}
 .pop.on{transform:translateX(0)}
@@ -180,7 +186,7 @@ body.popfull .pexp .pex-i{transform:rotate(180deg)}
 .phide b{font-weight:500}
 /* 감춘 설명을 다시 부르는 칩. 감춘 상태에서 고른 것이 있을 때만 나온다.
    말없이 사라지면 "설명이 없어졌다" 가 된다 — 되돌릴 자리를 항상 남긴다. */
-.popshow{display:flex;position:fixed;left:14px;bottom:66px;z-index:27;
+.popshow{display:flex;position:fixed;left:14px;bottom:66px;z-index:36;
   align-items:center;gap:7px;height:38px;padding:0 14px;border-radius:8px;
   border:1px solid var(--gold);background:rgba(21,23,27,.94);color:var(--gold);
   font-family:inherit;font-size:14px;cursor:pointer;transition:.18s}
@@ -406,7 +412,12 @@ body.popfull .pexp .pex-i{transform:rotate(180deg)}
 .tagline{font-size:13.5px;line-height:1.2;color:var(--t3);letter-spacing:-.015em;white-space:nowrap}
 .search{position:fixed;top:128px;left:50%;transform:translateX(-50%);z-index:30;
   width:min(560px,calc(100vw - 40px));transition:left .3s,width .3s}
-body.panelon .search{left:calc(50% - 224px)}
+/* body.panelon .search{left:calc(50% - 224px)} 가 여기 있었다 —
+   448px 카드가 지도를 밀던 시절, 검색창도 같이 비켜주게 만든 규칙이다.
+   전에 폰에서 이 규칙 때문에 검색창이 화면 밖 212px 로 나간 적이 있고 그때는 폰만 껐다.
+   카드가 이제 아무것도 안 미니 PC 에서도 비켜줄 이유가 없다.
+   .rolebar 도 같은 규칙이었다. 둘 다 지웠다.
+   **카드를 여는 것만으로는 아무것도 안 움직인다** — 지도도, 조작 UI 도. */
 .sicon{position:absolute;left:17px;top:50%;transform:translateY(-50%);color:var(--gold);font-size:21px;pointer-events:none;z-index:1}
 .search input{width:100%;height:52px;padding:0 18px 0 46px;font-family:inherit;font-size:17.5px;
   background:rgba(24,27,33,.97);border:1px solid #3A404A;border-radius:14px;color:var(--t1);outline:none;
@@ -571,7 +582,14 @@ body.legendon .hint{opacity:0}
 .sidebar-note{margin-top:9px;font-size:13.5px;color:var(--gold);line-height:1.5}
 .lg{display:flex;align-items:center;gap:10px;font-size:15.5px;color:var(--t2);padding:5px 0}
 .lg b{font-weight:400;color:var(--t1)}
-.zoomctl{position:fixed;right:20px;bottom:22px;z-index:24;display:flex;gap:8px}
+/* ── 아래 조작 UI 는 카드 **위에** 뜬다 ──
+   폰에서 아래 카드가 이 버튼들을 덮어서, 카드를 닫아야 '전체 보기' 를 누를 수 있었다
+   (실측 402x874: 카드가 '보는 법' 을 4,032px² 덮었다).
+   PC 에서는 반대로 카드가 열리면 이 줄이 오른쪽으로 468px 비켜났다 —
+   그건 '카드를 여는 것만으로는 아무것도 안 움직인다' 를 깨는 일이었다.
+   z 순서를 올려 카드 위에 띄우면 **아무것도 안 움직이면서 계속 쓸 수 있다.**
+   카드(z 35)보다 위여야 한다. */
+.zoomctl{position:fixed;right:20px;bottom:22px;z-index:36;display:flex;gap:8px}
 .nsub{font-size:15.5px;color:var(--t2);line-height:1.7;margin-bottom:20px}
 .nform{display:flex;flex-direction:column;gap:11px}
 .nlab{font-size:14.5px;color:var(--t3);display:block;margin-bottom:5px}
@@ -594,7 +612,7 @@ body.legendon .hint{opacity:0}
    전에는 620px 이하에서 통째로 display:none 이었다. 폰 방문자는 색이 무슨 뜻인지
    알 방법이 없었다. 840 에서는 반대로 이 패널이 노드 32개를 뒤에서 가리고 있었다.
    기본은 접혀 있어서 지도를 하나도 가리지 않는다. */
-.legendbtn{display:flex;position:fixed;left:14px;bottom:16px;z-index:27;
+.legendbtn{display:flex;position:fixed;left:14px;bottom:16px;z-index:36;
   align-items:center;gap:7px;height:42px;padding:0 15px;border-radius:8px;
   border:1px solid var(--line2);background:rgba(21,23,27,.92);color:var(--t2);
   font-family:inherit;font-size:14.5px;cursor:pointer;transition:.18s}
@@ -609,7 +627,6 @@ body.legendon .legendbtn{display:none}
   background:rgba(14,15,18,.985);color:var(--t2);
   font-family:inherit;font-size:14.5px;cursor:pointer}
 .railclose:focus-visible{outline:2px solid var(--gold);outline-offset:-2px}
-body.panelon .zoomctl{right:468px}
 body.panelon .hint{opacity:0}
 .mkind{display:flex;gap:7px;flex-wrap:wrap}
 .mk{font-family:inherit;font-size:15px;padding:9px 14px;border-radius:9px;border:1px solid var(--line2);
@@ -623,7 +640,6 @@ body.panelon .hint{opacity:0}
 .rolebar{position:fixed;top:196px;left:50%;transform:translateX(-50%);z-index:29;
   width:min(880px,calc(100vw - 40px));display:none;gap:8px;flex-wrap:wrap;justify-content:center;
   pointer-events:none;transition:left .3s}
-body.panelon .rolebar{left:calc(50% - 224px)}
 body.hasundo .rolebar{top:252px}
 body.hasundo .rgrp{pointer-events:auto;display:flex;align-items:center;gap:8px;padding:9px 13px;border-radius:11px;
   background:rgba(20,23,28,.94);border:1px solid var(--line2);max-width:340px}
@@ -701,7 +717,10 @@ details.railcard>summary.raillab:focus-visible{outline:2px solid var(--gold);out
 
 @media (max-width:1000px){
   .note{display:none}
-  .pop{width:100%;top:auto;left:0;right:0;height:38vh;height:38dvh;border-left:0;
+  /* 아래에서 올라오는 카드도 위쪽 UI 를 넘지 않는다. 펼침(82dvh)이 상한을 넘으면
+     여기서 잘린다 — 폴드 펼침 1280x960 에서 그 일이 났다. */
+  .pop{width:100%;top:auto;left:0;right:0;height:38vh;height:38dvh;
+    max-height:calc(100dvh - var(--topsafe,120px));border-left:0;
     border-top:1px solid var(--line2);border-radius:16px 16px 0 0;transform:translateY(100%)}
   .pop.on{transform:translateY(0)}
   /* 손잡이는 그림이 아니라 진짜여야 한다.
@@ -826,8 +845,8 @@ body.hasundo .rolebar{top:232px;width:calc(100vw - 24px);max-height:96px;overflo
   /* ① 카드가 열리면 검색창이 왼쪽으로 212px 나가 잘렸다.
      body.panelon .search{left:calc(50% - 224px)} 는 PC 에서 448px 패널의 절반만큼
      비켜주려고 만든 규칙인데, 폰은 패널이 아래 서랍이라 비킬 이유가 없다. 되돌린다. */
-  body.panelon .search{left:50%}
-  body.panelon .rolebar{left:50%}
+  /* 여기 있던 body.panelon .search/.rolebar{left:50%} 는 위의 비켜주기를
+     폰에서만 되돌리던 규칙이다. 비켜주기 자체가 없어졌으니 되돌릴 것도 없다. */
 
   /* ② 검색창을 줄인다. 안내 문구도 짧게 (문구 자체는 JS 가 화면 폭에 맞춰 바꾼다) */
   .search{top:108px;width:calc(100vw - 28px)}
@@ -867,7 +886,6 @@ body.hasundo .rolebar{top:232px;width:calc(100vw - 24px);max-height:96px;overflo
   .popshow{bottom:16px}
   .pop{transition:transform .3s cubic-bezier(.22,.9,.3,1),width .26s ease}
   body.popfull .pop{width:min(760px,62vw)}
-  body.panelon.popfull .zoomctl{right:calc(min(760px,62vw) + 20px)}
 }
 
 /* ── 낮은 가로 화면 (폰·폴드를 눕힌 경우) ──
@@ -887,11 +905,10 @@ body.hasundo .rolebar{top:232px;width:calc(100vw - 24px);max-height:96px;overflo
    이 블록은 파일 맨 끝이다. 같은 특정도면 뒤엣것이 이기므로
    앞의 620/900/1000 규칙을 여기서 덮는다. 뒤에 일반 규칙을 쓰지 않는다. */
 @media (max-height:520px) and (min-width:620px){
-  .pop{width:min(380px,46vw);height:auto;top:58px;right:0;bottom:0;left:auto;
+  .pop{width:min(380px,46vw);height:auto;top:var(--topsafe,120px);right:0;bottom:0;left:auto;
     border-left:1px solid var(--line2);border-top:0;border-radius:0;
     transform:translateX(100%)}
   .pop.on{transform:translateX(0)}
-  body.panelon .zoomctl{right:calc(min(380px,46vw) + 16px)}
   /* 서랍은 어느 화면에서나 기본이다. 여기서는 높이만 더 준다 —
      낮은 화면에서 62dvh 면 항목 두 개밖에 안 보인다. */
   .rail{max-height:84vh;max-height:84dvh;gap:8px;
@@ -2686,6 +2703,7 @@ function size(){var b=document.getElementById('stage').getBoundingClientRect();
   if(cv.width!==bw||cv.height!==bh){cv.width=bw;cv.height=bh;wiped=true}
   if(typeof applyNodeScale==='function')applyNodeScale();
   if(typeof syncCatMore==='function')syncCatMore();
+  updateTopSafe();
   /* '보는 법' 버튼이 지도 왼쪽 위를 차지하면 안내 문구를 그 아래로 내린다.
      offsetTop/offsetHeight 는 배치값이라 transform 잔상에 안 휘둘린다. */
   noticeTop=24;
@@ -2718,6 +2736,40 @@ function init(){
    읽을 수 있는 배율을 지킨다. 나머지는 끌어서 본다.
    ⛶ '전체 보기' 버튼은 showAll 로 이 동작을 꺼서 언제나 다 볼 수 있다. */
 var noticeTop=24;                /* 안내 문구의 세로 자리. size() 가 버튼을 보고 정한다 */
+/* ── 위쪽 조작 UI 가 어디까지 차지하나 ──
+   카드가 그 아래에서만 열리도록 CSS 에 --topsafe 로 넘긴다.
+   **숫자를 박지 않는다. 요소에게 물어본다.** 상단 구성이 바뀌면 이 값이 따라온다.
+   offsetTop/offsetHeight 를 쓰는 이유는 transform 을 안 타기 때문이다 —
+   getBoundingClientRect 는 전환 잔상을 읽어 230px 을 0 으로 준 적이 있다.
+   '위쪽' 판정은 폭이 아니라 **자리**로 한다. 화면 아래쪽에 사는 것은 위쪽 UI 가 아니다
+   (폰의 '보는 법' 버튼이 그렇다). 폭으로 가르면 화면마다 다른 경로가 생긴다. */
+var TOP_UI=['.topbar','.catbar','.search','.undo','.rolebar','.legendbtn'];
+function updateTopSafe(){
+  var safe=0, hh=innerHeight||H||0;
+  TOP_UI.forEach(function(sel){
+    var e=document.querySelector(sel);
+    if(!e||e.hidden)return;
+    var h=e.offsetHeight; if(!(h>0))return;
+    var top=e.offsetTop, bot=top+h;
+    if(hh&&top>hh*0.5)return;            /* 아래쪽에 사는 것은 위쪽 UI 가 아니다 */
+    if(bot>safe)safe=bot;
+  });
+  if(!(safe>0))return;                   /* 아직 레이아웃을 모른다 — 기본값을 그대로 둔다 */
+  document.documentElement.style.setProperty('--topsafe',(safe+8)+'px');
+}
+/* 위쪽 UI 는 스스로 커진다 — 사건을 누르면 '처음으로' 알약이 생겨 검색창 아래끝이
+   190 → 238 이 된다. 낡은 --topsafe(198) 를 그대로 두면 카드가 그 위로 올라와
+   검색창을 3,520px² 덮는다. 실제로 그렇게 났다.
+
+   ResizeObserver 로 지켜보게 해 봤는데 **확인할 수가 없었다.** 이 브라우저 패널이
+   숨겨져 있으면 rAF 도 ResizeObserver 도 안 울린다 — 새 옵저버를 붙이고 검색창이
+   62 → 110 으로 커지는 것을 실제로 봤는데도 콜백이 0번 울렸다.
+   확인 못 하는 것에 기대지 않는다. 상태가 바뀌는 자리에서 직접 부른다.
+   옵저버는 그물로만 남긴다 — 울리면 좋고 안 울려도 위 호출들이 받는다. */
+if(typeof ResizeObserver!=='undefined'){
+  var topRO=new ResizeObserver(function(){updateTopSafe()});
+  TOP_UI.forEach(function(sel){var e=document.querySelector(sel);if(e)topRO.observe(e)});
+}
 var LABEL_PX=12;                 /* 화면상 글자 크기. 배율이 변해도 이 값을 지킨다 */
 var LABEL_FAR=0.62;              /* 이 배율 미만이면 결과 숫자만 이름을 단다 */
 /* LABEL_FAR 은 첫 화면 배율의 하한이기도 하다.
@@ -3012,7 +3064,9 @@ function syncCatMore(){
   catMore.setAttribute('aria-label','분야 '+tot+'개 중 '+hid+'개가 화면 밖입니다. 모두 보기');
 }
 if(catMore)catMore.onclick=function(){
-  document.body.classList.toggle('catsopen'); syncCatMore()};
+  document.body.classList.toggle('catsopen'); syncCatMore();
+  /* 분야를 두 줄로 펴면 상단이 더 두꺼워진다 — 카드가 열릴 수 있는 자리도 그만큼 준다 */
+  if(typeof updateTopSafe==='function')updateTopSafe()};
 syncCatMore();
 function setCat(k){
   cat=k;onlyP=null;sideF=null;kindF=null;syncSide();syncKind();refilter();
@@ -3147,6 +3201,9 @@ function applyPopVisible(){
   var chip=document.getElementById('popShow');
   if(chip)chip.hidden=!(focus&&popHidden);
   document.body.classList.toggle('pophidden',popHidden);
+  /* 사건을 누르면 '처음으로' 알약이 생겨 위쪽 UI 가 두꺼워진다.
+     여기는 render()·renderRoleBar() 가 끝난 뒤라 그 크기가 이미 반영돼 있다. */
+  if(typeof updateTopSafe==='function')updateTopSafe();
 }
 function setPopHidden(on){popHidden=!!on;applyPopVisible()}
 var popHideBtn=document.getElementById('popHide');
@@ -3172,6 +3229,7 @@ function setPopFull(on){
   if(eb)eb.setAttribute('aria-expanded',on?'true':'false');
   /* 이름은 어느 화면에서나 같다. 아래 카드는 높이가, 옆 패널은 폭이 늘어난다. */
   if(el)el.textContent=on?'접기':'펼치기';
+  if(typeof updateTopSafe==='function')updateTopSafe();
   if(on)pop.scrollTop=0;
 }
 if(popGrab){
@@ -4665,8 +4723,15 @@ function activeFilterLabel(){
 function syncReset(){
   if(!resetBtn)return;
   var lab=activeFilterLabel();
+  var was=resetBtn.hidden;
   resetBtn.hidden=!lab;
-  if(lab)resetLab.innerHTML='처음으로 <em>· '+lab+' 보는 중</em>'}
+  if(lab)resetLab.innerHTML='처음으로 <em>· '+lab+' 보는 중</em>';
+  /* 이 알약이 켜지면 검색창 상자가 62 → 110px 로 커진다. 카드가 열릴 수 있는
+     자리도 그만큼 내려가야 한다. **여기서 불러야 한다** —
+     syncReset 은 setFocus 를 감싼 래퍼가 setFocus 가 끝난 **뒤에** 부른다.
+     그래서 setFocus 안에서 잰 --topsafe 는 알약이 없던 때의 값이었다.
+     실측 915x412: 낡은 198 을 쓰는 바람에 카드가 검색창을 8,120px² 덮었다. */
+  if(was!==resetBtn.hidden&&typeof updateTopSafe==='function')updateTopSafe()}
 function resetAllView(){
   cat='all';onlyP=null;sideF=null;kindF=null;
   closePop();

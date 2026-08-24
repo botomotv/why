@@ -1244,13 +1244,11 @@ function boot(w, h) {
         A.forEach(function(n){var sx=n.x*cam.s+cam.x, sy=n.y*cam.s+cam.y;
           if(sx>=0&&sx<=W&&sy>=0&&sy<=H)on.push([sx,sy])});
         if(!on.length)return {ticks:t,on:0,tot:A.length};
-        var INS=(typeof mapInsetLeft==='function')?mapInsetLeft():0;
         var cx2=0,cy2=0; on.forEach(function(p){cx2+=p[0];cy2+=p[1]});
         cx2/=on.length; cy2/=on.length;
-        /* '화면 중앙' 이 아니라 '보이는 영역의 중앙' 이다 — 왼쪽 패널이 지도를 가린다.
-           페이지의 viewCX() 를 그대로 부른다. 여기서 따로 계산하면 화면과 갈라진다.
-           단 jsdom 은 레이아웃을 안 해 모든 요소가 창 전체 크기로 나오므로
-           여기서는 인셋이 늘 0 이다. 패널이 가리는 실제 효과는 브라우저로 확인한다. */
+        /* 왼쪽 패널을 없앤 뒤로 인셋이 없다 — 화면 가운데가 곧 지도 가운데다.
+           그래도 페이지의 viewCX() 를 부른다. 검사가 W/2 를 직접 쓰면
+           나중에 화면이 바뀌어도 검사는 모른다. */
         var CX=(typeof viewCX==='function')?viewCX():W/2;
         var off=Math.hypot(cx2-CX, cy2-H/2), diag=Math.hypot(W,H);
         /* 정사각형 칸 */
@@ -1338,21 +1336,37 @@ function boot(w, h) {
     console.log(`27. 카드 규칙       CSS 와 맞는 값 ${ok}/${want.length}개`);
     if (!ok) F('27. 하나도 못 맞췄다 — 검사가 아무것도 안 보고 있다');
 
-    /* PC 에서 왼쪽 패널이 화면 세로를 넘치면 FAIL.
-       8장을 다 펴면 2047px 이 돼 스크롤이 생긴다. 접기를 만든 이유가 그 스크롤이었다.
-       jsdom 은 레이아웃을 안 해 높이를 못 잰다 — 그래서 코드의 규칙을 강제한다:
-       decideRailOpen 이 한 장 펼 때마다 넘침을 보고 되돌리는가.
-       실제 높이는 브라우저로 확인했다 (1440x900 → 1장, 1920x1080 → 2장, 둘 다 스크롤 없음). */
-    const dr = html.match(/function decideRailOpen\(\)[\s\S]*?\n\}/);
-    if (!dr) F('27. decideRailOpen 을 못 찾았다');
-    else {
-      const body = dr[0];
-      if (!/scrollHeight\s*>\s*[\w.]*clientHeight/.test(body))
-        F('27. PC 패널 — decideRailOpen 이 넘침을 안 본다. 다 펴면 스크롤이 생긴다');
-      else if (!/\.open\s*=\s*false/.test(body))
-        F('27. PC 패널 — 넘칠 때 되돌리지 않는다');
-      else console.log('27. PC 패널 넘침    한 장 펼 때마다 넘침을 보고 되돌린다 — 확인');
-    }
+    /* 옛 27번은 'PC 왼쪽 패널이 넘치면 되돌리는가' 를 쟀다. **그 패널이 이제 없다.**
+       약속이 바뀌면 그 약속을 재던 검사도 바꾼다. 통째로 지우지는 않는다 —
+       지금 지킬 약속을 여기서 재고, 낡은 판정만 걷어낸다.
+
+       새 약속: '보는 법' 은 어느 화면에서나 아래 서랍이다.
+         ① 화면 크기·포인터로 갈리는 경로가 없다
+         ② 서랍이 지도를 옆에서 가리지 않는다 (인셋이 없다)
+         ③ 서랍 항목은 접힌 채 시작한다 */
+    const gone = ['decideRailOpen', 'mapInsetLeft'];
+    const left = gone.filter(fn => new RegExp('function\\s+' + fn + '\\s*\\(').test(html));
+    if (left.length) F(`27. 서랍 통일 — ${left.join(', ')} 가 아직 있다. 왼쪽 패널 경로가 남아 있다는 뜻이다`);
+
+    /* .rail 에 폭이나 왼쪽/위 자리를 주는 규칙이 하나라도 있으면 옆 패널로 되돌아간 것이다.
+       서랍은 left:0/right:0/bottom:0 이라 폭을 안 준다. */
+    const railRules = [...html.matchAll(/(^|[}{;\n])\s*([^{}\n@]*\.rail)\s*\{([^}]*)\}/g)]
+      .map(m => ({ sel: m[2].trim(), body: m[3] }))
+      .filter(r => /(^|,|\s)\.rail$/.test(r.sel));
+    const bad = railRules.filter(r => /(^|;)\s*(width|left|top)\s*:\s*(?!0|auto)/.test(r.body));
+    if (bad.length) F(`27. 서랍 통일 — .rail 에 자리·폭을 주는 규칙이 ${bad.length}건 남았다 (${bad[0].body.slice(0,40)}…)`);
+
+    /* ③ 은 HTML 에서 바로 본다 — <details> 에 open 이 없으면 접힌 채 뜬다 */
+    const openCards = (html.match(/<details class="railcard[^>]*\sopen[\s>]/g) || []).length;
+    if (openCards) F(`27. 서랍 항목 ${openCards}개가 펼쳐진 채 시작한다. 모든 화면에서 접혀야 한다`);
+    console.log(`27. 서랍 통일       왼쪽 패널 경로 ${left.length}개 · .rail 자리규칙 ${bad.length}건 · 펼쳐진 채 시작 ${openCards}개 (모두 0이어야 한다)`);
+
+    /* ②를 jsdom 으로 재지 않는다. **재는 척이 되기 때문이다.**
+       jsdom 은 레이아웃을 안 해 모든 요소가 창 전체 크기로 나온다 —
+       그래서 인셋은 왼쪽 패널이 있든 없든 늘 0 이었다. 여기서 viewCX()===W/2 를
+       확인해봐야 옛 코드에서도 통과한다. 아무것도 안 잡는 검사가 가장 오래 산다.
+       위의 'mapInsetLeft 가 없는가' 가 이 약속을 실제로 강제하는 부분이고,
+       지도가 230px 넓어졌다는 것은 브라우저 실측으로 확인했다 (docs/화면점검.md). */
   }
 
   // 28. 로드 중에 화면을 만져도 첫 화면이 맞는가
@@ -1735,6 +1749,52 @@ function boot(w, h) {
       console.log(`35. 빈 프레임        누른 뒤 캔버스 지움 ${r.wipes}회 · 지우고 안 그린 순간 ${r.blanks}회`);
       if (r.blanks) F(`35. 누른 뒤 화면이 ${r.blanks}번 비었다 — 캔버스를 지우고 다시 안 그렸다. 꺼졌다 켜지는 것처럼 보인다`);
     }
+  }
+
+  // 36. 카드 '펼치기' 가 모든 화면에서 살아 있는가
+  //     폴드를 펼치면(884px) 카드가 아래 38dvh 인데 펼칠 방법이 없었다.
+  //     .pexp{display:none} 뒤에 620px 에서만 다시 켰기 때문이다.
+  //     문법 오류가 아니고, 폰과 PC 에서는 멀쩡했다. 가운데 폭만 기능이 사라졌다.
+  //     jsdom 은 레이아웃을 안 하니 CSS 원문으로 계약을 강제한다 (검사 19 와 같은 방식).
+  {
+    /* 주석을 먼저 걷어낸다. 안 걷으면 셀렉터 앞에 주석이 통째로 붙어 온다 —
+       이 검사도 처음에 그것 때문에 '전에는' 이라는 셀렉터가 버튼을 끈다고 보고했다.
+       규칙을 설명하려고 주석에 써 둔 .pexp{display:none} 을 진짜 규칙으로 읽은 것이다. */
+    const css = html.slice(html.indexOf('<style>'), html.indexOf('</style>'))
+      .replace(/\/\*[\s\S]*?\*\//g, '');
+
+    /* ① 어느 화면에서도 버튼을 끄지 않는다 */
+    const off = [...css.matchAll(/([^{}]*\.pexp[^{}]*)\{([^}]*)\}/g)]
+      .filter(m => /display\s*:\s*none/.test(m[2]))
+      .map(m => m[1].trim().split('\n').pop().trim());
+    if (off.length) F(`36. 카드 펼치기 — ${off.join(', ')} 가 버튼을 끈다. 그 화면에서는 카드를 펼 수 없다`);
+
+    /* ② 버튼이 실제로 무언가를 바꾸는가. 카드는 모양이 둘이다 —
+       아래 카드는 높이가 늘고, 옆 패널은 폭이 는다. 아무 일도 안 하는 버튼은 없는 것만 못하다. */
+    const regimes = [
+      { nm: '아래 카드(≤1000)', re: /@media \(max-width:1000px\)\{[\s\S]*?\n\}/, prop: 'height' },
+      { nm: '옆 패널(>1000)', re: /@media \(min-width:1001px\)\{[\s\S]*?\n\}/, prop: 'width' },
+    ];
+    let acts = 0;
+    regimes.forEach(rg => {
+      const blk = css.match(rg.re);
+      if (!blk) { F(`36. ${rg.nm} 구간을 CSS 에서 못 찾았다 — 검사가 근거를 잃었다`); return }
+      const re = new RegExp('body\\.popfull[^{}]*\\.pop\\s*\\{[^}]*' + rg.prop + '\\s*:');
+      if (!re.test(blk[0])) F(`36. ${rg.nm} — 펼쳐도 ${rg.prop} 가 안 바뀐다. 버튼이 아무 일도 안 한다`);
+      else acts++;
+    });
+
+    /* ③ 손잡이가 그림이 아니라 진짜인가.
+       전에는 .pop:before 로 손잡이 **모양만** 그려두고 아무 동작이 없었다.
+       끌 수 있어 보이는데 안 끌린다 — 없는 것보다 나쁘다. */
+    /* 처음에는 '다른 데서 display:none 으로 껐으면 봐준다' 로 썼다.
+       그런데 낮은 가로 화면 블록에 이미 .pop:before{display:none} 이 하나 있어서,
+       손잡이 그림을 되살려 주입해도 **이 검사가 통과했다.** 봐주는 조건이
+       검사를 무력화한 것이다. 그림 손잡이는 어디에도 두지 않는다 — 예외를 없앤다. */
+    const fake = /\.pop:before\s*\{[^}]*(height:4px|width:40px)/.test(css);
+    if (fake) F('36. 손잡이 모양만 그려 놓은 .pop:before 가 있다. 끌리는 줄 알고 끌면 아무 일도 안 난다');
+
+    console.log(`36. 카드 펼치기     끄는 규칙 ${off.length}개(0이어야) · 실제로 바뀌는 구간 ${acts}/2 · 가짜 손잡이 ${fake ? '있음' : '없음'}`);
   }
 
   /* ── 요약 ── */

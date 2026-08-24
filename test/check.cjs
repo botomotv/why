@@ -1666,6 +1666,54 @@ function boot(w, h) {
     }
   }
 
+  // 35. 누른 뒤 화면이 비는 순간이 있는가
+  //     "사건을 누르면 화면이 꺼졌다가 켜진다" — 실제 사용자 말이다.
+  //     원인: 캔버스 크기를 대입하면 **같은 값이어도** 비트맵이 지워진다.
+  //     size() 가 누를 때마다 여러 번 도는데 그때마다 한 프레임이 비었다.
+  //     f4b2e0f(부채꼴) 에서 setFocus 가 size() 를 부르기 시작하면서 생겼다.
+  //     '무엇을 그렸나' 를 세면 빈 프레임이 안 잡힌다 — '지운 뒤 안 그린 적이 있나' 를 봐야 한다.
+  {
+    const d35 = boot(412, 915);
+    await new Promise(r => setTimeout(r, 1200));
+    const r = d35.window.eval(`(function(){
+      var t=0; while(alpha>=0.02&&t<600){tick();t++}
+      fit(); cam.s=cam.ts;cam.x=cam.tx;cam.y=cam.ty;
+      /* 캔버스가 지워진 횟수와, 지운 뒤 다시 그렸는지를 센다 */
+      var wipes=0, blanks=0, drawnSince=true;
+      var d=Object.getOwnPropertyDescriptor(cv,'width');
+      var realW=cv.width, realH=cv.height;
+      /* 브라우저는 **같은 값을 대입해도** 비트맵을 지운다 (실측 확인).
+         값이 바뀔 때만 세면 검사가 버그와 똑같은 맹점을 갖는다 —
+         실제로 옛 코드를 주입했는데 통과했다. 대입 자체를 센다. */
+      Object.defineProperty(cv,'width',{configurable:true,
+        get:function(){return realW},
+        set:function(v){ wipes++; drawnSince=false; realW=v }});
+      Object.defineProperty(cv,'height',{configurable:true,
+        get:function(){return realH}, set:function(v){realH=v}});
+      var realDraw=window.draw;
+      window.draw=function(){drawnSince=true; return realDraw.apply(null,arguments)};
+      var step=function(){ if(!drawnSince)blanks++; };
+      /* 실제 순서: 누른다 → 70ms size+gatherFan → 물리 → size+fitFocus */
+      var c=A.filter(function(n){return n.t==='result'&&adj[n.id]});
+      var tg=c.reduce(function(a,b){return (adj[b.id]||[]).length>(adj[a.id]||[]).length?b:a});
+      setFocus(tg.id); step();
+      size(); step();
+      if(typeof gatherFan==='function')gatherFan(); step();
+      for(var f=0;f<40;f++){tick(); draw(); step()}
+      size(); step();
+      if(typeof fitFocus==='function')fitFocus(); step();
+      draw(); step();
+      window.draw=realDraw;
+      return {wipes:wipes, blanks:blanks};
+    })()`);
+    d35.window.close();
+    if (!r) F('35. 못 쟀다');
+    else {
+      console.log(`35. 빈 프레임        누른 뒤 캔버스 지움 ${r.wipes}회 · 지우고 안 그린 순간 ${r.blanks}회`);
+      if (r.blanks) F(`35. 누른 뒤 화면이 ${r.blanks}번 비었다 — 캔버스를 지우고 다시 안 그렸다. 꺼졌다 켜지는 것처럼 보인다`);
+    }
+  }
+
   /* ── 요약 ── */
   console.log('\n' + '─'.repeat(50));
   console.log('노드 진영 분포:', JSON.stringify(bySide));

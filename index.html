@@ -2591,9 +2591,17 @@ var camUser=false;
 function size(){var b=document.getElementById('stage').getBoundingClientRect();
   var pw=W,ph=H;
   W=Math.max(1,b.width);H=Math.max(1,b.height);
-  cv.width=W*DPR;cv.height=H*DPR;
+  /* 캔버스 크기를 대입하면 **같은 값이어도** 비트맵이 지워진다 (실측: 255,0,0 → 0,0,0,0).
+     size() 는 누를 때·크기 바뀔 때 여러 번 도는데, 그때마다 화면이 한 번 까매졌다.
+     "사건을 누르면 화면이 꺼졌다가 켜진다" 가 이것이었다.
+     f4b2e0f 에서 setFocus 가 size() 를 부르기 시작하면서 생겼다 —
+     그전에는 점을 눌러도 size() 가 안 돌았다.
+     그래서 (1) 값이 바뀔 때만 대입하고 (2) 지운 직후 그 자리에서 다시 그린다. */
+  var bw=Math.round(W*DPR), bh=Math.round(H*DPR), wiped=false;
+  if(cv.width!==bw||cv.height!==bh){cv.width=bw;cv.height=bh;wiped=true}
   if(typeof applyNodeScale==='function')applyNodeScale();
   measure();
+  if(wiped&&typeof draw==='function'){try{draw()}catch(e){}}
   /* 첫 로드 때 지도 크기가 뒤늦게 정해진다 —
      실측: init 시점 412x518 → 안정 뒤 412x811. 293px 차이다.
      size() 는 [0,60,200,500,1000]ms 에 다시 도는데 fit() 은 안 돌았다.

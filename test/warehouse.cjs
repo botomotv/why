@@ -247,6 +247,57 @@ db.close();
       if (bMiss.length)
         FAIL(`E · 발의자 코드 ${bMiss.length}건이 의원 명부에 없다 (예: ${bMiss.slice(0,3).join(', ')})`);
 
+      /* ── 표결(MONA_CD) ──
+         RST_MONA_CD 는 전량에서 확정됐지만 MONA_CD 는 따로 확인해야 한다.
+         쉼표로 여러 명이 오지 않는다 — 표결은 한 행이 한 사람이다.
+         0 건이어도 분모를 같이 낸다. 0 은 '문제 없음' 과 '안 보고 있음' 을 구별하지 않는다. */
+      const vRows = rows(
+        `SELECT json_extract(row_json,'$.MONA_CD') cd,
+                json_extract(row_json,'$.HG_NM')   nm
+         FROM raw_row WHERE service='nojepdqqaweusdfbi'`) || [];
+      if (!vRows.length) {
+        NOTE('E · 표결이 창고에 없다 — MONA_CD 를 대조하지 못했다');
+      } else {
+        const vCds = new Set(vRows.map(r => r.cd).filter(Boolean));
+        const vMiss = [...vCds].filter(cd => cd !== NOCODE && !known.has(cd));
+        const vNoCode = vRows.filter(r => !r.cd || r.cd === NOCODE).length;
+        NOTE(`E · MONA_CD 미매칭 ${vMiss.length} / 서로 다른 코드 ${vCds.size}개 (표결 ${vRows.length}행 · 의원명부 ${known.size}명)`);
+        if (vNoCode) NOTE(`E · 표결에 코드 없음 ${vNoCode}행`);
+        if (vMiss.length)
+          FAIL(`E · 표결 코드 ${vMiss.length}건이 의원 명부에 없다 (예: ${vMiss.slice(0,3).join(', ')})`);
+      }
+
+      /* ── 가공층이 원본과 같은가 ──
+         **party 는 계산하면 안 된다.** member.party 에서 끌어오면 탈당한 의원의
+         과거 표결이 현재 당의 표결로 바뀐다. POLY_NM 을 그대로 담았는지 대조한다.
+         스키마 주석에 써 놨다고 지켜지는 게 아니다 — 값을 맞대 본다. */
+      if (has('vote_member')) {
+        const vm = rows(`SELECT COUNT(*) n FROM vote_member`);
+        const vmN = vm ? vm[0].n : 0;
+        if (!vmN) {
+          NOTE('E · vote_member 가 비어 있다 — 매퍼를 아직 안 돌렸다 (npm run map)');
+        } else {
+          const rawN = (rows(`SELECT COUNT(*) n FROM raw_row WHERE service='nojepdqqaweusdfbi'`) || [{n:0}])[0].n;
+          NOTE(`E · vote_member ${vmN}행 / 원본 표결 ${rawN}행`);
+
+          /* 원본과 값이 다른 행. 하나라도 있으면 매퍼가 무언가를 '계산' 한 것이다. */
+          const bad = rows(`
+            SELECT COUNT(*) n FROM vote_member v
+            JOIN raw_row r ON r.id = v.src_row
+            WHERE json_extract(r.row_json,'$.POLY_NM')         IS NOT v.party
+               OR json_extract(r.row_json,'$.RESULT_VOTE_MOD') IS NOT v.result
+               OR json_extract(r.row_json,'$.MONA_CD')         IS NOT v.member_cd`) || [{n:-1}];
+          if (bad[0].n === -1) NOTE('E · 가공층↔원본 대조를 못 했다 (src_row 가 없다)');
+          else if (bad[0].n > 0)
+            FAIL(`E · vote_member ${bad[0].n}행이 원본과 다르다. party·result·member_cd 는 계산하지 말고 그대로 담아야 한다`);
+          else NOTE(`E · vote_member 의 party·result·member_cd 가 원본과 전부 일치 (대조 ${vmN}행)`);
+
+          /* src_row 를 안 채우면 위 대조가 통째로 조용해진다 — 그 자체가 FAIL 이다 */
+          const orphan = (rows(`SELECT COUNT(*) n FROM vote_member WHERE src_row IS NULL`) || [{n:0}])[0].n;
+          if (orphan) FAIL(`E · vote_member ${orphan}행에 src_row 가 없다. 원본과 대조할 길이 사라진다`);
+        }
+      }
+
       /* 이름은 같은데 코드가 다른 사람 — 동명이인이 실제로 있다는 증거 */
       const dup = rows(
         `SELECT json_extract(row_json,'$.NAAS_NM') nm, COUNT(DISTINCT natural_k) n

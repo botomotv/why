@@ -6,7 +6,8 @@
   "scripts": {
     "test": "node test/check.cjs && node test/warehouse.cjs",
     "count": "node tools/count.mjs",
-    "collect": "node tools/collect.mjs"
+    "collect": "node tools/collect.mjs",
+    "map": "node tools/map.mjs"
   },
   "devDependencies": {
     "jsdom": "^26.1.0"

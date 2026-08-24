@@ -55,10 +55,36 @@ const qRowIns    = db.prepare(`INSERT OR IGNORE INTO raw_row
    22대만 받으려 해도 창고에 있는 99,995건을 전부 부르게 된다 —
    그중 81,133건은 20대 미만이라 표결이 아예 없는 법안이다.
    법안 하나당 그 법안의 대수로 한 번만 부른다. */
+/* ── 표결을 물어볼 법안 목록 ──
+   전에는 발의법률안(2단계)에서만 BILL_ID 를 꺼냈다. **그게 절반을 놓쳤다.**
+   실측 20~22대: 본회의 표결 7,647건 중 4,227건(55%)이 발의법률안 목록에 없다.
+   제안자가 '정부' 605건, '보건복지위원장' 449건 … 즉 **위원회 대안**이다.
+   여러 법안을 합쳐 실제로 통과하는 것이 대안이고(대안반영폐기 24,844건이 그 증거),
+   지도가 다루려는 큰 법은 대부분 그쪽이다.
+
+   그렇다고 본회의 처리 표만 쓸 수도 없다 — 22대에서 개인별 표결이 있는 620건 중
+   8건이 본회의 처리 표에 아예 없었다. **어느 한쪽도 완전하지 않다. 합집합을 쓴다.**
+   본회의 쪽은 표결집계(VOTE_TCNT)가 있는 것만 넣는다. 나머지는 표결이 없다. */
 const qBillIds   = db.prepare(
-  `SELECT natural_k AS id, CAST(json_extract(row_json,'$.AGE') AS INTEGER) AS age
-     FROM raw_row WHERE service='nzmimeepazxkubdpn'
-     ORDER BY age DESC, natural_k`);
+  `SELECT id, MAX(age) AS age FROM (
+     SELECT natural_k AS id, CAST(json_extract(row_json,'$.AGE') AS INTEGER) AS age
+       FROM raw_row WHERE service='nzmimeepazxkubdpn'
+     UNION
+     SELECT json_extract(row_json,'$.BILL_ID') AS id, CAST(json_extract(row_json,'$.AGE') AS INTEGER) AS age
+       FROM raw_row WHERE service='nwbpacrgavhjryiph'
+        AND json_extract(row_json,'$.VOTE_TCNT') IS NOT NULL
+        AND json_extract(row_json,'$.BILL_ID') IS NOT NULL
+   ) GROUP BY id ORDER BY age DESC, id`);
+/* 어디서 왔는지 세어서 밝힌다 — 말없이 늘리면 시간이 왜 늘었는지 모른다 */
+const qBillSrc = db.prepare(
+  `SELECT
+     (SELECT COUNT(DISTINCT natural_k) FROM raw_row WHERE service='nzmimeepazxkubdpn'
+        AND CAST(json_extract(row_json,'$.AGE') AS INTEGER)=?) AS 발의,
+     (SELECT COUNT(DISTINCT json_extract(row_json,'$.BILL_ID')) FROM raw_row
+        WHERE service='nwbpacrgavhjryiph' AND CAST(json_extract(row_json,'$.AGE') AS INTEGER)=?
+          AND json_extract(row_json,'$.VOTE_TCNT') IS NOT NULL
+          AND json_extract(row_json,'$.BILL_ID') NOT IN
+              (SELECT natural_k FROM raw_row WHERE service='nzmimeepazxkubdpn')) AS 본회의추가`);
 const qVoteDone  = db.prepare(
   `SELECT params FROM raw_fetch WHERE service='nojepdqqaweusdfbi'`);
 
@@ -151,6 +177,10 @@ async function main() {
       /* 말없이 거르지 않는다. 몇 건을 왜 뺐는지 밝힌다. */
       console.log(`\n4) 개인별 표결`);
       console.log(`   창고의 법안 ${all.length.toLocaleString()}건 중 이번에 받을 대수(${ages.join(',')}) ${pairs.length.toLocaleString()}건`);
+      for (const a of ages) {
+        const s2 = qBillSrc.get(a, a);
+        console.log(`     제${a}대 · 발의법률안 ${s2.발의.toLocaleString()} + 본회의에만 있는 것(위원회 대안·정부안) ${s2.본회의추가.toLocaleString()}`);
+      }
       if (outOfAge) console.log(`   다른 대수라 건너뜀 ${outOfAge.toLocaleString()}건`);
 
       const done = new Set(qVoteDone.all().map(r => JSON.parse(r.params).BILL_ID));

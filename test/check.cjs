@@ -1374,13 +1374,12 @@ function boot(w, h) {
     }
   }
 
-  // 29. 노드를 누른 뒤 화면이 언제 멈추는가
-  //     "눌러서 사건을 볼 때도 동그라미들이 지랄같이 움직여서 별로다" — 실제 사용자 말이다.
-  //     매일 보는 우리는 익숙해져서 못 봤다.
-  //     실측: 초점 중 alpha 바닥이 0.014 로 깔려 있어 물리가 영영 안 멈췄고,
-  //     이어진 노드에 1.8~2.6px 궤도 애니메이션까지 돌고 있었다.
-  //     5초가 지나도 0.25초마다 2.5px 씩 움직였다.
-  //     "살아있는 느낌" 보다 "읽을 수 있는 것" 이 우선이다.
+  // 29. 노드를 누른 뒤 — 튀지 않는가, 그리고 언제 멈추는가
+  //     "빨리 멈추는가" 만 재면 순간이동이 통과한다. 실제로 통과했다 —
+  //     한 프레임에 1,600px 뛰어 노드가 사라졌다가 다른 자리에 나타났는데
+  //     "멈춤 0.75초" 로 합격이었다. 빠른 것과 안 끊기는 것은 다른 문제다.
+  //     그래서 **한 프레임에 화면에서 몇 px 움직이는가** 를 같이 잰다.
+  //     사람 눈이 따라갈 수 있는 한 프레임 이동은 대략 화면 짧은 변의 1/6 이다.
   {
     const d29 = boot(412, 915);
     await new Promise(r => setTimeout(r, 1100));
@@ -1391,37 +1390,40 @@ function boot(w, h) {
       if(!c.length)return null;
       var tgt=c.reduce(function(a,b){return (adj[b.id]||[]).length>(adj[a.id]||[]).length?b:a});
       var prev={}; A.forEach(function(n){prev[n.id]=[n.x,n.y]});
-      setFocus(tgt.id); if(typeof gatherFan==='function'){size();gatherFan()}
-      var jump=0; A.forEach(function(n){jump=Math.max(jump,Math.hypot(n.x-prev[n.id][0],n.y-prev[n.id][1]))});
-      A.forEach(function(n){prev[n.id]=[n.x,n.y]});
-      var stop=null, worstAfter=0;
-      for(var f=1;f<=300;f++){
+      var snap=function(){var m=0,who=null;
+        A.forEach(function(n){var d=Math.hypot(n.x-prev[n.id][0],n.y-prev[n.id][1])*cam.s;
+          if(d>m){m=d;who=n.lab} prev[n.id]=[n.x,n.y]});
+        return [m,who]};
+      /* 누르는 순간 — setFocus + gatherFan 이 좌표를 대입하면 여기서 잡힌다 */
+      setFocus(tgt.id);
+      if(typeof gatherFan==='function'){size();gatherFan()}
+      var s0=snap();
+      /* 그 뒤 프레임마다 */
+      var worst=0, worstWho=null, lastMove=0;
+      for(var f=1;f<=240;f++){
         tick();
-        if(f%15===0){
-          var sum=0,mx=0;
-          A.forEach(function(n){var d=Math.hypot(n.x-prev[n.id][0],n.y-prev[n.id][1]);
-            sum+=d; if(d>mx)mx=d; prev[n.id]=[n.x,n.y]});
-          var avg=sum/A.length;
-          /* '멈췄다' 의 기준: 0.25초 동안 평균 1px 미만, 어느 노드도 10px 미만.
-             10px/0.25초 = 40px/초 — 한 점이 그 정도 움직이는 건 눈에 안 띈다.
-             고치기 전에는 평균 8~10px 에 최대 24~130px 이 5초 넘게 이어졌다.
-             선을 여기 두면 그 상태는 확실히 잡고, 잔여 표류는 안 잡는다. */
-          if(stop===null&&avg<1.0&&mx<10)stop=f/60;
-          if(stop!==null&&f/60>stop+0.5&&mx>worstAfter)worstAfter=mx;
-        }
+        cam.s+=(cam.ts-cam.s)*0.11; cam.x+=(cam.tx-cam.x)*0.11; cam.y+=(cam.ty-cam.y)*0.11;
+        var m=snap();
+        if(m[0]>worst){worst=m[0];worstWho=m[1]}
+        if(m[0]>2)lastMove=f;
       }
-      return {jump:Math.round(jump), stop:stop, alpha:+alpha.toFixed(5),
-              after:Math.round(worstAfter)};
+      return {onTap:Math.round(s0[0]), onTapWho:s0[1],
+              worst:Math.round(worst), worstWho:worstWho,
+              endsAt:+(lastMove/60).toFixed(2), alpha:+alpha.toFixed(5),
+              lim:Math.round(Math.min(W,H)/6), W:W, H:Math.round(H)};
     })()`);
     d29.window.close();
     if (!r) F('29. 움직임을 못 쟀다');
     else {
-      console.log(`29. 누른 뒤 움직임  재배치 1회 최대 ${r.jump}px · 멈춤 ${r.stop === null ? '5초 안에 안 멈춤' : r.stop.toFixed(2) + '초'} · 이후 최대 ${r.after}px · 마지막 alpha ${r.alpha}`);
-      if (r.stop === null) F('29. 5초가 지나도 안 멈춘다 — 화면이 계속 흔들린다');
-      else if (r.stop > 2) F(`29. 멈추는 데 ${r.stop.toFixed(2)}초 걸린다. 2초를 넘으면 흔들리는 걸로 보인다`);
-      /* 멈춘 뒤에도 계속 움직이면 영구 애니메이션이 남아 있다는 뜻이다 */
-      if (r.after > 10) F(`29. 멈춘 뒤에도 ${r.after}px 씩 움직인다 — 영구 애니메이션이 남아 있다`);
-      if (r.alpha > 0.01) F(`29. 마지막 alpha 가 ${r.alpha} 다 — 물리가 잠들지 않는다 (바닥이 깔려 있나)`);
+      console.log(`29. 누른 뒤 움직임  누른 순간 ${r.onTap}px · 한 프레임 최대 ${r.worst}px (${r.worstWho}) · 움직임 끝 ${r.endsAt}초 · 한도 ${r.lim}px (지도 ${r.W}×${r.H})`);
+      /* 순간이동 — 화면 짧은 변의 1/6 을 한 프레임에 넘으면 눈이 못 따라간다 */
+      if (r.onTap > r.lim)
+        F(`29. 누르는 순간 노드가 ${r.onTap}px 튄다 (한도 ${r.lim}px). 사라졌다가 다른 자리에 나타난다`);
+      if (r.worst > r.lim)
+        F(`29. 한 프레임에 ${r.worst}px 튄다 — ${r.worstWho} (한도 ${r.lim}px)`);
+      if (!r.endsAt) F('29. 누른 뒤 아무것도 안 움직인다 — 부채꼴이 안 도는 것일 수 있다');
+      else if (r.endsAt > 2) F(`29. 움직임이 ${r.endsAt}초까지 이어진다. 2초를 넘으면 흔들리는 걸로 보인다`);
+      if (r.alpha > 0.01) F(`29. 마지막 alpha 가 ${r.alpha} 다 — 물리가 잠들지 않는다`);
     }
   }
 

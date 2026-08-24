@@ -2630,6 +2630,7 @@ var NARROW_W = 900, NARROW_MIN_S = LABEL_FAR;
    덤으로 남는 거리가 반지름 차이뿐이라 화면상 거리가 곧 연도 차이가 된다. */
 var FAN = 0.24, FAN_FEW = 0.34;   /* 부채꼴 벌림(rad). 이웃이 적으면 넓게 */
 var LAY_EASE = 0.22;              /* 각도를 제자리로 당기는 세기 */
+var LAY_MAX_PX = 34;              /* 한 프레임에 화면에서 움직일 수 있는 최대 거리 */
 var FAN_EASE = 0.36;              /* 각도를 목표로 당기는 세기. 1이면 순간이동.
                                      0.16 이면 자리를 잡는 데 3초가 넘었다 —
                                      0.36 이면 0.4초 안에 끝난다. */
@@ -2655,19 +2656,18 @@ function gatherFan(){
   var sp=nb.length<=3?FAN_FEW:FAN;
   self.tang=a0;
   nb.forEach(function(n,i){n.tang=a0+(i-(nb.length-1)/2)*sp});
-  /* 목표만 주고 물리에 맡기면 자리를 잡는 데 5초가 걸린다.
-     그동안 노드가 계속 흔들려 읽을 수가 없다 —
-     실측: 0.25초에 최대 1527px, 3초에도 평균 4px 씩 움직였다.
-     그래서 **그 자리에 바로 놓는다.** 한 번 재배치되고 끝난다.
-     부드러움은 카메라가 맡는다. 카메라는 0.11 씩 따라가므로 눈이 따라갈 수 있다.
-     반지름은 그대로다 — 연도는 안 흔들린다. */
-  A.forEach(function(n){
-    if(typeof n.tang!=='number')return;
-    var R=ringR(n); if(!(R>0))return;
-    n.x=Math.cos(n.tang)*R; n.y=Math.sin(n.tang)*R*0.86;
-    n.vx=0; n.vy=0});
-  /* 겹친 것만 풀면 되므로 조금만 데운다. 0.8 이면 5초를 흔든다. */
-  alpha=Math.min(alpha,0.05)}
+  /* **좌표를 여기서 대입하지 않는다.**
+     전에는 그 자리에 바로 놓았는데, 한 프레임에 1,600px 뛰어서
+     노드가 사라졌다가 다른 자리에 나타나는 것처럼 보였다.
+     "빠르게 끝나는 것" 을 원했지 "순간이동" 을 원한 게 아니다.
+     이동 중에 안 보이면 어디서 어디로 갔는지 알 수 없다.
+
+     목표(tang)만 정하고, 자리는 tick() 의 배치 항이 LAY_EASE 로 당긴다 —
+     한 틱에 남은 거리의 22% 씩이라 0.3초 안에 도착하고 도중에도 계속 보인다.
+     물리에 맡기는 것이 아니다. 물리는 겹침만 푼다. */
+  A.forEach(function(n){ if(typeof n.tang==='number'){n.vx=0;n.vy=0} });
+  /* 배치 항이 도는 동안(alpha>0.012) 각도가 당겨진다. 그 시간을 확보한다. */
+  alpha=Math.max(alpha,0.06)}
 
 function fitFocus(){
   if(!focus)return;
@@ -3153,7 +3153,14 @@ function tick(){
     /* 가라앉으면 각도는 그대로 둔다 — 충돌이 밀어낸 결과를 살린다 */
     if(alpha>0.012){
       var d=((want-a+Math.PI*3)%(Math.PI*2))-Math.PI;
-      a+=d*LAY_EASE;
+      var step=d*LAY_EASE;
+      /* 한 프레임에 너무 많이 움직이면 눈이 못 따라가 '튀는' 것으로 보인다.
+         남은 거리의 22% 라도 멀리 있으면 한 번에 225px 씩 뛴다 — 실측이다.
+         화면에서 LAY_MAX_PX 를 넘지 않게 각도 변화량을 자른다.
+         가까워질수록 22% 가 알아서 작아지므로 감속은 그대로 남는다. */
+      var maxRad=(LAY_MAX_PX/Math.max(cam.s,0.15))/Math.max(R,1);
+      if(step>maxRad)step=maxRad; else if(step<-maxRad)step=-maxRad;
+      a+=step;
     }
     n.x=Math.cos(a)*R; n.y=Math.sin(a)*R*0.86;
     n.vx*=0.5; n.vy*=0.5});

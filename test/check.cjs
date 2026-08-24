@@ -1471,6 +1471,53 @@ function boot(w, h) {
     }
   }
 
+  // 31. 한 줄 설명(tip)이 제목(lab)과 같은가 · 화면에 두 번 나오는가
+  //     인물 연표 23개가 tip 과 lab 이 글자까지 똑같았다.
+  //     카드에 같은 말이 두 줄로 나오는 건 그냥 버그다.
+  //     데이터는 그대로 두고 렌더에서 거른다 — 원본을 지우면 나중에 왜 비었는지 모른다.
+  //     자동 수집이 들어오면 이런 게 또 생긴다. 그래서 검사로 남긴다.
+  {
+    const d31 = boot(1440, 900);
+    await new Promise(r => setTimeout(r, 1200));
+    const r = d31.window.eval(`(function(){
+      if(typeof N==='undefined')return null;
+      var norm=function(x){return String(x||'').replace(/[\\s·,.()]/g,'')};
+      var live=N.filter(function(n){return !n.ghost&&n.tip});
+      var same=live.filter(function(n){return norm(n.tip)===norm(n.lab)});
+      /* 렌더가 실제로 거르는가 — tipOf 가 있어야 하고 빈 문자열을 돌려줘야 한다 */
+      var filtered = (typeof tipOf==='function')
+        ? same.filter(function(n){return tipOf(n)===''}).length : -1;
+      /* 화면에도 두 번 안 나오는지 — 카드를 열어 본문에서 센다 */
+      var dup=[];
+      same.slice(0,4).forEach(function(n){
+        try{
+          setFocus(n.id);
+          var d=document.getElementById('detail');
+          var txt=(d&&d.textContent)||'';
+          var c=txt.split(n.lab).length-1;
+          if(c>1)dup.push(n.lab+' ('+c+'번)');
+        }catch(e){}
+      });
+      try{setFocus(null)}catch(e){}
+      return {live:live.length, same:same.length, filtered:filtered,
+              has:typeof tipOf==='function', dup:dup,
+              ex:same.slice(0,3).map(function(n){return n.lab})};
+    })()`);
+    d31.window.close();
+    if (!r) F('31. tip 을 못 읽었다');
+    else {
+      console.log(`31. 같은 말 두 줄    tip 있는 노드 ${r.live}개 · 제목과 같은 것 ${r.same}개 · 렌더가 거른 것 ${r.filtered}개${r.dup.length ? ' · 카드에 두 번 나온 것 ' + r.dup.length + '개' : ''}`);
+      if (!r.has) F('31. tipOf() 가 없다 — 제목과 같은 한 줄 설명을 거르는 경로가 사라졌다');
+      else if (r.same && r.filtered !== r.same)
+        F(`31. 제목과 같은 tip ${r.same}개 중 ${r.filtered}개만 걸러진다`);
+      if (r.dup.length)
+        F(`31. 카드에 같은 말이 두 번 나온다 (${r.dup.join(', ')})`);
+      /* 0 은 의심한다 — tip 이 하나도 없으면 검사가 빈손이다 */
+      if (!r.live) F('31. tip 이 있는 노드가 0개다 — 검사가 아무것도 안 보고 있다');
+      if (r.same) W(`31. tip 이 제목과 같은 노드 ${r.same}개 — 화면에선 걸러지지만 데이터로는 중복이다 (예: ${r.ex.join(', ')})`);
+    }
+  }
+
   /* ── 요약 ── */
   console.log('\n' + '─'.repeat(50));
   console.log('노드 진영 분포:', JSON.stringify(bySide));

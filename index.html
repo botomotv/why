@@ -4052,6 +4052,15 @@ function govBar(n){
     (n.check?'<span style="color:#C9A55E">확인 중</span>':n.ruling)+'</p></div>';
   if(n.pres2)h+='<div class="gv"><p class="gv-l">시행 당시</p><p class="gv-v">'+n.pres2+'</p></div>';
   return h+'</div>'}
+/* 한 줄 설명(tip)이 제목(lab)과 같으면 그리지 않는다.
+   카드에 같은 말이 두 줄로 나오는 건 그냥 버그다 — 인물 연표 23개가 그랬다.
+   데이터는 그대로 두고 화면에서만 거른다. 원본을 지우면 나중에 왜 비었는지 모른다.
+   띄어쓰기·가운뎃점·괄호는 무시하고 견준다. 자동 수집이 들어오면 이런 게 또 생긴다. */
+function tipOf(n){
+  if(!n||!n.tip)return '';
+  var norm=function(x){return String(x||'').replace(/[\s·,.()\u00B7]/g,'')};
+  return norm(n.tip)===norm(n.lab) ? '' : n.tip;
+}
 function render(id){
   var d=document.getElementById('detail');
   if(!id){d.innerHTML='';return}
@@ -4062,7 +4071,7 @@ function render(id){
     html='<div class="c-head"><div class="meta"><span class="year">'+n.yr+'</span>'+
       '<span class="badge b-res">결과 수치</span></div><h2 class="title">'+n.lab+'</h2></div>'+
       '<div class="big"><p class="big-n">'+n.big+'</p><p class="big-c">'+n.cap+'</p></div>'+
-      (n.tip?'<div class="oneline">'+n.tip+'</div>':'')+
+      (tipOf(n)?'<div class="oneline">'+tipOf(n)+'</div>':'')+
       '<div class="sec"><p class="sec-lab">설명</p><p class="body">'+n.body+'</p></div>';
     if(causes.length){
       html+='<div class="sec sec-rel"><p class="sec-lab">이 숫자 앞에 있었던 일</p><ul class="chain">'+
@@ -4082,7 +4091,7 @@ function render(id){
       '<span class="badge b-pass">'+n.st+'</span>'+(n.check?'<span class="badge b-chk">확인 중</span>':'')+'</div>'+
       '<h2 class="title">'+n.title+'</h2><p class="official">'+n.off+'</p></div>'+govBar(n)+
       (n.warn?'<p class="caution">'+n.warn+'</p>':'')+
-      (n.tip?'<div class="oneline">'+n.tip+'</div>':'')+
+      (tipOf(n)?'<div class="oneline">'+tipOf(n)+'</div>':'')+
       (n.eff&&n.eff.length?'<div class="sec"><p class="sec-lab">이 법으로 뭐가 달라졌나</p><ul class="efflist">'+
         n.eff.map(function(e){return '<li class="ef-'+e[0]+'"><span class="efar">'+(e[0]==='up'?'▲':'▼')+'</span>'+
           '<div><p class="efw">'+e[1]+'</p><p class="efv">'+e[2]+'</p></div></li>'}).join('')+'</ul></div>':'')+
@@ -4105,7 +4114,7 @@ function render(id){
       '<span class="year">'+(n.ekind||'')+'</span></div>'+
       '<h2 class="title">'+n.lab+'</h2>'+
       (ow?'<p class="official">'+ow.lab+'</p>':'')+'</div>'+
-      (n.tip?'<div class="oneline">'+n.tip+'</div>':'')+
+      (tipOf(n)?'<div class="oneline">'+tipOf(n)+'</div>':'')+
       '<div class="sec"><p class="sec-lab">어떤 자리였나</p><p class="body">'+n.body+'</p></div>'+
       (did.length?'<div class="sec sec-rel"><p class="sec-lab">이 자리에서 한 일 '+did.length+'건</p><ul class="chain">'+
         did.map(function(e){return '<li data-k="'+e.side+'"><p class="ch-y">'+(e.yr||'')+' · '+(e.ekind||'')+'</p>'+
@@ -4120,7 +4129,7 @@ function render(id){
       (n.check?'<span class="badge b-chk">확인 중</span>':'')+'</div>'+
       '<h2 class="title">'+n.lab+'</h2>'+
       (own?'<p class="official">'+own.lab+' · '+(own.sub||'')+'</p>':'')+'</div>'+
-      (n.tip?'<div class="oneline">'+n.tip+'</div>':'')+
+      (tipOf(n)?'<div class="oneline">'+tipOf(n)+'</div>':'')+
       '<div class="sec"><p class="sec-lab">무슨 일이었나</p><p class="body">'+n.body+'</p>'+
         (n.easy?'<div class="easy">'+n.easy.map(function(q){
           return '<p class="eq">'+q[0]+'</p><p class="ea">'+q[1]+'</p>'}).join('')+'</div>':'')+'</div>'+

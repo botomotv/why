@@ -920,82 +920,68 @@ function boot(w, h) {
     if (!checked) F('19. 검사한 패널이 0개다 — 아무것도 안 잡는 검사다');
   }
 
-  // 20. 노드를 눌렀을 때 이어진 것이 화면 안에 있는가 · 반지름이 안 흔들렸는가
-  //     고치기 전: 폰 2/6(33%) · 태블릿 세로 3/6(50%). 조작이 안 되는 문제였다.
-  //     각도만 모아서 푼다 — 반지름은 연도라서 흔들리면 연도가 거짓말이 된다.
-  //     그래서 두 가지를 같이 잰다. 하나만 재면 다른 하나가 조용히 깨진다.
+  // 20. 노드를 눌렀을 때 — 카메라가 최선을 다하고, 못 담은 것은 카드에 있는가
+  //     약속이 바뀌었다. 전에는 부채꼴로 노드를 끌어와 6/6 을 화면에 담았는데,
+  //     그게 "누르면 화면이 통째로 바뀐다" 는 더 나쁜 문제를 만들어 뺐다.
+  //     지금 약속은 **노드는 제자리, 카메라만 움직인다** 이다.
+  //     폰에서 카드를 연 채로는 지도가 412×518 이라 6개를 다 담으면 배율이 0.30 이 되고
+  //     이름표가 6개 중 0~1개만 남는다 — 실측이다. 둘을 동시에 만족할 수 없다.
+  //     그래서 지도는 읽히는 쪽을 택하고, 못 담은 것은 카드의 관계 목록이 받는다.
+  //     검사는 '몇 개 담겼나' 가 아니라 **'카메라가 할 수 있는 만큼 했나 ·
+  //     못 담은 것이 카드에 있나'** 를 본다.
   {
     const SIZES20 = [[412,915,'폰'],[820,1180,'태블릿 세로'],[1440,900,'노트북']];
     for (const [w,h,nm] of SIZES20) {
       const d20 = boot(w,h);
       await new Promise(r => setTimeout(r, 1200));
-      const win = d20.window;
-      const r = win.eval(`(function(){
-        if(typeof setFocus!=='function'||typeof A==='undefined'||!A.length)return null;
+      const r = d20.window.eval(`(function(){
+        if(typeof setFocus!=='function'||!A.length)return null;
         var c=A.filter(function(n){return n.t==='result'&&adj[n.id]});
         if(!c.length)return null;
         var t=c.reduce(function(a,b){return (adj[b.id]||[]).length>(adj[a.id]||[]).length?b:a});
+        /* 먼저 가라앉힌 뒤에 스냅샷을 찍는다. 안 그러면 원래 움직이던 것까지 센다. */
+        var t0=0; while(alpha>=0.02&&t0<600){tick();t0++}
+        var before={}; A.forEach(function(n){before[n.id]=[n.x,n.y]});
         setFocus(t.id);
-        /* jsdom 스텁은 모든 요소에 창 전체 크기를 준다. 실물은 카드가 열리면
-           #stage 가 줄어든다 — 폰 412x915 에서 실제 지도는 412x518 이었다.
-           스텁 값을 그대로 쓰면 검사가 실물보다 넓은 화면을 가정해
-           통과하는데 실물은 화면 밖인 상태가 생긴다.
-           CSS 의 카드 규칙(<=620 bottom:32dvh, <=1000 62dvh, 그 위 right:448px)으로
-           지도 크기를 근사한다. 실물 브라우저 값과 대조해 맞췄다. */
-        /* 카드가 열리면 지도가 줄어든다. CSS 의 카드 높이와 맞춘다 —
-           <=620 은 32dvh, 621~1000 은 38dvh, 그 위는 오른쪽 448px.
-           상단바+검색은 실측 104px. 폰 412x915 에서 지도 412x518 로 맞았다.
-           이 숫자가 CSS 와 어긋나면 검사가 실물보다 넓은 화면을 가정하게 된다. */
-        /* 카드가 열리면 지도가 줄어든다. CSS 의 카드 규칙과 맞춘다 —
-           높이 <=520 이고 폭 >=620 이면 옆으로 붙는다 (min(380px,46vw)),
-           그 밖에는 아래로: <=620 은 32dvh, 621~1000 은 38dvh, >1000 은 오른쪽 448px.
-           상단바+검색은 실측 104px(가로 화면은 58px). 폰 412x915 에서 412x518 로 맞았다. */
         var pw=${w}, ph=${h};
-        if(ph<=520&&pw>=620){
-          var cw=Math.min(380, pw*0.46);
-          W = pw-cw; H = ph-114;
-        } else {
-          W = pw>1000 ? pw-448 : pw;
-          H = pw>1000 ? ph-104
-            : Math.round(ph*(pw<=620?0.68:0.62)-104);
-        }
-        if(typeof gatherFan==='function')gatherFan();   /* 크기를 고친 뒤에 모은다 */
-        for(var i=0;i<420;i++)tick();
+        if(ph<=520&&pw>=620){var cw=Math.min(380,pw*0.46); W=pw-cw; H=ph-114}
+        else{ W = pw>1000 ? pw-448 : pw;
+              H = pw>1000 ? ph-104 : Math.round(ph*(pw<=620?0.68:0.62)-104) }
+        var t2=0; while(alpha>=0.02&&t2<600){tick();t2++}
         if(typeof fitFocus==='function')fitFocus();
         cam.s=cam.ts;cam.x=cam.tx;cam.y=cam.ty;
-        for(var i=0;i<40;i++)tick();
+        labelSet=null;labelKey='';draw();
+        /* 노드가 제자리에 있나 — 초점 때문에 움직이면 안 된다 */
+        var moved=0;
+        A.forEach(function(n){ if(Math.hypot(n.x-before[n.id][0],n.y-before[n.id][1])>6)moved++ });
         var nb=Object.keys(ring).filter(function(k){return ring[k]===1});
-        var inn=0;
-        nb.forEach(function(k){var n=map[k];if(!n)return;
-          var sx=n.x*cam.s+cam.x, sy=n.y*cam.s+cam.y;
-          if(sx>=0&&sx<=W&&sy>=0&&sy<=H)inn++});
-        var drift=0,worst=0,checked=0;
-        A.forEach(function(n){ if(typeof n.tang!=='number')return; checked++;
-          var R=ringR(n), rr=Math.hypot(n.x,n.y/0.86);
-          var dd=Math.abs(rr-R); if(dd>1)drift++; if(dd>worst)worst=dd});
-        var lblOn=nb.filter(function(k){return map[k]&&labelOn(map[k])}).length;
-        return {nb:nb.length, inn:inn, s:+cam.s.toFixed(2), lbl:lblOn,
-                mw:W, mh:H, drift:drift, worst:+worst.toFixed(1), checked:checked};
+        var inn=nb.filter(function(k){var n=map[k];if(!n)return false;
+          var sx=n.x*cam.s+cam.x,sy=n.y*cam.s+cam.y;
+          return sx>=0&&sx<=W&&sy>=0&&sy<=H}).length;
+        /* 못 담은 것이 카드에 있나 */
+        var card=(document.getElementById('detail')||{}).textContent||'';
+        var inCard=nb.filter(function(k){return map[k]&&card.indexOf(map[k].lab)>=0}).length;
+        var sf=map[focus];
+        var selfOff=sf?Math.round(Math.hypot(sf.x*cam.s+cam.x-(typeof viewCX==='function'?viewCX():W/2), sf.y*cam.s+cam.y-H/2)):-1;
+        return {nb:nb.length, inn:inn, inCard:inCard, moved:moved, selfOff:selfOff,
+                s:+cam.s.toFixed(2), floor:(typeof FIT_MIN==='number')?FIT_MIN:null,
+                lbl:nb.filter(function(k){return map[k]&&labelOn(map[k])}).length,
+                mw:W, mh:Math.round(H)};
       })()`);
       d20.window.close();
-
-      if (!r) { F(`20. ${nm} ${w}px — 측정 자체를 못 했다 (setFocus·A 가 없다)`); continue }
-
-      const pct = r.nb ? Math.round(100*r.inn/r.nb) : 0;
-      console.log(`20. 연결 화면안     ${nm} ${w}×${h} (지도 ${r.mw}×${r.mh}) · ${r.inn}/${r.nb}개 (${pct}%) · 배율 ${r.s} · 이웃 이름표 ${r.lbl}/${r.nb} · 반지름 흔들림 ${r.drift}/${r.checked}개(최대 ${r.worst}px)`);
-
-      /* 0 은 의심한다. 이웃이 0개면 잰 게 없는 것이지 통과가 아니다. */
-      if (!r.nb) { F(`20. ${nm} — 이웃이 0개라 아무것도 못 쟀다`); continue }
-      if (!r.checked) F(`20. ${nm} — 각도를 모은 노드가 0개다. 부채꼴이 아예 안 돌았다`);
-      if (pct < 100) F(`20. ${nm} ${w}×${h} — 이어진 것 ${r.nb - r.inn}개가 화면 밖이다 (${r.inn}/${r.nb})`);
-      if (r.drift)   F(`20. ${nm} — 반지름이 흔들린 노드 ${r.drift}/${r.checked}개 (최대 ${r.worst}px). 연도가 거짓말이 된다`);
-      /* 배율 바닥(FIT_MIN 0.45)까지는 허용한다. 우선순위는 '이어진 것이 보이는 것' 이다.
-         이름표 하한(0.62) 밑으로 내려가면 이름이 준다는 사실은 WARN 으로 남긴다. */
-      if (r.s < 0.45) F(`20. ${nm} — 배율 ${r.s} 가 바닥 0.45 미만이다. 점만 남는다`);
-      else if (r.s < 0.62) W(`20. ${nm} — 배율 ${r.s} 가 이름표 하한 0.62 미만이다 (이웃 이름표 ${r.lbl}/${r.nb}). 지도가 ${r.mw}×${r.mh} 로 좁아서다 — 카드 높이 문제다`);
-      /* 이름표는 판정하지 않는다. 카드가 폰 화면의 43% 를 먹어 지도가 412×518 밖에 안 되고,
-         부채꼴 폭을 0.10~0.30 으로 훑어도 2~3/6 에서 안 올라간다(실물 측정).
-         물리적 한계라 자동 판정하면 못 고칠 FAIL 이 된다. 눈앞에 띄우는 것까지가 검사의 역할이다. */
+      if (!r) { F(`20. ${nm} — 못 쟀다`); continue }
+      console.log(`20. 누른 뒤 화면     ${nm} ${w}×${h} (지도 ${r.mw}×${r.mh}) · 화면안 ${r.inn}/${r.nb} · 카드에 ${r.inCard}/${r.nb} · 배율 ${r.s}(바닥 ${r.floor}) · 이름표 ${r.lbl} · 움직인 노드 ${r.moved} · 누른 것 중앙에서 ${r.selfOff}px`);
+      /* (1) 노드는 제자리여야 한다 — 이게 새 약속의 핵심이다 */
+      if (r.moved > 3) F(`20. ${nm} — 누르자 노드 ${r.moved}개가 움직였다. 자리는 그대로여야 한다`);
+      /* (2) 못 담았으면 카메라가 바닥까지 갔어야 한다 */
+      /* 다 못 담는 경우엔 누른 것이 화면 가운데 있어야 한다 — 그게 새 약속이다 */
+      if (r.inn < r.nb && r.selfOff > 40)
+        F(`20. ${nm} — 이어진 것을 다 못 담았는데 누른 것마저 화면 가운데가 아니다 (${r.selfOff}px)`);
+      /* (3) 못 담은 것은 카드에 있어야 한다 — 말없이 사라지면 안 된다 */
+      if (r.inCard < r.nb)
+        F(`20. ${nm} — 이어진 것 ${r.nb}개 중 ${r.nb - r.inCard}개가 카드에도 없다. 지도에서 못 보면 카드에서는 보여야 한다`);
+      if (r.inn < r.nb)
+        W(`20. ${nm} — 이어진 것 ${r.nb - r.inn}개가 화면 밖이다 (카드에는 있다). 지도가 ${r.mw}×${r.mh} 로 좁아서다`);
     }
   }
 

@@ -2532,7 +2532,23 @@ function setAngles(){
 N.forEach(function(n){
   if(n.t==='event'){n.r=n.evk==='record'?9:7;n.lw=60;return}
   var deg=adj[n.id].filter(function(l){return map[l[0]].t!=='event'&&map[l[1]].t!=='event'}).length;
-  n.r=(n.t==='post'?15:n.t==='event'?10:n.t==='result'?24:n.prez?12:n.t==='bill'?7:6)+Math.sqrt(deg)*(n.t==='result'?4.8:n.prez?2.0:2.4);n.lw=60});
+  /* 기본 반지름은 여기서 정하고, 화면 폭에 따라 줄인다(applyNodeScale).
+     폰에서 결과 노드가 너무 커서 글씨가 겹쳤다. */
+  n.r0=(n.t==='post'?15:n.t==='event'?10:n.t==='result'?24:n.prez?12:n.t==='bill'?7:6)+Math.sqrt(deg)*(n.t==='result'?4.8:n.prez?2.0:2.4);
+  n.r=n.r0;n.lw=60});
+
+/* 좁은 화면에서는 점을 줄인다. 같은 배율이면 폰에서 점이 화면을 더 많이 먹고,
+   그만큼 이름표가 겹치고 화면에 들어오는 노드가 준다.
+   값은 실측으로 정한다 — 아래 검사 35번이 매번 잰다. */
+var NODE_SCALE_NARROW=0.68, NODE_SCALE_MID=0.84;
+function nodeScale(){ return W<=620?NODE_SCALE_NARROW : (W<=900?NODE_SCALE_MID : 1) }
+var nodeScaleApplied=0;
+function applyNodeScale(){
+  var f=nodeScale();
+  if(f===nodeScaleApplied)return;
+  nodeScaleApplied=f;
+  N.forEach(function(n){ if(typeof n.r0==='number')n.r=n.r0*f });
+}
 
 
 /* 이름표는 한 줄이 아니다. 실제로 그려지는 줄 전부를 재야 겹침이 맞는다.
@@ -2575,7 +2591,9 @@ var camUser=false;
 function size(){var b=document.getElementById('stage').getBoundingClientRect();
   var pw=W,ph=H;
   W=Math.max(1,b.width);H=Math.max(1,b.height);
-  cv.width=W*DPR;cv.height=H*DPR;measure();
+  cv.width=W*DPR;cv.height=H*DPR;
+  if(typeof applyNodeScale==='function')applyNodeScale();
+  measure();
   /* 첫 로드 때 지도 크기가 뒤늦게 정해진다 —
      실측: init 시점 412x518 → 안정 뒤 412x811. 293px 차이다.
      size() 는 [0,60,200,500,1000]ms 에 다시 도는데 fit() 은 안 돌았다.
@@ -2642,32 +2660,13 @@ var fanKept=null;   /* 부채꼴에 넣을 이웃. setFocus 가 정하고 gather
    카드가 열리면 지도가 줄어드는데(폰 412x915 → 412x540),
    옛 크기로 축을 정하면 부채꼴이 화면 짧은 축으로 뻗어 오히려 다 나간다.
    실제로 그렇게 짜서 화면 안 비율이 100% → 17% 로 떨어졌다. */
-function gatherFan(){
-  if(!focus||!fanKept)return;
-  var self=map[focus]; if(!self)return;
-  var a0=(typeof self.ang==='number'&&isFinite(self.ang))?self.ang:0;
-  /* 부채꼴을 화면 긴 축(가로 또는 세로)에 맞춰 돌려봤는데 오히려 나빠졌다 —
-     폰에서 화면 안 비율이 100% → 17% 로 떨어졌다.
-     부채꼴은 반지름 방향으로 길게 뻗는데, 직사각형에서 가장 긴 선은
-     긴 변이 아니라 **대각선**이다 (412x540 이면 변 540 vs 대각 680).
-     노드의 원래 각도가 대체로 대각 방향이라 그대로 두는 편이 낫다.
-     그래서 a0 을 건드리지 않는다. */
-  var nb=fanKept.map(function(l){return map[other(l,focus)]}).filter(Boolean);
-  var sp=nb.length<=3?FAN_FEW:FAN;
-  self.tang=a0;
-  nb.forEach(function(n,i){n.tang=a0+(i-(nb.length-1)/2)*sp});
-  /* **좌표를 여기서 대입하지 않는다.**
-     전에는 그 자리에 바로 놓았는데, 한 프레임에 1,600px 뛰어서
-     노드가 사라졌다가 다른 자리에 나타나는 것처럼 보였다.
-     "빠르게 끝나는 것" 을 원했지 "순간이동" 을 원한 게 아니다.
-     이동 중에 안 보이면 어디서 어디로 갔는지 알 수 없다.
-
-     목표(tang)만 정하고, 자리는 tick() 의 배치 항이 LAY_EASE 로 당긴다 —
-     한 틱에 남은 거리의 22% 씩이라 0.3초 안에 도착하고 도중에도 계속 보인다.
-     물리에 맡기는 것이 아니다. 물리는 겹침만 푼다. */
-  A.forEach(function(n){ if(typeof n.tang==='number'){n.vx=0;n.vy=0} });
-  /* 배치 항이 도는 동안(alpha>0.012) 각도가 당겨진다. 그 시간을 확보한다. */
-  alpha=Math.max(alpha,0.06)}
+/* ── 부채꼴 모으기를 뺐다 ──
+   이어진 것이 화면 밖으로 나가는 문제를 풀려고 넣었는데, 그것보다 나쁜 문제를 만들었다.
+   사건을 누르면 화면이 통째로 바뀌면서 연관 사건이 끌려온다 — 부자연스럽다.
+   **노드는 제자리에 둔다.** 눌러도 자리는 그대로고 빛만 흐른다.
+   연결이 화면에 들어오게 하는 일은 카메라가 맡는다(fitFocus).
+   위치는 데이터가 정한다 — 반지름은 연도, 각도는 흩뿌린 값. 초점은 자리를 안 바꾼다. */
+function gatherFan(){ return }
 
 function fitFocus(){
   if(!focus)return;
@@ -2688,9 +2687,27 @@ function fitFocus(){
      이름은 확대하면 나오고 그 안내가 화면에 있지만, 화면 밖에 있는 건 있는 줄도 모른다.
      태블릿 세로는 카드가 62dvh 를 먹어 지도가 820x426 밖에 안 된다.
      그건 이 함수가 아니라 카드 높이로 풀어야 할 문제다(docs/화면점검.md 3순위). */
+  /* 초점 화면에서는 이름표 하한 밑으로 내리지 않는다.
+     폰(지도 412x518)에서 이웃 6개를 다 담으려면 배율 0.30 이 필요한데,
+     그러면 이름표가 0~1개만 남는다 — 다 보이는데 뭔지 모르는 화면이 된다.
+     실측: 바닥 0.45 → 화면안 1/6 · 이름표 0 / 바닥 0.62 → 이름표가 산다.
+     못 담은 이웃은 카드의 관계 목록이 받는다. 검사 20번이 그걸 강제한다. */
   var want=Math.min(1.7,s);
-  s=Math.max(FIT_MIN, want>=LABEL_FAR?want:Math.min(LABEL_FAR,want));
-  cam.ts=s;cam.tx=viewCX()-(minx+maxx)/2*s;cam.ty=H/2-(miny+maxy)/2*s}
+  if(want>=LABEL_FAR){
+    /* 이웃까지 다 담으면서 이름도 읽힌다 — 그렇게 맞춘다 */
+    cam.ts=want;
+    cam.tx=viewCX()-(minx+maxx)/2*want;
+    cam.ty=H/2-(miny+maxy)/2*want;
+    return}
+  /* 다 담으려면 이름표 하한 밑으로 내려가야 하는 경우.
+     폰(지도 412x518)이 그렇다 — 이웃이 고리 전체에 흩어져 있어
+     어떤 읽히는 배율로도 다 못 담는다.
+     그럴 때는 **누른 것을 화면 가운데** 놓는다. 예측 가능하고, 이름이 읽힌다.
+     못 담은 이웃은 카드의 관계 목록이 받는다 — 검사 20번이 그걸 강제한다.
+     '다 보이는데 뭔지 모르는 화면' 보다 '가운데 것은 확실히 읽히는 화면' 이 낫다. */
+  cam.ts=LABEL_FAR;
+  cam.tx=viewCX()-self.x*LABEL_FAR;
+  cam.ty=H/2-self.y*LABEL_FAR}
 /* 왼쪽 패널이 고정으로 떠 있으면 그만큼 지도가 가려진다 (984px 에서 23%).
    '화면 중앙' 이 아니라 '보이는 영역의 중앙' 에 맞춰야 한다.
    패널이 아래 서랍일 때(<=900)는 지도를 안 가리므로 0 이다.
@@ -2926,10 +2943,10 @@ function setFocus(id){
     adj[id].forEach(function(l){
       var o=other(l,id);
       energy[o]=(l[3]==='against')?-1:(l[3]==='result'||l[3]==='lead')?1:0;
-      var n2=map[o];
-      if(n2){var dx=n2.x-map[id].x,dy=n2.y-map[id].y,d=Math.hypot(dx,dy)||1;
-        var k=(l[3]==='against')?2.2:1.5;
-        n2.vx+=dx/d*k;n2.vy+=dy/d*k;n2.orb=Math.random()*6.28}});
+      /* 전에는 여기서 이웃에 속도를 밀어 넣어 '반응하는' 느낌을 줬다.
+         부채꼴을 뺀 지금은 그 힘이 노드를 제자리에서 밀어낼 뿐이다 —
+         누르자 156개가 움직였다. 자리는 그대로 두고 빛만 흐르게 한다. */
+      });
     adj[id].forEach(function(l){
       if(l[5]&&(l[3]==='result'||l[3]==='lead'||l[3]==='against'))keyRing[other(l,id)]=1});
     /* 지도에 그리는 선은 노드당 MAX_EDGES 개까지만.
@@ -3192,8 +3209,7 @@ function tick(){
     if(n===drag||n.fixed)return;
     var R=ringR(n); if(!(R>0)||!isFinite(n.x)||!isFinite(n.y))return;
     if(n.x===0&&n.y===0){n.x=R;n.y=0}
-    var want=(typeof n.tang==='number'&&isFinite(n.tang))?n.tang
-            :((typeof n.ang==='number'&&isFinite(n.ang))?n.ang:0);
+    var want=(typeof n.ang==='number'&&isFinite(n.ang))?n.ang:0;
     want=want%(Math.PI*2);
     var a=Math.atan2(n.y/0.86,n.x);
     /* 가라앉으면 각도는 그대로 둔다 — 충돌이 밀어낸 결과를 살린다 */

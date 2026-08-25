@@ -462,7 +462,80 @@ db.close();
   }
 }
 
-console.log('\n창고 검사 A~G');
+
+/* ── H · 세 관문을 통과하는 것이 0건인 결과 노드 ──
+   결과가 있는데 아무것도 안 붙는 상태다. 그 노드는 눌러도 볼 게 없다.
+   **r2 가 실제로 그랬다** — 분야가 잘못 달려 0건이었고, 화면에는 아무 표시도 없었다.
+
+   r3(방첩사)·q5(GOP 경계병력)는 **일부러 비운 것이다.** 그 일이 법률이 아니라
+   대통령령·기본계획으로 이뤄져 법안명에 흔적이 없다. 화면에 그렇게 밝힌다(검사 F).
+   그래서 예외로 두되 **이름을 박아 둔다** — 예외가 늘어나면 그때 다시 본다. */
+{
+  const WH = process.env.WAREHOUSE_DB || path.join(ROOT, 'db', 'warehouse.db');
+  const EXPECTED_EMPTY = { r3: '방첩사 개편은 대통령령(직제)이라 법안명에 흔적이 없다',
+                           q5: 'GOP 경계병력 감축은 국방개혁 기본계획이라 법령이 아니다' };
+  if (!fs.existsSync(WH)) {
+    NOTE('H · 창고가 없어 관문 통과 수를 못 셌다');
+  } else {
+    const w = new DatabaseSync(WH, { readOnly: true });
+    const has = n => w.prepare(`SELECT COUNT(*) n FROM sqlite_master WHERE type='table' AND name=?`).get(n).n > 0;
+    if (!has('cat_committee')) { NOTE('H · cat_committee 가 아직 없다 — 1관문을 못 잰다'); w.close(); }
+    else {
+      const cc = {};
+      for (const r of w.prepare('SELECT cat, committee FROM cat_committee').all())
+        (cc[r.cat] = cc[r.cat] || new Set()).add(r.committee);
+      const bills = w.prepare(
+        `SELECT json_extract(row_json,'$.BILL_NM') nm, json_extract(row_json,'$.ANNOUNCE_DT') dt,
+                json_extract(row_json,'$.COMMITTEE_NM') cm
+           FROM raw_row WHERE service='nwbpacrgavhjryiph'
+            AND json_extract(row_json,'$.ANNOUNCE_DT') IS NOT NULL
+            AND json_extract(row_json,'$.ANNOUNCE_DT')<>''`).all()
+        .map(r => ({ nm: String(r.nm || '').replace(/\([^)]*\)/g, '').trim(),
+                     y: +String(r.dt).slice(0, 4), cm: r.cm || '' }));
+      w.close();
+
+      if (!bills.length) NOTE('H · 공포된 법안이 창고에 없다 — 관문을 못 잰다');
+      else {
+        const html = fs.readFileSync(path.join(ROOT, 'index.html'), 'utf8');
+        /* 분야는 CATMAP 에서, 핵심어·연도는 노드에서 읽는다. 여기서 베껴 쓰지 않는다. */
+        const cm = html.match(/var CATMAP\s*=\s*\{([\s\S]*?)\n\};/);
+        const catOf = {};
+        if (cm) for (const g of cm[1].matchAll(/['"]?([\w]+)['"]?\s*:\s*\[([^\]]*)\]/g))
+          for (const id of g[2].split(',').map(x => x.replace(/['\s]/g, '')).filter(Boolean))
+            (catOf[id] = catOf[id] || []).push(g[1]);
+
+        const nodes = [...html.matchAll(/\{id:'([^']+)',t:'result'[\s\S]{0,400}?yr:'(\d{4})',keys:\[([^\]]*)\]/g)]
+          .map(m => ({ id: m[1], yr: +m[2],
+                       keys: m[3].split(',').map(x => x.replace(/'/g, '').trim()).filter(Boolean) }));
+
+        const zero = [], counts = [];
+        for (const nd of nodes) {
+          const cs = new Set();
+          for (const c of (catOf[nd.id] || [])) for (const x of (cc[c] || [])) cs.add(x);
+          const n = nd.keys.length ? bills.filter(b =>
+            cs.has(b.cm) && Math.abs(b.y - nd.yr) <= 3 && nd.keys.some(k => b.nm.includes(k))).length : 0;
+          counts.push(n);
+          if (!n) zero.push(nd.id);
+        }
+        const sum = counts.reduce((a, b) => a + b, 0);
+        const unexpected = zero.filter(id => !(id in EXPECTED_EMPTY));
+        const expected = zero.filter(id => id in EXPECTED_EMPTY);
+        NOTE(`H · 세 관문 통과 ${sum}건 / 결과 노드 ${nodes.length}개 · 0건 ${zero.length}개` +
+             (expected.length ? ` (예상된 것 ${expected.join(',')})` : ''));
+        if (unexpected.length)
+          WARN(`H · 관문 통과가 0건인 결과 노드 ${unexpected.length}개: ${unexpected.join(', ')} — ` +
+               '결과가 있는데 아무것도 안 붙는다. 분야가 잘못 달렸거나 핵심어가 주제를 못 가리킨다');
+        /* 예외로 적어 뒀는데 실제로는 0 이 아니게 됐다면 예외를 지워야 한다 */
+        const revived = Object.keys(EXPECTED_EMPTY).filter(id => !zero.includes(id));
+        if (revived.length)
+          WARN(`H · ${revived.join(', ')} 가 이제 0건이 아니다 — 예외 목록에서 빼라`);
+        if (!nodes.length) FAIL('H · 결과 노드를 하나도 못 읽었다 — 검사가 아무것도 안 보고 있다');
+      }
+    }
+  }
+}
+
+console.log('\n창고 검사 A~H');
 notes.forEach(n => console.log('  · ' + n));
 if (warns.length) { console.log('\nWARN'); warns.forEach(w => console.log('  ! ' + w)) }
 if (fails.length) { console.log('\nFAIL'); fails.forEach(f => console.log('  x ' + f)) }

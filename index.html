@@ -397,6 +397,36 @@ body.popfull .pexp .pex-i{transform:rotate(180deg)}
 .pending{padding:15px;background:#1C1A13;border:1px solid #35301F}
 .pending strong{display:block;font-size:15px;margin-bottom:5px;color:#C9A55E;font-weight:500}
 .pending span{font-size:15.5px;color:var(--t2);line-height:1.7}
+/* ── 모두 보기 ──
+   실측(1105x1116): 설명까지 편 항목은 123px 라 한 화면에 2~3개, 50개 보려면 10.7 화면.
+   연도+제목만 남기면 59px 라 전체화면에서 16개/화면, 50개가 3.1 화면이다.
+   그래서 목록은 간략이 기본이고 지도는 '모양' 만 맡는다. */
+.chain-tight li{padding-bottom:9px}
+.chain-tight .ch-x,.chain-tight .ch-why,.chain-tight .gap{display:none}
+.chain-tight li.open .ch-x,.chain-tight li.open .ch-why{display:block}
+.ch-why{font-size:12.5px;color:var(--gold);margin-top:3px;line-height:1.6}
+/* '모두 보기' — "+N" 으로 끝내지 않는다. 잘렸다고만 하면 거기서 길이 막힌다. */
+.allbtn{display:block;width:100%;margin-top:14px;padding:12px 14px;border-radius:11px;
+  border:1px solid var(--gold);background:rgba(36,31,18,.6);color:var(--gold);
+  font-family:inherit;font-size:15px;font-weight:500;cursor:pointer;text-align:left;transition:.16s}
+.allbtn:hover{background:#2A2413}
+.allbtn:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
+.allsub{display:block;margin-top:3px;font-size:12.5px;font-weight:400;color:var(--t3)}
+.alllist{position:fixed;inset:0;z-index:60;display:flex;flex-direction:column;background:var(--bg2)}
+.alllist[hidden]{display:none}
+.al-head{display:flex;align-items:flex-start;gap:12px;padding:14px 18px 10px;
+  border-bottom:1px solid var(--line);background:var(--bg2)}
+.al-h1{flex:1 1 auto;min-width:0}
+.al-kicker{font-size:12.5px;letter-spacing:.1em;color:var(--t3);margin-bottom:3px}
+.al-head h2{font-size:20px;font-weight:600;color:var(--t1);line-height:1.35}
+.al-close{flex:0 0 auto;height:34px;padding:0 12px;border-radius:8px;border:1px solid var(--line2);
+  background:rgba(14,15,18,.85);color:var(--t2);font-family:inherit;font-size:14px;cursor:pointer}
+.al-close:hover{color:var(--t1);border-color:#464C57}
+.al-close:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
+.al-note{padding:9px 18px;font-size:13px;color:var(--t3);border-bottom:1px solid var(--line)}
+.al-body{flex:1 1 auto;overflow-y:auto;padding:16px 18px 40px;-webkit-overflow-scrolling:touch}
+.al-body .chain{max-width:820px;margin:0 auto}
+.al-caution{max-width:820px;margin:18px auto 0;font-size:13px;color:var(--t3);line-height:1.7}
 /* 표결 안내 — 겁주는 색을 쓰지 않는다. 경고가 아니라 사실 안내다. */
 .vnote{margin:0 22px 14px;padding:10px 12px;border-radius:10px;
   background:rgba(24,27,33,.7);border:1px solid var(--line);
@@ -1118,6 +1148,19 @@ body.hasundo .rolebar{top:232px;width:calc(100vw - 24px);max-height:96px;overflo
   </div>
 </div>
 
+<!-- 모두 보기 — 결과 하나에 이어진 것을 시간순으로 전부.
+     지도는 이름표를 9개(폰 2개)까지만 그린다(실측). 읽는 자리를 따로 둔다. -->
+<section class="alllist" id="allList" hidden aria-labelledby="allTitle">
+  <header class="al-head">
+    <div class="al-h1"><p class="al-kicker" id="allKicker">이 숫자 앞에 있었던 일</p>
+      <h2 id="allTitle">—</h2></div>
+    <button class="al-close" id="allClose"><span aria-hidden="true">✕</span> 닫기</button>
+  </header>
+  <p class="al-note" id="allNote"></p>
+  <div class="al-body"><ul class="chain chain-tight" id="allChain"></ul>
+    <p class="al-caution">시간 순서일 뿐 인과관계가 증명된 것은 아닙니다.
+      같은 기간 경제 여건·인구 이동·국제 정세 등 다른 요인이 함께 작용했습니다.</p></div>
+</section>
 <div class="pop" id="pop"><div class="pophead"><button class="popgrab" id="popGrab" aria-label="끌어서 카드 높이 조절" aria-expanded="false"></button><div class="ptools"><button class="pexp" id="popExp" aria-expanded="false" aria-controls="detail"><span class="pex-i" aria-hidden="true">⌃</span><b id="popExpLab">펼치기</b></button><button class="pexp phide" id="popHide" aria-controls="pop" aria-label="설명을 감춥니다. 고른 것은 그대로 둡니다"><span aria-hidden="true">⇲</span><b>숨기기</b></button><button class="pclose" id="pclose" aria-label="닫기 — 고른 것을 풉니다">✕</button></div></div><div id="detail"></div></div>
 
 <script>
@@ -2336,12 +2379,12 @@ var CATS=[
 ];
 var CATMAP={
  spy:['b10','r8','o2','b3','p4'],
- sec:['b2','b7','b3','r3','r5','o2','o3','p3','p4','p5','k5','q4','q5','m3'],
+ sec:['b2','b7','b3','r3','r5','o2','o3','p3','p4','p5','k5','q4','q5'],
  land:['b5','b6','r4','b8','b9','b11','r6','r7','k1','k3','k5','p5','k4','c5','x2','r14'],
  'for':['b1','r1','r2','p1','b5','r4','k2'],
- pen:['n1','m1','m2','m3','k5','p4','y2','y3','p01','p02','p03','p04','p05','k2','h21'],
- med:['m4','b14','k5','p5','m3','y2','y3','x8','h25','p05'],
- birth:['m3','n1','m4','b14','m1','p05','p03'],
+ pen:['n1','m1','m2','k5','p4','y2','y3','p01','p02','p03','p04','p05','k2','h21'],
+ med:['m4','b14','k5','p5','y2','y3','x8','h25','p05'],
+ birth:['m3','n1','b14','p03'],
  tax:['b9','b11','r6','k5','k4','k2'],
  nrg:['b12','b13','m5','p5','k5','y2','y3','x5'],
  elec:['q1','q2','q3','c1','c3','x6','b1','r1','r2','y3','y10','p4'],
@@ -2351,7 +2394,7 @@ var CATMAP={
  civic:['w3','w4','w5','z2','z4','w1','w2','h29'],
  hist:['k01','k02','k03','k04','k05','k06','k07','k08','k09','k10','k11','k12','k13','k14','x1','c1','c2','c3'],
  just:['r10','r11','b3','h29','o2','y2','y3','p4','p5','k5','b10'],
- econ:['r13','r14','r4','b5','r6','y2','y3'],
+ econ:['r13','r14','b5','y2','y3'],
  party:['y1','y1b','y2','y3','y4','y5','y6','y7','y8','y9','y10','y11','y12','z1','c1','c3']
 };
 var C={blue:'#5B9BE5',red:'#E2635A',gov:'#8A929E',gold:'#E3AE55',other:'#8B7BD8',both:'#6FBF8E',rec:'#E2635A',pend:'#C9A55E'};
@@ -2530,6 +2573,7 @@ function other(l,id){return l[0]===id?l[1]:l[0]}
    그건 데이터가 아니라 여기서 만들어낸 주장이었다. 하나로 합친다. */
 /* 지도에 그리는 선의 상한. 실측으로 정한 값이다 — docs/자동연결.md 참고. */
 var MAX_EDGES=6, TERM_CAP=2, hiddenEdges=0;
+var badgeRect=null;   /* '+N 모두 보기' 배지를 그린 자리. up() 이 눌렸는지 본다 */
 var ROLE={push:{c:'#6FBF8E',t:'밀어붙임'},block:{c:'#E2635A',t:'반대·대립'},
  topic:{c:'#7FB2EE',t:'같은 주제'},
  term:{c:'#A08BC7',t:'그때 정권'},rel:{c:'#9AA2AE',t:'관련'}};
@@ -3183,6 +3227,7 @@ function setFocus(id){
   }
 }
 function closePop(){focus=null;ring={};roles={};hiddenEdges=0;
+  if(typeof closeAllList==='function')closeAllList();
   /* 여기 있던 reheat(0.5) 도 뺐다. 부채꼴이 있던 시절에는 모아둔 노드를
      제자리로 되돌리려고 물리를 데워야 했다. 지금은 노드가 애초에 안 움직인다 —
      데우면 **닫는 것만으로 원들이 흔들린다.** 실측 최대 57px 이었다. */
@@ -3221,6 +3266,39 @@ var popHideBtn=document.getElementById('popHide');
 if(popHideBtn)popHideBtn.onclick=function(){setPopHidden(true)};
 var popShowBtn=document.getElementById('popShow');
 if(popShowBtn)popShowBtn.onclick=function(){setPopHidden(false)};
+
+/* ── 모두 보기 ──
+   **카메라를 건드리지 않는다.** 닫으면 원래 자리 그대로다 —
+   지도 크기도, 배율도, 위치도 안 바뀐다. size() 도 fit() 도 부르지 않는다. */
+var allBox=document.getElementById('allList');
+function openAllList(id){
+  if(!id||!map[id])return;
+  var n=map[id], chain=chainOf(id);
+  document.getElementById('allTitle').textContent=n.lab;
+  document.getElementById('allChain').innerHTML=chain.map(function(c){return chainItem(c)}).join('');
+  var drawn=Object.keys(ring).filter(function(k){return ring[k]===1}).length;
+  document.getElementById('allNote').textContent=
+    '시간순 '+chain.length+'개 · 지도에는 '+drawn+'개만 그립니다 (한 화면에 읽히는 이름표가 그만큼입니다)';
+  allBox.hidden=false;
+  document.body.classList.add('listmode');
+  allBox.querySelector('.al-body').scrollTop=0;
+}
+function closeAllList(){ allBox.hidden=true; document.body.classList.remove('listmode') }
+var alc=document.getElementById('allClose'); if(alc)alc.onclick=closeAllList;
+/* 목록 안에서 항목을 누르면 그것으로 옮겨간다. 설명 줄은 눌러서 편다. */
+if(allBox)allBox.addEventListener('click',function(e){
+  var go=e.target.closest('[data-go]');
+  if(go){ closeAllList(); setFocus(go.dataset.go); return }
+  var li=e.target.closest('li'); if(li)li.classList.toggle('open');
+});
+document.addEventListener('click',function(e){
+  var b=e.target.closest('[data-all]'); if(b){ openAllList(b.dataset.all); return }
+  /* 카드 목록에서도 설명을 눌러 편다 */
+  var li=e.target.closest('#detail .chain-tight li');
+  if(li&&!e.target.closest('[data-go]'))li.classList.toggle('open');
+});
+document.addEventListener('keydown',function(e){
+  if(e.key==='Escape'&&!allBox.hidden){e.preventDefault();closeAllList()}});
 
 /* 카드 펴기·접기. 손잡이 드래그와 같은 동작을 글자로 알려주는 버튼이다. */
 var popExpBtn=document.getElementById('popExp'),popExpLab=document.getElementById('popExpLab');
@@ -3766,7 +3844,7 @@ function draw(){
     var fn=map[focus];
     var bxr=fn.x*cam.s+cam.x, byr=fn.y*cam.s+cam.y;
     if(bxr>-60&&bxr<W+60&&byr>-40&&byr<H+40){
-      var bt='+'+hiddenEdges;
+      var bt='+'+hiddenEdges+' 모두 보기';
       cx.font="600 11.5px 'Noto Sans KR',-apple-system,sans-serif";
       cx.textAlign='center';cx.textBaseline='middle';
       var bw2=cx.measureText(bt).width+14, bh2=18;
@@ -3776,10 +3854,13 @@ function draw(){
       if(cx.roundRect)cx.roundRect(bx2,by2-bh2/2,bw2,bh2,9);else cx.rect(bx2,by2-bh2/2,bw2,bh2);
       cx.fill();
       cx.strokeStyle='rgba(154,162,174,0.45)';cx.lineWidth=1;cx.stroke();
-      cx.fillStyle='#9AA2AE';
+      cx.fillStyle='#E3AE55';
       cx.fillText(bt,bx2+bw2/2,by2);
-    }
-  }
+      /* 눌러서 '모두 보기' 로 갈 수 있어야 한다. **"+N" 으로 끝내면 거기서 길이 막힌다.**
+         그린 자리를 기억해 두고 up() 에서 맞춰 본다. */
+      badgeRect=[bx2,by2-bh2/2,bw2,bh2];
+    } else badgeRect=null;
+  } else badgeRect=null;
 
   /* 워터마크. 캔버스에 직접 그린다 —
      DOM 이 아니라서 개발자도구로 지울 수 없고, 지도만 잘라 캡처해도 따라간다.
@@ -3870,6 +3951,13 @@ function move(px,py){
     cam.x+=dx;cam.y+=dy;cam.tx+=dx;cam.ty+=dy;pan={x:px,y:py};return}
   var n=at(px,py);if(n!==hover){hover=n;cv.style.cursor=n?'pointer':'default'}}
 function up(){
+  /* 배지를 눌렀나 — 노드 판정보다 먼저 본다. 배지가 노드 위에 겹쳐 그려지기 때문이다. */
+  if(!moved&&!panMoved&&downAt&&badgeRect&&focus){
+    var bx=downAt[0], by=downAt[1];
+    if(bx>=badgeRect[0]&&bx<=badgeRect[0]+badgeRect[2]&&by>=badgeRect[1]&&by<=badgeRect[1]+badgeRect[3]){
+      drag=null;pan=null;panMoved=false;downAt=null;cv.style.cursor='default';
+      openAllList(focus); return}
+  }
   if(drag){if(moved)drag.fixed=true;else setFocus(drag.id)}
   else if(pan&&!panMoved)closePop();
   drag=null;pan=null;panMoved=false;downAt=null;cv.style.cursor='default'}
@@ -4365,6 +4453,42 @@ function voteNote(n){
   return '<p class="vnote"><b>표결 기록은 아직 붙이지 않았습니다.</b> 제22대 의원발의 18,862건 중 '+
     '본회의 표결까지 간 것은 620건(3.3%)입니다. 나머지는 상정되지 않았거나 위원회 대안에 합쳐졌습니다.</p>';
 }
+/* ── 결과 하나에 이어진 것을 시간순으로 ──
+   **정렬은 시간순 하나다.** 중요도로 정렬하면 우리가 '뭐가 중요한지' 를 판단하는 게 된다.
+   시간순이면 우리가 정할 것이 없다.
+
+   그리고 사건이 뒤로 밀리는 문제도 사라진다 — 사건은 대부분 '같은 주제' 로만 이어져서
+   중요도 정렬이면 늘 뒤로 간다. 사건은 이 지도에서 가장 많은 노드고(89개),
+   판례를 받으면 훨씬 늘어난다. 그게 구조적으로 밀리면 안 된다.
+
+   **지도에 그리는 6개가 아니라 이어진 것 전부**를 돌려준다.
+   지도는 이름표를 9개(폰 2개)까지만 그린다 — 실측이다. 그래서 읽는 자리는 목록이다. */
+function chainOf(id){
+  if(!id||!adj[id])return [];
+  var seen={}, out=[];
+  adj[id].forEach(function(l){
+    var o=map[other(l,id)];
+    if(!o||o.id===id||seen[o.id])return;
+    if(o.t==='result')return;              /* 결과끼리는 '그 뒤에 나온 숫자' 로 따로 보여준다 */
+    var y=yr(o); if(!isFinite(y)||!y)return; /* 연도가 없으면 시간순에 못 놓는다 */
+    seen[o.id]=1;
+    out.push({n:o, y:y, why:l[4]||'', role:l[3]||''});
+  });
+  out.sort(function(a,b){return a.y-b.y || String(a.n.id).localeCompare(String(b.n.id))});
+  return out;
+}
+/* 한 항목의 HTML. 간략(연도+제목 두 줄)이 기본이고 누르면 설명이 펴진다.
+   실측: 설명까지 펴면 항목이 123px 라 한 화면에 2~3개다. 간략이면 59px, 16개다. */
+function chainItem(c, cls){
+  var o=c.n;
+  return '<li class="'+(cls||'')+'" data-k="'+(o.side||'')+'">'+
+    '<p class="ch-y">'+o.yr+' · '+(o.kind||o.ekind||TK[o.t]||'')+
+      (o.pres&&!o.check?' · '+o.pres+' 정부':'')+'</p>'+
+    '<button data-go="'+o.id+'">'+(o.title||o.lab)+'</button>'+
+    (o.tip?'<p class="ch-x">'+o.tip+'</p>':'')+
+    (c.why?'<p class="ch-why">왜 이어졌나 · '+c.why+'</p>':'')+
+    (o.check?'<p class="ch-w">당시 대통령 확인 중</p>':'')+'</li>';
+}
 function render(id){
   var d=document.getElementById('detail');
   if(!id){d.innerHTML='';return}
@@ -4378,15 +4502,17 @@ function render(id){
       (tipOf(n)?'<div class="oneline">'+tipOf(n)+'</div>':'')+
       '<div class="sec"><p class="sec-lab">설명</p><p class="body">'+n.body+'</p></div>'+
       keyNote(n);
-    if(causes.length){
-      html+='<div class="sec sec-rel"><p class="sec-lab">이 숫자 앞에 있었던 일</p><ul class="chain">'+
-        causes.map(function(c,i){var gap='',g;
-          if(i<causes.length-1){g=(yr(causes[i+1])||0)-(yr(c)||0);if(g>0)gap='<p class="gap">'+g+'년 뒤</p>'}
-          else{g=(yr(n)||0)-(yr(c)||0);if(g>0)gap='<p class="gap">'+g+'년 뒤 이 숫자</p>'}
-          return '<li data-k="'+c.side+'"><p class="ch-y">'+c.yr+' · '+(c.kind||'')+
-            (c.pres&&!c.check?' · '+c.pres+' 정부':'')+'</p><button data-go="'+c.id+'">'+
-            (c.title||c.lab)+'</button><p class="ch-x">'+c.tip+'</p>'+
-            (c.check?'<p class="ch-w">당시 대통령 확인 중</p>':'')+gap+'</li>'}).join('')+'</ul></div>'+
+    var chain=chainOf(id);
+    if(chain.length){
+      /* 카드에는 앞의 몇 개만. 나머지는 '모두 보기' 가 받는다.
+         **"+N" 으로 끝내지 않는다** — 잘렸다고만 하고 끝내면 거기서 길이 막힌다. */
+      var CARD_N=8, shown=chain.slice(0,CARD_N), rest=chain.length-shown.length;
+      html+='<div class="sec sec-rel"><p class="sec-lab">이 숫자 앞에 있었던 일 '+chain.length+'개</p>'+
+        '<ul class="chain chain-tight">'+shown.map(function(c){return chainItem(c)}).join('')+'</ul>'+
+        '<button class="allbtn" data-all="'+id+'">'+
+          (rest>0?'이어진 것 '+chain.length+'개 모두 보기':'시간순으로 모두 보기')+
+          '<span class="allsub">'+(rest>0?'여기 '+shown.length+'개 · 나머지 '+rest+'개':'전체 화면에서 시간순으로')+'</span>'+
+        '</button></div>'+
         '<p class="caution">시간 순서일 뿐 인과관계가 증명된 것은 아닙니다. 같은 기간 경제 여건·인구 이동·국제 정세 등 다른 요인이 함께 작용했습니다.</p>'}
     if(n.pending)html+='<div class="sec"><div class="pending"><strong>후속 집계 중</strong><span>'+n.pending+'</span></div></div>';
   }else if(n.t==='bill'){

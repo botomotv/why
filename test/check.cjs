@@ -719,8 +719,11 @@ function boot(w, h) {
     : `FAIL (${wmProblems.length})`}`);
 
   // 17. 지도 선 상한 · 잘린 개수 표시
-  //     실측으로 정한 값이다 — 이웃 6개까지 이름표가 100% 읽히고, 8개에서 63%,
-  //     10개를 넘으면 선 간격이 3.2° 로 붙어 눈으로 구분할 수 없다.
+  //     상한이 필요한 이유는 다시 쟀다 (docs/많이보기.md · 2026-08-25).
+  //     선을 50개 붙여도 **이웃 이름표는 데스크톱 9개 · 폰 2개에서 멈춘다.**
+  //     겹쳐서가 아니라 배율이 내려가면 labelOn() 이 아예 안 그리기 때문이다.
+  //     (옛 근거 '8개에서 63%' 는 부채꼴로 노드를 끌어모으던 시절 측정이라 이제 안 맞는다)
+  //     그러니 상한 자체는 못 없앤다. **없애야 하는 것은 거기서 길이 끊기는 것이다** — 검사 42.
   //     그리고 잘랐으면 반드시 밝혀야 한다. 말없이 자르면 "이게 전부" 라는 거짓말이 된다.
   //     전에는 13개에서 소리 없이 잘리고 있었다.
   //     13번 창(412px)을 재사용하면 안 된다. 폰은 카드가 화면 대부분을 덮어
@@ -772,9 +775,13 @@ function boot(w, h) {
       if (hidden > 0) {
         cutSeen++;
         // 잘렸으면 지도(캔버스 배지)와 카드(안내문) 둘 다에 표시가 있어야 한다.
-        const badge = we17.__drawn.some(t => String(t) === '+' + hidden);
+        /* 배지는 이제 "+29" 가 아니라 "+29 모두 보기" 다 — 잘렸다고만 하고 끝내지 않는다.
+           앞부분만 맞춰 보고, **'모두 보기' 로 이어지는지**를 따로 본다. */
+        const badgeTxt = we17.__drawn.map(String).find(t => t.indexOf('+' + hidden) === 0);
         const note = !!we17.document.querySelector('.cutnote');
-        if (!badge) capProblems.push(`${n.lab}: ${hidden}개를 잘랐는데 지도에 '+${hidden}' 배지가 없다`);
+        if (!badgeTxt) capProblems.push(`${n.lab}: ${hidden}개를 잘랐는데 지도에 '+${hidden}' 배지가 없다`);
+        else if (!/모두 보기/.test(badgeTxt))
+          capProblems.push(`${n.lab}: 배지가 '${badgeTxt}' 로 끝난다 — 잘렸다고만 하고 볼 길을 안 준다`);
         if (!note) capProblems.push(`${n.lab}: ${hidden}개를 잘랐는데 카드에 안내(.cutnote)가 없다`);
         if (hidden !== total - drawnEdges)
           capProblems.push(`${n.lab}: 잘린 수가 안 맞는다 (표시 ${hidden} · 실제 ${total - drawnEdges})`);
@@ -2114,6 +2121,77 @@ function boot(w, h) {
         F(`41. --topsafe 계산이 246px 이 아니라 '${got}' 다 (검색창 128+110=238, +8). ` +
           (got === '758px' ? '아래쪽에 있는 보는 법 버튼까지 세고 있다' : '가장 아래 위쪽-UI 를 못 고른다'));
       else console.log(`41. 카드 vs 조작UI  미는 규칙 ${push.length}개 · 옆카드 top ${sideTop ? 'O' : 'X'} · 아래카드 상한 ${sheetCap ? 'O' : 'X'} · 다시 재는 곳 ${callers.length - missing.length}/${callers.length} · 계산 ${got} (픽셀 겹침은 jsdom 이 못 잰다)`);
+    }
+  }
+
+  // 42. 잘린 것이 '모두 보기' 로 이어지는가 · 그 목록이 시간순인가
+  //     지도는 이름표를 데스크톱 9개 · 폰 2개까지만 그린다 (docs/많이보기.md 실측).
+  //     그래서 잘리는 것 자체는 막을 수 없다. **막아야 하는 것은 거기서 길이 끊기는 것이다.**
+  //     "+234" 로 끝내면 사용자는 나머지를 볼 방법이 없다.
+  //
+  //     정렬은 **시간순 하나**다. 중요도로 정렬하면 우리가 '뭐가 중요한지' 를 판단하는 게 되고,
+  //     사건이 구조적으로 뒤로 밀린다 — 사건은 대부분 '같은 주제' 로만 이어지기 때문이다.
+  //     사건은 이 지도에서 가장 많은 노드고 판례를 받으면 훨씬 늘어난다.
+  {
+    const d42 = boot(1440, 900);
+    await new Promise(r => setTimeout(r, 1400));
+    const r = d42.window.eval(`(function(){
+      if(typeof chainOf!=='function')return {no:'chainOf'};
+      if(typeof openAllList!=='function')return {no:'openAllList'};
+      /* 이어진 것이 많은 결과 노드를 고른다. 적으면 잘릴 일이 없어 검사가 빈손이 된다. */
+      var cands=N.filter(function(n){return n.t==='result'&&!n.ghost})
+        .map(function(n){return {n:n,c:chainOf(n.id).length}}).sort(function(a,b){return b.c-a.c});
+      if(!cands.length)return {no:'result'};
+      /* 실제 데이터가 적을 수 있으므로 선을 주입해 '많을 때' 를 만든다 */
+      var tgt=cands[0].n;
+      var pool=N.filter(function(x){return (x.t==='bill'||x.t==='event')&&x.id!==tgt.id&&yr(x)}).slice(0,40);
+      pool.forEach(function(b){L.push([b.id,tgt.id,'주입','result','검사용',1,'검사'])});
+      rebuildLinks();refilter();
+      for(var i=0;i<200&&alpha>ALPHA_MIN;i++)tick();
+      var cam0=[cam.s,cam.x,cam.y,W,H].join();
+      setFocus(tgt.id);
+      for(var j=0;j<200&&alpha>ALPHA_MIN;j++)tick();
+      var chain=chainOf(tgt.id);
+      var drawn=Object.keys(ring).filter(function(k){return ring[k]===1}).length;
+      var cardBtn=document.querySelector('#detail .allbtn');
+      openAllList(tgt.id);
+      var items=[].slice.call(document.querySelectorAll('#allChain li'));
+      var cam1=[cam.s,cam.x,cam.y,W,H].join();
+      /* 목록에 찍힌 연도를 그대로 읽어 오름차순인지 본다 —
+         chainOf 가 정렬했다고 믿지 않는다. 화면에 나온 것을 잰다. */
+      var years=items.map(function(li){
+        var t=(li.querySelector('.ch-y')||{}).textContent||'';
+        /* 템플릿 리터럴 안에서는 \\d 로 써야 한다. \\ 를 하나만 쓰면 JS 가 먹어서
+           정규식이 /(d{4})/ 가 되고 연도를 하나도 못 찾는다 — 실제로 그랬다. */
+        var m=t.match(/(\\d{4})/); return m?+m[1]:null}).filter(function(v){return v});
+      var sorted=years.every(function(v,i){return i===0||years[i-1]<=v});
+      var hidden=hiddenEdges;
+      closeAllList();
+      return {chain:chain.length, drawn:drawn, hidden:hidden, items:items.length,
+              years:years.length, sorted:sorted, camSame:cam0===cam1,
+              btn:!!cardBtn, btnAll:cardBtn?cardBtn.getAttribute('data-all'):null,
+              note:(document.getElementById('allNote')||{}).textContent||''};
+    })()`);
+    d42.window.close();
+
+    if (!r || r.no) { F(`42. 모두 보기 — 못 쟀다 (${r && r.no || '실패'})`); }
+    else {
+      console.log(`42. 모두 보기       이어진 것 ${r.chain} · 지도에 ${r.drawn} · 숨긴 선 ${r.hidden} · 목록 ${r.items} · 시간순 ${r.sorted ? 'O' : 'X'} · 카메라 그대로 ${r.camSame ? 'O' : 'X'}`);
+      /* (1) 잘린 것이 있으면 반드시 이어주는 길이 있어야 한다 */
+      if (r.hidden > 0 && !r.btn)
+        F(`42. 지도에서 ${r.hidden}개가 잘렸는데 '모두 보기' 버튼이 없다. "+N" 으로 끝내면 거기서 길이 막힌다`);
+      /* (2) 목록은 이어진 것을 전부 담아야 한다 — 여기서 또 자르면 같은 문제다 */
+      if (r.items < r.chain)
+        F(`42. 모두 보기에 ${r.items}/${r.chain}개만 있다. 여기서도 자르면 다 볼 길이 없다`);
+      /* (3) 시간순 */
+      if (!r.years) F('42. 목록에 연도가 하나도 안 보인다. 연도가 안 보이면 그냥 목록이다');
+      else if (!r.sorted) F('42. 모두 보기 목록이 시간순이 아니다. 중요도로 정렬하면 우리가 판단하는 게 되고 사건이 뒤로 밀린다');
+      /* (4) 카메라를 건드리면 안 된다 — 닫으면 원래 자리로 돌아와야 한다 */
+      if (!r.camSame) F('42. 모두 보기를 열자 카메라가 움직였다. 닫으면 원래 자리여야 한다');
+      /* (5) 몇 개를 지도에 그리고 몇 개가 목록에 있는지 밝혀야 한다 */
+      if (!/지도에는/.test(r.note))
+        F('42. 지도에 몇 개만 그리는지 화면에 안 밝힌다. 말없이 자르면 "이게 전부" 가 된다');
+      if (r.chain < 10) W(`42. 이어진 것이 ${r.chain}개뿐이라 잘림을 충분히 못 쟀다`);
     }
   }
 

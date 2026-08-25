@@ -113,6 +113,16 @@ CREATE TABLE IF NOT EXISTS vote_member (
 CREATE INDEX IF NOT EXISTS vm_member ON vote_member(member_cd);
 
 -- 정당 → 진영. 코드에 박지 않고 표로 둔다. 근거(src)를 반드시 적는다.
+-- 1관문 대응표 — 지도의 분야 ↔ 국회 소관위원회.
+-- 우리의 편집 판단이라 코드에 박지 않고 표로 둔다. src 를 반드시 적는다.
+-- 소관위 이름은 창고 실측값(COMMITTEE_NM) 그대로 쓴다. 지어내면 조용히 0건이 된다.
+CREATE TABLE IF NOT EXISTS cat_committee (
+  cat       TEXT NOT NULL,   -- 지도의 분야 (CATS 의 k)
+  committee TEXT NOT NULL,   -- 소관위 이름 그대로
+  src       TEXT NOT NULL,   -- 왜 이렇게 묶었나
+  PRIMARY KEY (cat, committee)
+);
+
 CREATE TABLE IF NOT EXISTS party_side (
   party TEXT PRIMARY KEY,
   side  TEXT NOT NULL CHECK (side IN ('blue','red','gov','gold')),

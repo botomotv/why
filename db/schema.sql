@@ -113,6 +113,22 @@ CREATE TABLE IF NOT EXISTS vote_member (
 CREATE INDEX IF NOT EXISTS vm_member ON vote_member(member_cd);
 
 -- 정당 → 진영. 코드에 박지 않고 표로 둔다. 근거(src)를 반드시 적는다.
+-- 법제처가 주는 제·개정이유. **원문 그대로 담는다. 요약하지 않는다.**
+-- 법제처는 현행 법령만 주므로 이 이유는 **가장 최근 개정 하나**의 것이다.
+-- 그 앞의 개정 이유는 받을 방법이 없다 — 화면에 그렇게 밝힌다.
+CREATE TABLE IF NOT EXISTS law_reason (
+  law_nm    TEXT PRIMARY KEY,   -- 법령명한글 (법제처 표기 그대로)
+  mst       TEXT NOT NULL,      -- 법령일련번호
+  law_kind  TEXT,               -- 법령구분명 (법률 · 대통령령 …)
+  rvs_kind  TEXT,               -- 제개정구분명 (제정 · 일부개정 …)
+  promul_dt TEXT,               -- 공포일자
+  effect_dt TEXT,               -- 시행일자
+  dept      TEXT,               -- 소관부처명
+  reason    TEXT NOT NULL,      -- 제개정이유 원문. 손대지 않는다
+  src_url   TEXT NOT NULL,      -- 원문을 볼 수 있는 자리
+  fetched_at TEXT NOT NULL
+);
+
 -- 1관문 대응표 — 지도의 분야 ↔ 국회 소관위원회.
 -- 우리의 편집 판단이라 코드에 박지 않고 표로 둔다. src 를 반드시 적는다.
 -- 소관위 이름은 창고 실측값(COMMITTEE_NM) 그대로 쓴다. 지어내면 조용히 0건이 된다.
@@ -130,11 +146,14 @@ CREATE TABLE IF NOT EXISTS party_side (
 );
 
 -- 대통령 재임표. 규칙 3 이 읽는 유일한 표.
+-- 한 사람이 기간을 여러 번 가질 수 있다 (권한대행 체제가 두 번 있었다).
+-- president 하나를 PK 로 잡았다가 두 번째 권한대행이 안 들어갔다.
 CREATE TABLE IF NOT EXISTS president_term (
-  president TEXT PRIMARY KEY,
+  president TEXT NOT NULL,
   from_dt   TEXT NOT NULL,
   to_dt     TEXT NOT NULL,
-  src       TEXT NOT NULL
+  src       TEXT NOT NULL,
+  PRIMARY KEY (president, from_dt)
 );
 
 -- 매퍼가 만든 값을 사람이 덮어써야 할 때만 쓴다.

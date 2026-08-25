@@ -1526,7 +1526,12 @@ function boot(w, h) {
       var longs=[], hard=[], tone={seum:0, da:0, other:0}, toneBad=[];
       N.forEach(function(n){
         if(n.ghost)return;
-        var b=String(n.body||'').trim();
+        /* **plain(쉬운 말로 옮긴 것)도 함께 본다.** 자동으로 들어온 법에서
+           사람이 실제로 읽는 것은 body 가 아니라 plain 쪽이다.
+           body 만 재면 정작 읽히는 글이 검사를 안 받는다.
+           easy 는 다른 것이다 — 손으로 넣은 사건의 [[질문,답],…] 배열이라
+           문자열로 이으면 없는 긴 문장이 만들어진다. 이름을 나눠 뒀다. */
+        var b=[String(n.body||''), (typeof n.plain==='string'?n.plain:'')].filter(Boolean).join('\\n').trim();
         if(!b)return;
         /* (1) 긴 문장 */
         sents(b).forEach(function(x){ if(x.length>60)longs.push({lab:n.lab,len:x.length,s:x.slice(0,34)}) });

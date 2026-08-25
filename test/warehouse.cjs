@@ -327,11 +327,16 @@ db.close();
   const withKeys = nodes.filter(n => n.keys.length);
   const resultN = (html.match(/t:'result'/g) || []).length;
 
-  if (!withKeys.length) {
-    FAIL(`F · 결과 노드 ${resultN}개 중 핵심어가 붙은 것이 0개다. 3관문이 아무것도 못 거른다`);
-  } else if (withKeys.length < resultN) {
-    FAIL(`F · 핵심어가 없는 결과 노드 ${resultN - withKeys.length}개 (${resultN}개 중). 그 노드는 3관문에서 후보가 0이 된다`);
-  }
+  /* 핵심어가 **빈** 노드는 잘못이 아니다 — 주제를 가리키는 말이 법안명에 없을 수 있다
+     (방첩사·GOP 경계병력이 그렇다). 다만 **화면에 그렇다고 밝혀야 한다.**
+     말없이 비우면 "이을 게 없었다" 와 "우리가 안 이었다" 가 구별되지 않는다. */
+  const empty = nodes.filter(n => !n.keys.length);
+  if (!withKeys.length)
+    FAIL(`F · 결과 노드 ${resultN}개 전부 핵심어가 비었다. 3관문이 아무것도 못 거른다`);
+  if (empty.length && !/자동으로 이을 근거를 못 찾았습니다/.test(html))
+    FAIL(`F · 핵심어가 빈 결과 노드 ${empty.length}개(${empty.map(n => n.id).join(', ')})인데 화면에 그렇다고 밝히는 문구가 없다`);
+  if (empty.length && !/function keyNote\(/.test(html))
+    FAIL('F · keyNote 가 없다 — 빈 핵심어를 화면에 밝히는 길이 없다');
 
   if (!fs.existsSync(WH)) {
     NOTE('F · 창고가 없어 핵심어를 법안명과 대조하지 못했다');
@@ -339,11 +344,16 @@ db.close();
     const w = new DatabaseSync(WH, { readOnly: true });
     let names = [];
     try {
+      /* **발의자 괄호를 떼고 대조한다.** BILL_NM 은 '병역법 일부개정법률안(장병완의원 등 32인)'
+         꼴이라, 괄호를 안 떼면 핵심어 '장병' 이 사람 이름 '장병완' 에 걸린다 —
+         실제로 13건이 전부 그 오탐이었고, 떼니 0건이 됐다.
+         3관문 구현도 반드시 같은 전처리를 해야 한다. 안 하면 사람 이름으로 법을 잇는다. */
       names = w.prepare(
         `SELECT json_extract(row_json,'$.BILL_NM') nm FROM raw_row
           WHERE service='nwbpacrgavhjryiph'
             AND json_extract(row_json,'$.ANNOUNCE_DT') IS NOT NULL
-            AND json_extract(row_json,'$.ANNOUNCE_DT')<>''`).all().map(r => r.nm || '');
+            AND json_extract(row_json,'$.ANNOUNCE_DT')<>''`)
+        .all().map(r => String(r.nm || '').replace(/\([^)]*\)/g, '').trim());
     } catch { names = [] }
     w.close();
 
@@ -358,7 +368,7 @@ db.close();
       }
       /* 노드마다 살아 있는 핵심어가 하나는 있어야 한다 — 다 죽으면 그 노드는 못 잇는다 */
       const mute = withKeys.filter(n => n.keys.every(k => !names.some(x => x.includes(k))));
-      NOTE(`F · 핵심어 ${all.length}개 / 결과 노드 ${withKeys.length}개 · 공포된 법안명 ${names.length}건과 대조`);
+      NOTE(`F · 핵심어 ${all.length}개 / 핵심어 있는 결과 노드 ${withKeys.length}개 · 비운 노드 ${empty.length}개(${empty.map(n => n.id).join(',') || '-'}) · 공포된 법안명 ${names.length}건과 대조 (발의자 괄호 제거)`);
       if (dead.length)
         FAIL(`F · 법안명에 하나도 없는 핵심어 ${dead.length}개 — 조용히 아무것도 안 잇는다 (${dead.slice(0, 5).join(', ')})`);
       if (mute.length)

@@ -286,10 +286,16 @@ function boot(w, h) {
   console.log(`5. 출처 표기        ${noSrc.length === 0 ? 'PASS' : 'FAIL (' + noSrc.length + ')'}   [그중 ghost ${noSrcGhost}개]`);
 
   // 6. 법안 limit 칸 (규칙 5)
+  //    규칙 5 는 **우리가 골라 넣은 법안**에 대한 것이다 — 한 법을 소개하면서
+  //    좋은 점만 쓰지 말라는 뜻이고, 한쪽 진영에만 비판을 붙이지 말라는 뜻이다.
+  //    자동으로 들어온 것(auto)은 우리가 아무 주장도 하지 않는다. 이름·공포일·소관위가
+  //    전부고 카드에도 "사람이 내용을 확인하지 않았습니다" 라고 적힌다.
+  //    그래서 나눠 센다. 섞으면 손으로 넣은 것의 빈칸이 자동 더미에 묻힌다.
   const bills = N.filter(n => n.t === 'bill');
-  const noLimit = bills.filter(n => !n.limit || !n.limit.length);
+  const hand = bills.filter(n => !n.auto), autoB = bills.filter(n => n.auto);
+  const noLimit = hand.filter(n => !n.limit || !n.limit.length);
   noLimit.forEach(n => W(`limit 칸 비어있음: ${n.id} (${n.lab})`));
-  console.log(`6. 법안 남은문제    ${noLimit.length === 0 ? 'PASS' : 'WARN (' + noLimit.length + '/' + bills.length + ' 비어있음)'}`);
+  console.log(`6. 법안 남은문제    ${noLimit.length === 0 ? 'PASS' : 'WARN (' + noLimit.length + '/' + hand.length + ' 비어있음)'}   [자동 ${autoB.length}개는 주장을 안 해서 제외]`);
 
   // 7. 사진 라이선스 (규칙 6)
   //    photo 가 있는데 photoLicense 가 없으면 FAIL. 저작권 사고는 되돌릴 수 없다.

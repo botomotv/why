@@ -1638,6 +1638,41 @@ function boot(w, h) {
       if (!r.old) F('32. 1980년 이전 노드가 0개다 — 검사가 아무것도 안 보고 있다');
       else if (r.onOld !== r.oldN) F(`32. 1980년 이전 노드 카드에 안내가 ${r.onOld}/${r.oldN}만 뜬다 — 손으로 넣은 시기를 안 밝히면 자동으로 모은 것처럼 보인다`);
       if (r.onNew) F(`32. 1980년 이후 노드에도 옛 시기 안내가 ${r.onNew}개 떴다 — 틀린 자리에 붙었다`);
+    }
+
+    /* ── 표결: '표결까지 안 갔다' 와 '자료가 없다' 를 구별하는가 ──
+       둘이 섞이면 거짓말이 된다. 앞은 국회가 표결에 안 부친 것이고,
+       뒤는 우리가 못 받는 것이다 (개인별 표결은 제20대·2016년부터만 공개된다).
+       법안 카드가 연도에 따라 **다른 말**을 하는지 본다. 같은 말이면 구별을 못 한 것이다. */
+    const d32b = boot(1440, 900);
+    await new Promise(r2 => setTimeout(r2, 1200));
+    const v = d32b.window.eval(`(function(){
+      if(typeof N==='undefined'||typeof voteNote!=='function')return null;
+      var bills=N.filter(function(n){return n.t==='bill'&&!n.ghost&&yr(n)});
+      var oldB=bills.filter(function(n){return yr(n)<2016});
+      var newB=bills.filter(function(n){return yr(n)>=2016});
+      var txt=function(list){return list.slice(0,4).map(function(n){
+        try{setFocus(n.id)}catch(e){return ''}
+        var d=document.getElementById('detail');
+        var m=((d&&d.textContent)||'').match(/(개인별 표결 자료가 없습니다|표결 기록은 아직 붙이지 않았습니다)/);
+        return m?m[1]:''})};
+      var a=txt(oldB), b=txt(newB);
+      try{setFocus(null)}catch(e){}
+      return {oldN:oldB.length, newN:newB.length, oldSay:a, newSay:b,
+              hasYear: typeof VOTE_OPEN_YEAR==='number' ? VOTE_OPEN_YEAR : null};
+    })()`);
+    d32b.window.close();
+    if (!v) F('32. 표결 안내를 못 쟀다 — voteNote 가 없다');
+    else {
+      const oldOk = v.oldN === 0 || v.oldSay.every(x => x === '개인별 표결 자료가 없습니다');
+      const newOk = v.newN === 0 || v.newSay.every(x => x === '표결 기록은 아직 붙이지 않았습니다');
+      console.log(`32. 표결 안내       2016년 이전 법안 ${v.oldN}개 ${oldOk ? '○' : '×'} · 이후 ${v.newN}개 ${newOk ? '○' : '×'} · 기준연도 ${v.hasYear}`);
+      if (v.hasYear !== 2016) F(`32. 개인별 표결 공개 기준연도가 ${v.hasYear} 다. 제20대 개원(2016)이어야 한다`);
+      if (!v.oldN && !v.newN) F('32. 연도가 있는 법안 노드가 0개다 — 검사가 아무것도 안 보고 있다');
+      if (!oldOk) F(`32. 2016년 이전 법안에 '자료가 없다' 안내가 안 붙는다 (${JSON.stringify(v.oldSay)}). '표결까지 안 갔다' 와 섞이면 거짓말이 된다`);
+      if (!newOk) F(`32. 2016년 이후 법안에 '표결까지 안 갔다' 안내가 안 붙는다 (${JSON.stringify(v.newSay)})`);
+      if (v.oldN && v.newN && v.oldSay[0] === v.newSay[0])
+        F('32. 두 경우가 같은 말을 한다. 표결까지 안 간 것과 자료가 없는 것은 다르다');
       if (!r.inRail) F('32. 왼쪽 설명 카드에 1980년 이전 안내가 없다');
     }
   }

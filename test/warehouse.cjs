@@ -309,7 +309,150 @@ db.close();
 }
 
 /* ══════════════════════════════════════════════ */
-console.log('\n창고 검사 A~E');
+
+/* ── F · 3관문 핵심어가 실제 법안명에 있는 말인가 ──
+   핵심어는 **우리의 편집 판단**이고 화면의 "왜 이어졌나" 한 줄에 그대로 나간다.
+   그런데 머리로 지어낸 말은 법안명에 안 나온다 — 처음 넣은 71개 중 11개가 그랬다.
+   ('영주권' '방첩' '육아' '모성' '의과대학' '양도소득' … 전부 0건)
+   죽은 핵심어는 **조용히 아무것도 안 잇는다.** 3관문이 일하는 것처럼 보이는데
+   그 노드만 후보가 0이 된다. 0 은 '없다' 와 '안 보고 있다' 를 구별하지 않는다.
+
+   법안명은 본회의 처리(nwbpacrgavhjryiph)의 BILL_NM 을 쓴다.
+   공포일(ANNOUNCE_DT)이 있는 것만 — 2관문이 쓰는 것과 같은 집합이어야 한다. */
+{
+  const WH = process.env.WAREHOUSE_DB || path.join(ROOT, 'db', 'warehouse.db');
+  const html = fs.readFileSync(path.join(ROOT, 'index.html'), 'utf8');
+  const nodes = [...html.matchAll(/\{id:'([^']+)',t:'result'[\s\S]{0,400}?keys:\[([^\]]*)\]/g)]
+    .map(m => ({ id: m[1], keys: m[2].split(',').map(x => x.replace(/'/g, '').trim()).filter(Boolean) }));
+  const withKeys = nodes.filter(n => n.keys.length);
+  const resultN = (html.match(/t:'result'/g) || []).length;
+
+  if (!withKeys.length) {
+    FAIL(`F · 결과 노드 ${resultN}개 중 핵심어가 붙은 것이 0개다. 3관문이 아무것도 못 거른다`);
+  } else if (withKeys.length < resultN) {
+    FAIL(`F · 핵심어가 없는 결과 노드 ${resultN - withKeys.length}개 (${resultN}개 중). 그 노드는 3관문에서 후보가 0이 된다`);
+  }
+
+  if (!fs.existsSync(WH)) {
+    NOTE('F · 창고가 없어 핵심어를 법안명과 대조하지 못했다');
+  } else if (withKeys.length) {
+    const w = new DatabaseSync(WH, { readOnly: true });
+    let names = [];
+    try {
+      names = w.prepare(
+        `SELECT json_extract(row_json,'$.BILL_NM') nm FROM raw_row
+          WHERE service='nwbpacrgavhjryiph'
+            AND json_extract(row_json,'$.ANNOUNCE_DT') IS NOT NULL
+            AND json_extract(row_json,'$.ANNOUNCE_DT')<>''`).all().map(r => r.nm || '');
+    } catch { names = [] }
+    w.close();
+
+    if (!names.length) {
+      NOTE('F · 공포된 법안명이 창고에 없다 — 대조 못 함 (본회의 처리를 먼저 수집한다)');
+    } else {
+      const dead = [], all = [];
+      for (const n of withKeys) for (const k of n.keys) {
+        const c = names.filter(x => x.includes(k)).length;
+        all.push(c);
+        if (!c) dead.push(`${n.id}:'${k}'`);
+      }
+      /* 노드마다 살아 있는 핵심어가 하나는 있어야 한다 — 다 죽으면 그 노드는 못 잇는다 */
+      const mute = withKeys.filter(n => n.keys.every(k => !names.some(x => x.includes(k))));
+      NOTE(`F · 핵심어 ${all.length}개 / 결과 노드 ${withKeys.length}개 · 공포된 법안명 ${names.length}건과 대조`);
+      if (dead.length)
+        FAIL(`F · 법안명에 하나도 없는 핵심어 ${dead.length}개 — 조용히 아무것도 안 잇는다 (${dead.slice(0, 5).join(', ')})`);
+      if (mute.length)
+        FAIL(`F · 핵심어가 전부 죽은 결과 노드 ${mute.length}개 (${mute.map(n => n.id).join(', ')}) — 3관문에서 후보 0`);
+      const broad = withKeys.flatMap(n => n.keys.map(k => ({ id: n.id, k, c: names.filter(x => x.includes(k)).length })))
+        .filter(x => x.c > 200);
+      if (broad.length)
+        WARN(`F · 너무 넓은 핵심어 ${broad.length}개 — 3관문이 거의 안 거른다 (${broad.map(x => `${x.id}:'${x.k}' ${x.c}건`).join(', ')})`);
+    }
+  }
+}
+
+
+/* ── G · 문서에 적은 API 필드가 어느 표의 것인지 밝혀져 있는가 ──
+   `ANNOUNCE_DT`(공포일)를 발의법률안에 있는 줄 알고 2관문·규칙 3 을 설계했다.
+   실제로는 본회의 처리 표에 있었다. **문서가 필드 이름만 적었기 때문이다.**
+   구현 직전에야 알았고, 그때 설계가 통째로 흔들렸다.
+
+   같은 사고가 또 날 자리가 세 쌍 더 있다 — 같은 뜻인데 표마다 이름이 다르다:
+     법안 이름 BILL_NAME(발의) / BILL_NM(본회의)
+     소관위    COMMITTEE(발의)  / COMMITTEE_NM(본회의)
+     처리 결과 PROC_RESULT(발의)/ PROC_RESULT_CD(본회의)
+
+   그래서 강제한다: **문서에 나오는 API 필드 이름은 출처 표에 있어야 한다.**
+   출처 표 자체는 창고의 실제 응답에서 뽑은 것이라 문서가 지어낼 수 없다. */
+{
+  const WH = process.env.WAREHOUSE_DB || path.join(ROOT, 'db', 'warehouse.db');
+  const DOCS = path.join(ROOT, 'docs');
+  const tableDoc = path.join(DOCS, '창고설계.md');
+
+  if (!fs.existsSync(tableDoc)) {
+    FAIL('G · docs/창고설계.md 이 없다 — 필드 출처 표가 사라졌다');
+  } else {
+    const txt = fs.readFileSync(tableDoc, 'utf8');
+    const m = txt.match(/<!-- FIELD-SOURCE-TABLE-START -->([\s\S]*?)<!-- FIELD-SOURCE-TABLE-END -->/);
+    if (!m) {
+      FAIL('G · 필드 출처 표를 못 찾았다 (FIELD-SOURCE-TABLE 표시)');
+    } else {
+      const listed = new Set([...m[1].matchAll(/`([A-Z][A-Z0-9_]{3,})`/g)].map(x => x[1]));
+
+      /* 표가 실제 응답과 맞는가 — 창고가 있을 때만. 표만 보고 통과시키면 표가 거짓말할 수 있다. */
+      if (fs.existsSync(WH)) {
+        const w = new DatabaseSync(WH, { readOnly: true });
+        const SERV = { nzmimeepazxkubdpn: '발의법률안', nwbpacrgavhjryiph: '본회의 처리',
+                       nojepdqqaweusdfbi: '개인별 표결', ALLNAMEMBER: '의원 명부' };
+        const real = new Set();
+        for (const svc of Object.keys(SERV)) {
+          let r = null;
+          try { r = w.prepare(`SELECT row_json FROM raw_row WHERE service=? LIMIT 1`).get(svc) } catch { }
+          if (r) for (const k of Object.keys(JSON.parse(r.row_json))) real.add(k);
+        }
+        w.close();
+        if (real.size) {
+          /* 표에 있는데 응답에 없는 필드 — 'BILLRSNRAW' 처럼 못 받는다고 적은 것은 예외 */
+          const ghost = [...listed].filter(k => !real.has(k) && !/어느 표에도 없음/.test(
+            (m[1].split('\n').find(l => l.includes('`' + k + '`')) || '')));
+          if (ghost.length)
+            FAIL(`G · 출처 표에 있는데 실제 응답에 없는 필드 ${ghost.length}개 (${ghost.slice(0, 5).join(', ')})`);
+          NOTE(`G · 출처 표 ${listed.size}개 필드 / 실제 응답 ${real.size}개 필드와 대조`);
+        }
+      }
+
+      /* 문서 어딘가에 나오는 필드 이름이 표에 없으면 FAIL */
+      const SKIP = new Set(['UNKNOWN', 'ASSEMBLY_KEY', 'COLLECT_AGE', 'COLLECT_STEP', 'COLLECT_DB',
+        'COLLECT_PAGE', 'PROBE_GAP', 'WAREHOUSE_DB', 'ASSEMBLY_GAP', 'KOSIS', 'LAW_OC', 'OPENSRVAPI',
+        'ALLBILL', 'VCONFBILLLIST', 'INF_ID', 'LICENSE', 'DISTINCT', 'DELETE', 'EXISTS', 'ISO8601',
+        'AUTOCAT', 'SIDEN', 'KINDN', 'LABEL_FAR', 'LABEL_PX', 'LABEL_FONT_PX', 'FIT_MIN', 'NARROW_W',
+        'NARROW_MIN_S', 'RESULT_W', 'GAP_MS', 'VOTE_MIN_AGE', 'FAN_FEW', 'FAN_EASE', 'MAX_EDGES',
+        'TERM_CAP', 'VOTE_OPEN_YEAR', 'ALLNAMEMBER']);
+      /* 밑줄이 있는 대문자 = API 필드꼴. 다만 **값**은 뺀다 —
+         BILL_ID 값이 'PRC_V2Z4S0…' 꼴이라 필드 이름으로 오인된다.
+         값은 (1) PRC_ 로 시작하거나 (2) 24자를 넘는다. 필드 이름은 그렇게 길지 않다. */
+      const isCode = k => /^[A-Z][A-Z0-9]*(_[A-Z0-9]+)+$/.test(k)
+        && k.length <= 24 && !/^PRC_/.test(k);
+      const missing = new Map();
+      for (const f of fs.readdirSync(DOCS).filter(x => x.endsWith('.md'))) {
+        const body = fs.readFileSync(path.join(DOCS, f), 'utf8')
+          .replace(/<!-- FIELD-SOURCE-TABLE-START -->[\s\S]*?<!-- FIELD-SOURCE-TABLE-END -->/, '');
+        for (const mm of body.matchAll(/\b([A-Z][A-Z0-9_]{3,})\b/g)) {
+          const k = mm[1];
+          if (SKIP.has(k) || listed.has(k) || !isCode(k)) continue;
+          if (!missing.has(k)) missing.set(k, f);
+        }
+      }
+      NOTE(`G · 문서의 API 필드 ${listed.size}개가 출처 표에 있다 · 표 밖 ${missing.size}개`);
+      if (missing.size)
+        FAIL(`G · 어느 표의 필드인지 안 밝힌 이름 ${missing.size}개 — ` +
+          [...missing].slice(0, 6).map(([k, f]) => `${k}(${f})`).join(', ') +
+          '. 필드를 문서에 적을 때는 어느 서비스·어느 표인지 같이 적는다');
+    }
+  }
+}
+
+console.log('\n창고 검사 A~G');
 notes.forEach(n => console.log('  · ' + n));
 if (warns.length) { console.log('\nWARN'); warns.forEach(w => console.log('  ! ' + w)) }
 if (fails.length) { console.log('\nFAIL'); fails.forEach(f => console.log('  x ' + f)) }

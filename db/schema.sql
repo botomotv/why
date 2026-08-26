@@ -203,3 +203,49 @@ CREATE INDEX        IF NOT EXISTS link_rule ON link(rule);
 CREATE VIEW IF NOT EXISTS map_bill AS
 SELECT b.* FROM bill b
 WHERE EXISTS (SELECT 1 FROM link l WHERE l.from_id = b.bill_id OR l.to_id = b.bill_id);
+
+-- 사건 — 헌재결정례(detc) · 판례(prec). 법제처 API 목록에서 받은 그대로.
+-- **전문(판례내용)은 담지 않는다.** 거기에 변호사·당사자 실명이 있고,
+-- 이 사이트는 JSON 을 통째로 내보내므로 화면에 안 그려도 파일에 남으면 배포한 것이 된다.
+-- 목록만으로 사건번호·사건명·날짜가 나온다 — 실측으로 확인했다 (100/100).
+-- **키는 (kind, case_sn) 둘이다.** 처음에 case_sn 하나로 뒀더니
+-- 판례 일련번호가 헌재 일련번호와 겹쳐 헌재 12,296건을 조용히 덮어썼다
+-- (38,672 → 26,376). 같은 번호 체계라고 넘겨짚으면 안 된다.
+CREATE TABLE IF NOT EXISTS court_case (
+  case_sn   TEXT NOT NULL,      -- 일련번호 (헌재결정례일련번호 · 판례일련번호)
+  kind      TEXT NOT NULL,      -- detc(헌재결정례) · prec(판례)
+  case_no   TEXT,               -- 사건번호
+  case_nm   TEXT,               -- 사건명
+  end_dt    TEXT,               -- 종국일자 · 선고일자. '0' 이면 못 받은 것이다
+  yr        INTEGER,            -- 연도. end_dt 가 없으면 사건번호의 접수연도다 (yr_src 로 밝힌다)
+  yr_src    TEXT NOT NULL,      -- 'end' (종국·선고일자) | 'caseno' (사건번호 접수연도)
+  court     TEXT,               -- 법원명 · 데이터출처명
+  ctype     TEXT,               -- 사건종류명
+  src_url   TEXT NOT NULL,
+  fetched_at TEXT NOT NULL,
+  PRIMARY KEY (kind, case_sn)
+);
+CREATE INDEX IF NOT EXISTS ix_case_yr ON court_case(yr);
+CREATE INDEX IF NOT EXISTS ix_case_kind ON court_case(kind);
+
+-- 통계 — KOSIS. 결과 노드('노란 원')의 원천이다.
+-- 표 하나가 stat_table 한 줄, 그 표의 시계열 값이 stat_value 여러 줄이다.
+-- **값을 손대지 않는다.** 반올림·환산은 화면에서 하고 여기는 받은 그대로 둔다.
+CREATE TABLE IF NOT EXISTS stat_table (
+  key       TEXT PRIMARY KEY,   -- orgId:tblId:itmId:c1 (한 지표를 가리키는 열쇠)
+  org_id    TEXT NOT NULL,
+  tbl_id    TEXT NOT NULL,
+  tbl_nm    TEXT NOT NULL,      -- 통계표명. **지어내지 않는다 — 이 이름의 말만 쓴다**
+  itm_id    TEXT, itm_nm TEXT,  -- 항목
+  c1        TEXT, c1_nm  TEXT,  -- 분류1 (전국 · 계 …)
+  unit      TEXT,               -- 단위명
+  want      TEXT,               -- 우리가 찾던 말 (docs/다음단계.md)
+  src_url   TEXT NOT NULL,
+  fetched_at TEXT NOT NULL
+);
+CREATE TABLE IF NOT EXISTS stat_value (
+  key   TEXT NOT NULL REFERENCES stat_table(key),
+  prd   TEXT NOT NULL,          -- 기간 (YYYY)
+  val   TEXT,                   -- 값. 받은 그대로 문자열이다
+  PRIMARY KEY (key, prd)
+);

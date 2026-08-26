@@ -32,7 +32,11 @@ const DRY = process.argv.includes('--dry');
 const RULE = 'topic_by_committee_and_year';
 /* 2관문 창. 화면에도 이 숫자를 적는다.
    GATE_YEARS 로 바꿔가며 몇 개가 되는지 잰다 — 값은 실측으로 고른다. */
-const YEARS = Number(process.env.GATE_YEARS || 5);   /* 실측으로 5 를 골랐다 — 아래 표 */
+/* **±3년이다.** ±년은 노드를 늘리는 레버가 아니다 — 실측으로 3→10 을 훑었더니
+   법률이 62→77 밖에 안 늘었다. 같은 법의 개정만 늘어나기 때문이다.
+   노드를 늘리는 레버는 3관문(핵심어)이고, 그쪽을 두 글자까지 넓혔다.
+   시기 조건은 좁게 두는 편이 근거가 세다. docs/자동연결.md 와 이 값이 같아야 한다. */
+const YEARS = Number(process.env.GATE_YEARS || 3);
 const NOW = new Date().toISOString().slice(0, 10);
 
 const CATLAB = { spy:'간첩·기밀', sec:'안보·정보기관', land:'부동산', for:'외국인·참정권',
@@ -269,8 +273,12 @@ const nodeJs = [...lawNodes.values()].map(n =>
     ? `presN:[${n.presCount.map(([p, c]) => `[${q(p)},${c}]`).join(',')}],presUnknown:${n.presUnknown},` : '') +
   (n.reason ? `reason:${q(n.reason)},rsnDt:${q(n.rsnDt)},rsnUrl:${q(n.rsnUrl)},rsnRest:${n.rsnRest},` : '') +
   `bills:[${n.bills.map(b => `[${q(b.id)},${q(b.dt)}]`).join(',')}]}`).join('\n,');
+/* **선 자체에 자동 표시를 박는다.** 전에는 '붙은 노드가 auto 면 점선' 이라는 간접 방식이었다.
+   그러면 표시가 빠져도 화면이 그대로라 아무도 모른다 — 실제로 자동 선 266개 전부가
+   자기 표시 없이 들어가 있었다. 8번째 칸이 'auto' 다 (7번째는 손 선의 날짜 칸이라 비운다).
+   강제: 검사 45. auto 노드에 닿는 선에 이 표시가 없으면 FAIL. */
 const linkJs = links.map(l =>
-  `[${q(l.from)},${q(l.to)},'같은 주제','topic',${q(l.why)},${q('개정 ' + l.n + '건')}]`).join('\n,');
+  `[${q(l.from)},${q(l.to)},'같은 주제','topic',${q(l.why)},${q('개정 ' + l.n + '건')},'','auto']`).join('\n,');
 
 let out = fs.readFileSync(path.join(ROOT, 'index.html'), 'utf8');
 const put = (tag, body) => {

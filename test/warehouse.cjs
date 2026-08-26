@@ -535,7 +535,44 @@ db.close();
   }
 }
 
-console.log('\n창고 검사 A~H');
+/* ── 검사 I · 사건 표에 전문이 들어오지 않았나 ──
+   판례 전문(판례내용)에는 변호사·당사자 실명이 있다.
+   이 사이트는 JSON 을 통째로 내보내므로 **화면에 안 그려도 파일에 있으면 배포한 것**이다.
+   그래서 '화면에 안 그린다' 로는 못 막는다 — 창고에 아예 안 담는 것으로 막는다.
+   같은 이유로 지도로 내보내는 사건 노드에도 전문이 없어야 한다. */
+{
+  const BAN = ['판례내용', '전문', '결정문', '이유', '주문', 'content', 'body_text'];
+  const schema = fs.readFileSync(path.join(ROOT, 'db', 'schema.sql'), 'utf8');
+  const m = schema.match(/CREATE TABLE IF NOT EXISTS court_case \(([\s\S]*?)\n\);/);
+  if (!m) NOTE('I · court_case 표가 스키마에 없다 (사건 수집 전이면 정상)');
+  else {
+    const cols = m[1].split('\n').map(l => (l.trim().match(/^(\w+)/) || [])[1]).filter(Boolean);
+    const bad = cols.filter(c => BAN.includes(c));
+    NOTE(`I · court_case 칸 ${cols.length}개 · 전문류 칸 ${bad.length}개`);
+    if (bad.length) FAIL(`I · court_case 에 전문류 칸이 있다: ${bad.join(', ')} — 실명이 딸려 온다`);
+    if (!cols.includes('yr_src'))
+      FAIL('I · yr_src 가 없다. 종국일자가 없어 사건번호(접수연도)를 쓴 것을 밝힐 길이 사라진다');
+    /* 수집기가 상세(lawService.do)를 부르면 전문이 딸려 온다 — 부르지 않는지 본다 */
+    const col = fs.readFileSync(path.join(ROOT, 'tools', 'collect-case.mjs'), 'utf8');
+    /* **부르는 것과 적어 두는 것을 갈라야 한다.** 처음엔 'lawService.do 라는 글자가 있으면 FAIL'
+       로 했더니, 원문을 볼 수 있는 자리(src_url)에 그 주소를 적어 둔 것까지 잡았다.
+       그건 사람이 눌러서 보는 링크지 우리가 받아 오는 것이 아니다.
+       그래서 **요청을 만드는 자리**(new URL · fetch)만 본다. */
+    if (/new URL\(\s*['"`][^'"`]*lawService\.do/.test(col) || /fetch\([^)]*lawService\.do/.test(col))
+      FAIL('I · 수집기가 lawService.do(상세)를 요청한다. 상세 응답에는 전문이 들어 있다');
+  }
+  /* 지도로 나간 사건 노드에 긴 본문이 실려 있지 않은지 — 분모와 함께 */
+  const idx = fs.readFileSync(path.join(ROOT, 'index.html'), 'utf8');
+  const cn = idx.match(/\/\*AUTO-CASE-N-START\*\/([\s\S]*?)\/\*AUTO-CASE-N-END\*\//);
+  if (cn) {
+    const rows = (cn[1].match(/\{id:'case_/g) || []).length;
+    const long = (cn[1].match(/body:'[^']{400,}'/g) || []).length;
+    NOTE(`I · 지도에 나간 사건 ${rows}개 · 그중 400자 넘는 본문 ${long}개`);
+    if (long) FAIL(`I · 사건 노드 ${long}/${rows}개의 본문이 400자를 넘는다 — 전문이 섞여 들어왔을 수 있다`);
+  }
+}
+
+console.log('\n창고 검사 A~I');
 notes.forEach(n => console.log('  · ' + n));
 if (warns.length) { console.log('\nWARN'); warns.forEach(w => console.log('  ! ' + w)) }
 if (fails.length) { console.log('\nFAIL'); fails.forEach(f => console.log('  x ' + f)) }

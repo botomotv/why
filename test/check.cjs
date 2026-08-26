@@ -1071,7 +1071,11 @@ function boot(w, h) {
         var lo=Math.min(r1,r2), hi=Math.max(r1,r2);
         var area=Math.PI*0.93*(hi*hi-lo*lo);
         var used=0;
-        g[y].forEach(function(n){used+=Math.max(2*n.r,(n.lw||60))*(2*n.r+(n.lh||24))});
+        /* **화면이 쓰는 함수를 부른다.** 전에는 여기서 lw·lh 로 공식을 다시 썼다.
+           흐린 점으로 그리는 노드가 생기자 화면은 4px 를 차지하는데 검사는
+           100px 로 세어 '2020년대 140% 넘침' 이라는 없는 문제를 보고했다.
+           공식을 두 벌 두면 갈라진다 — hw·hh 는 그리기·물리·검사가 같이 쓴다. */
+        g[y].forEach(function(n){used+=(2*hw(n))*(2*hh(n))});
         return {y:y, n:g[y].length, p:area>0?used/area:0};
       });
       return {rows:rows, perYear:+((ROUT-RIN)/(RY1-RY0)).toFixed(1)};
@@ -2204,6 +2208,31 @@ function boot(w, h) {
         F('42. 지도에 몇 개만 그리는지 화면에 안 밝힌다. 말없이 자르면 "이게 전부" 가 된다');
       if (r.chain < 10) W(`42. 이어진 것이 ${r.chain}개뿐이라 잘림을 충분히 못 쟀다`);
     }
+  }
+
+  /* ── 45. 자동으로 만든 관계에 '자동' 표시가 있나 ──
+     전에는 표시가 선에 없고 **붙은 노드가 auto 인지로 유추**했다.
+     그러면 표시가 빠져도 화면이 그대로라 아무도 모른다 —
+     실제로 자동 선 266개가 자기 표시 없이 들어가 있었다.
+     지금은 8번째 칸이 'auto' 다. 없으면 실선으로 그려져 손으로 넣은 선처럼 보인다.
+     **자동/수동이 화면에서 안 갈리면 그건 우리가 주장을 사실처럼 내보내는 것이다.** */
+  {
+    const autoIds = new Set(N.filter(n => n.auto).map(n => n.id));
+    const touch = L.filter(l => autoIds.has(l[0]) || autoIds.has(l[1]));
+    const marked = L.filter(l => l[7] === 'auto');
+    const missing = touch.filter(l => l[7] !== 'auto');
+    const stray = marked.filter(l => !autoIds.has(l[0]) && !autoIds.has(l[1]));
+    console.log(`45. 자동표시        자동 노드 ${autoIds.size} · 그에 닿는 선 ${touch.length} · 표시된 선 ${marked.length}`);
+    if (!autoIds.size) F('45. 자동 노드가 하나도 없다. 자동 연결이 안 들어갔거나 auto 표시가 빠졌다');
+    if (missing.length)
+      F(`45. 자동으로 만든 선 ${missing.length}/${touch.length}개에 '자동' 표시가 없다. ` +
+        `첫 번째: ${missing[0][0]} → ${missing[0][1]}. 표시가 없으면 손으로 확인해 넣은 선과 안 갈린다`);
+    if (stray.length)
+      F(`45. 손으로 넣은 선 ${stray.length}개에 '자동' 표시가 붙어 있다: ${stray[0][0]} → ${stray[0][1]}`);
+    /* 화면에도 실제로 나오는지 — 있다고 쓰기만 하고 안 그리면 같은 거짓말이다 */
+    const dash = /var isAuto=\(l\[7\]==='auto'\)/.test(html);
+    if (!dash) F("45. 그리기가 선의 표시(l[7])를 안 본다. 노드에서 유추하면 표시가 빠져도 화면이 그대로다");
+    if (!/c\.auto\|\|o\.auto/.test(html)) F("45. 카드 관계 목록이 선의 자동 표시를 안 쓴다");
   }
 
   /* ── 요약 ── */

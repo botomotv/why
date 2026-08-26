@@ -4258,11 +4258,71 @@ function placePop(){}
    처음에 gl(커서를 올렸을 때의 빛)만 봤더니, 결과를 눌러도 이어진 법안이
    흐린 점 그대로였다. gl 은 마우스용이고 초점 이웃은 ring[id]===1 이다.
    실측으로 이웃 26개가 하나도 안 밝아지는 것을 보고 알았다. */
+/* ── 결과 말고도 일부는 또렷하게 ──
+   결과 19개만 또렷하면 화면이 허전하고, 무엇이 있는지 몰라서 누를 수가 없다.
+   그렇다고 전부 또렷하게 하면 이름표가 서로를 지운다 (실측: 171개를 다 그리면
+   겹침 308쌍에 읽히는 것이 0개다).
+
+   **무엇을 고를지가 문제다. '중요한 것' 을 고르면 그게 편집 판단이다.**
+   그래서 판단이 아닌 것으로만 고른다.
+
+     ① 이어진 선의 수 — 사실이다. 우리가 정한 값이 아니라 데이터가 만든 값이다
+     ② 종류별 몫 — 어느 종류가 중요한지가 아니라, 한 종류가 화면을 다 먹지 않게 하는 것이다
+        (자동 법률 306개가 연결 수로 겨루면 사건·인물이 한 개도 안 남는다)
+     ③ 같은 값이면 id 순 — 흔들리지 않게. 실행마다 달라지면 그것도 우리가 고른 것이다
+
+   **화면 가운데에 가까운 것** 은 안 쓴다. 카메라를 움직일 때마다 뽑히는 것이 바뀌어
+   이름표가 깜빡이고, 무엇보다 '지금 보고 있는 곳' 이라는 우연이 기준이 된다.
+
+   **진영(side)은 기준에 넣지 않는다.** 대신 검사 46 이 매번 분포를 출력한다.
+   기울면 손으로 맞추지 않고 그 사실을 밝힌다 — 손으로 맞추면 균형이 아니라 연출이다. */
+/* **100 은 실측으로 정했다 — 고리가 넘치기 직전이다.**
+   또렷하게 그리는 노드는 이름표 상자만큼 자리를 차지한다.
+   K 를 올리면 그 상자가 고리 넓이를 넘고, 그때부터는 이름표를 계획해도
+   서로 지워서 안 그려진다. 즉 **더 넣어도 화면에는 안 나온다.**
+
+   | K | 최대 고리 밀도 | 넘치는 연대 | 이름표(1440) |
+   |---:|---:|---:|---:|
+   | 70 | 69% | 0/9 | 47 |
+   | **100** | **69%** | **0/9** | **58** |
+   | 140 | 106% | 1/9 | 69 |
+   | 220 | 120% | 4/9 | 81 |
+
+   검사 22 가 넘침을 FAIL 로 잡는다. 그래서 이 값은 사람이 눈대중으로 올릴 수 없다. */
+var BRIGHT_K=Number((location.search.match(/[?&]bk=(\d+)/)||[])[1]||100);
+var brightSet=null, brightKey='';
+function planBright(){
+  var key=[A.length,cat,sideF||'',kindF||'',onlyP||'',BRIGHT_K].join('|');
+  if(brightSet&&brightKey===key)return brightSet;
+  var by={};
+  A.forEach(function(n){ if(n.t==='result')return;
+    (by[n.t]=by[n.t]||[]).push(n) });
+  var kinds=Object.keys(by).sort();
+  var quota=Math.max(1,Math.floor(BRIGHT_K/Math.max(1,kinds.length)));
+  var out={}, left=BRIGHT_K, rest=[];
+  kinds.forEach(function(k){
+    var arr=by[k].sort(function(a,b){
+      var da=(adj[a.id]||[]).length, db=(adj[b.id]||[]).length;
+      return db-da || String(a.id).localeCompare(String(b.id)) });
+    arr.forEach(function(n,i){ if(i<quota&&left>0){out[n.id]=1;left--} else rest.push(n) });
+  });
+  /* 몫을 다 못 채운 종류가 있으면 남은 자리는 연결 수 순으로 채운다 —
+     자리를 비워 두면 K 를 정한 뜻이 없어진다 */
+  rest.sort(function(a,b){
+    var da=(adj[a.id]||[]).length, db=(adj[b.id]||[]).length;
+    return db-da || String(a.id).localeCompare(String(b.id)) });
+  for(var i=0;i<rest.length&&left>0;i++){ out[rest[i].id]=1; left-- }
+  brightSet=out; brightKey=key; return out;
+}
+/* **초점의 이웃은 ring 이 알려준다 — gl 이 아니다.**
+   처음에 gl(커서를 올렸을 때의 빛)만 봤더니, 결과를 눌러도 이어진 법안이
+   흐린 점 그대로였다. gl 은 마우스용이고 초점 이웃은 ring[id]===1 이다.
+   실측으로 이웃 26개가 하나도 안 밝아지는 것을 보고 알았다. */
 function dotOnly(n){
   if(!DRAWMODE||n.t==='result')return false;
   if(n.gl>0.5)return false;
-  if(focus&&typeof ring==='object'&&ring[n.id]!==undefined&&ring[n.id]<=1)return false;
-  return true }
+  if(focus){ return !(typeof ring==='object'&&ring[n.id]!==undefined&&ring[n.id]<=1) }
+  return !planBright()[n.id] }
 function hw(n){ if(dotOnly(n))return Math.max(2.5,n.r*0.38)+2; return Math.max(n.r,n.lw/2+5)+7}
 /* 이름표가 실제로 차지하는 세로. measure() 가 줄 수를 세어 n.lh 를 채운다.
    전에는 결과 노드에 18px 을 줬는데 숫자가 yy+22 에 그려져 박스 밖이었다. */

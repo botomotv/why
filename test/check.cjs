@@ -2235,6 +2235,55 @@ function boot(w, h) {
     if (!/c\.auto\|\|o\.auto/.test(html)) F("45. 카드 관계 목록이 선의 자동 표시를 안 쓴다");
   }
 
+  /* ── 46. 또렷하게 고른 것이 한쪽으로 기울지 않았나 ──
+     첫 화면에서 결과 말고도 일부를 또렷하게 그린다. **무엇을 고르느냐가 편집이다.**
+     기준은 판단이 아닌 것뿐이다 — 이어진 선의 수(사실) · 종류별 몫 · id 순.
+     진영(side)은 기준에 **안 넣는다.** 넣으면 그 순간 우리가 균형을 연출한 것이 된다.
+     대신 매번 분포를 띄운다. 기울면 손으로 고치지 않고 **그 사실을 밝힌다.** */
+  {
+    const d46 = boot(1440, 900);
+    await new Promise(r => setTimeout(r, 1200));
+    const r = d46.window.eval(`(function(){
+      if(typeof planBright!=='function')return null;
+      var pool=A.filter(function(n){return n.t!=='result'});
+      var B=planBright(), sel=pool.filter(function(n){return B[n.id]});
+      var cnt=function(a,f){return a.reduce(function(o,n){var k=f(n)||'없음';o[k]=(o[k]||0)+1;return o},{})};
+      return {K:BRIGHT_K, 뽑힘:sel.length, 모집단:pool.length,
+        선택진영:cnt(sel,function(n){return n.side}), 기준진영:cnt(pool,function(n){return n.side}),
+        선택종류:cnt(sel,function(n){return n.t}), 기준종류:cnt(pool,function(n){return n.t}),
+        /* **캐시를 비우고 다시 부른다.** 그냥 두 번 부르면 같은 캐시가 돌아와
+           언제나 '같다' 가 된다 — 실제로 무작위를 주입해도 통과했다.
+           아무것도 안 잡는 검사는 언제나 PASS 라서 가장 오래 산다. */
+        고정:(function(){var a=Object.keys(B).sort().join(',');
+          brightSet=null;brightKey='';
+          var b=Object.keys(planBright()).sort().join(',');
+          brightSet=null;brightKey='';
+          return a===b})()};
+    })()`);
+    d46.window.close();
+    if (!r) { F('46. planBright 가 없다 — 또렷하게 고르는 경로가 사라졌다'); }
+    else {
+      const pc = (o, t) => Object.keys(o).sort().map(k => `${k} ${(o[k] / t * 100).toFixed(0)}%`).join(' · ');
+      console.log(`46. 또렷 고르기    K=${r.K} · 뽑힘 ${r.뽑힘}/${r.모집단}`);
+      console.log(`     진영 뽑힌 것  ${pc(r.선택진영, r.뽑힘)}`);
+      console.log(`     진영 기준선   ${pc(r.기준진영, r.모집단)}`);
+      console.log(`     종류 뽑힌 것  ${Object.keys(r.선택종류).sort().map(k => k + ' ' + r.선택종류[k]).join(' · ')}`);
+      if (!r.뽑힘) F('46. 결과 말고 또렷한 것이 하나도 없다 — 화면이 노란 원만 남는다');
+      if (!r.고정) F('46. 두 번 부르면 다른 것을 고른다 — 흔들리면 그것도 우리가 고른 것이다');
+      /* 기준선보다 8%p 넘게 벌어진 진영이 있으면 밝힌다. FAIL 은 아니다 —
+         데이터 자체가 기울어 있고(gov 74%), 손으로 맞추면 연출이 된다. */
+      for (const k of Object.keys(r.기준진영)) {
+        const a = (r.선택진영[k] || 0) / r.뽑힘 * 100, b = r.기준진영[k] / r.모집단 * 100;
+        if (Math.abs(a - b) > 8)
+          W(`46. 진영 ${k} 가 뽑힌 것 ${a.toFixed(0)}% · 기준선 ${b.toFixed(0)}% 로 ${Math.abs(a-b).toFixed(0)}%p 벌어졌다`);
+      }
+      /* 한 종류가 다 먹으면 몫이 안 도는 것이다 */
+      const kinds = Object.keys(r.기준종류);
+      const zero = kinds.filter(k => !r.선택종류[k]);
+      if (zero.length) F(`46. 종류 ${zero.join(', ')} 가 한 개도 안 뽑혔다 — 종류별 몫이 안 돌고 있다`);
+    }
+  }
+
   /* ── 요약 ── */
   console.log('\n' + '─'.repeat(50));
   console.log('노드 진영 분포:', JSON.stringify(bySide));

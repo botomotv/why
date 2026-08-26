@@ -30,7 +30,9 @@ const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
 const DB = process.env.WAREHOUSE_DB || path.join(ROOT, 'db', 'warehouse.db');
 const DRY = process.argv.includes('--dry');
 const RULE = 'topic_by_committee_and_year';
-const YEARS = 3;                    /* 2관문 창. 화면에도 이 숫자를 적는다 */
+/* 2관문 창. 화면에도 이 숫자를 적는다.
+   GATE_YEARS 로 바꿔가며 몇 개가 되는지 잰다 — 값은 실측으로 고른다. */
+const YEARS = Number(process.env.GATE_YEARS || 5);   /* 실측으로 5 를 골랐다 — 아래 표 */
 const NOW = new Date().toISOString().slice(0, 10);
 
 const CATLAB = { spy:'간첩·기밀', sec:'안보·정보기관', land:'부동산', for:'외국인·참정권',
@@ -95,6 +97,15 @@ const presOf = dt => {
 
 let easy = {};
 try { easy = JSON.parse(fs.readFileSync(path.join(ROOT, 'db', 'law_easy.json'), 'utf8')); delete easy._ } catch {}
+/* 분야별 핵심어 — 결과 노드의 좁은 keys 에 **더해서** 쓴다.
+   노드별 keys 만으로는 법률이 62개밖에 안 붙어 지도가 비어 보였다.
+   ±년을 3→10 으로 늘려도 62→77 뿐이었다 (같은 법의 개정만 늘어난다).
+   노드 수를 늘리는 레버는 3관문이지 2관문이 아니다.
+   GATE_WIDE=0 으로 끄면 옛 동작 그대로다. */
+let catKeys = {};
+if (process.env.GATE_WIDE !== '0') {
+  try { catKeys = JSON.parse(fs.readFileSync(path.join(ROOT, 'db', 'cat_keys.json'), 'utf8')); delete catKeys._ } catch {}
+}
 
 const cc = {};
 for (const r of db.prepare('SELECT cat, committee FROM cat_committee').all())
@@ -118,9 +129,15 @@ for (const g of cmap[1].matchAll(/['"]?([\w]+)['"]?\s*:\s*\[([^\]]*)\]/g))
   for (const id of g[2].split(',').map(x => x.replace(/['\s]/g, '')).filter(Boolean))
     (catOf[id] = catOf[id] || []).push(g[1]);
 const nodes = [...html.matchAll(/\{id:'([^']+)',t:'result'[\s\S]{0,400}?lab:'([^']*)'[\s\S]{0,300}?yr:'(\d{4})',keys:\[([^\]]*)\]/g)]
-  .map(m => ({ id: m[1], lab: m[2], yr: +m[3],
-               keys: m[4].split(',').map(x => x.replace(/'/g, '').trim()).filter(Boolean),
-               cats: catOf[m[1]] || [] }));
+  .map(m => {
+    const own = m[4].split(',').map(x => x.replace(/'/g, '').trim()).filter(Boolean);
+    const cats = catOf[m[1]] || [];
+    /* 노드가 핵심어를 **일부러 비운** 경우(r3·q5)는 넓히지 않는다 —
+       그 주제는 법률이 아니라 대통령령·기본계획이라 법 이름에 흔적이 없다.
+       비운 것을 분야 사전으로 채우면 우리가 만든 거짓 연결이 된다. */
+    const wide = own.length ? [...new Set([...own, ...cats.flatMap(c => catKeys[c] || [])])] : [];
+    return { id: m[1], lab: m[2], yr: +m[3], keys: wide, ownKeys: own, cats };
+  });
 
 /* ── 관문 ── */
 const gate = { 후보: bills.length, g1: 0, g2: 0, g12: 0, g123: 0 };

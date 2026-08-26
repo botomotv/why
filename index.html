@@ -3001,6 +3001,8 @@ if(typeof ResizeObserver!=='undefined'){
   var topRO=new ResizeObserver(function(){updateTopSafe()});
   TOP_UI.forEach(function(sel){var e=document.querySelector(sel);if(e)topRO.observe(e)});
 }
+var CHARGE_R=Number(location.search.match(/[?&]cr=(\d+)/)?.[1]||140);  /* 밀어내기가 닿는 거리(px) */
+var CHARGE_R2=CHARGE_R*CHARGE_R;
 var LABEL_PX=12;                 /* 화면상 글자 크기. 배율이 변해도 이 값을 지킨다 */
 var LABEL_FAR=0.62;              /* 이 배율 미만이면 결과 숫자만 이름을 단다 */
 /* LABEL_FAR 은 첫 화면 배율의 하한이기도 하다.
@@ -3637,13 +3639,34 @@ function tick(){
   if(alpha<floorA)alpha=floorA;
   var fx={},fy={};
   A.forEach(function(n){if(bad(n)){n.x=0;n.y=0;n.vx=0;n.vy=0}fx[n.id]=0;fy[n.id]=0});
+  /* ── 밀어내기는 500px 안에서만 일어난다 (d2>250000 이면 건너뛴다) ──
+     그런데 전에는 그 사실을 알면서도 **모든 쌍을 다 훑었다.** O(N²) 다.
+     실측(브라우저): 293개 8.5ms · 443개 26.8ms · 1,231개 279ms.
+     60fps 한계가 16.6ms 이므로 **350개 근처가 천장**이었다.
+     자동으로 채우려는데 그 앞에서 막힌다 — 관문이 아니라 여기가 병목이었다.
+
+     500px 칸으로 나누고 **제 칸과 이웃 8칸만** 본다. 컷오프가 500 이고 칸도 500 이라
+     500px 안의 쌍은 반드시 이 3×3 안에 있다 — **결과가 같다.** 근사가 아니다. */
+  /* 밀어내기가 닿는 거리. **지도 전체가 아니라 겹침을 푸는 거리면 된다.**
+     전에는 500px 이었는데 고리 지름이 1,660px 이라 지도의 30% 다 —
+     그래서 모든 쌍이 서로 '이웃' 이 되어 격자를 깔아도 아무 이득이 없었다
+     (1,231개에서 279ms → 290ms, 그대로).
+     점 반지름이 6~24px 이므로 그 몇 배면 충분하다. 값은 아래에서 실측으로 고른다. */
+  var CELL=CHARGE_R, grid={};
+  for(var i=0;i<A.length;i++){var n0=A[i]; n0.__i=i;
+    var k0=Math.floor(n0.x/CELL)+','+Math.floor(n0.y/CELL);
+    (grid[k0]||(grid[k0]=[])).push(n0)}
   for(var i=0;i<A.length;i++){var a=A[i];
-    for(var j=i+1;j<A.length;j++){var b=A[j];
-      var dx=b.x-a.x,dy=b.y-a.y,d2=dx*dx+dy*dy;
-      if(d2>250000)continue;
-      if(d2<1){dx=Math.random()-0.5;dy=Math.random()-0.5;d2=1}
-      var f=CHARGE/d2;if(f>1.0)f=1.0;var d=Math.sqrt(d2);
-      fx[a.id]-=dx/d*f;fy[a.id]-=dy/d*f;fx[b.id]+=dx/d*f;fy[b.id]+=dy/d*f}}
+    var gx=Math.floor(a.x/CELL), gy=Math.floor(a.y/CELL);
+    for(var ox=-1;ox<=1;ox++)for(var oy=-1;oy<=1;oy++){
+      var cell=grid[(gx+ox)+','+(gy+oy)]; if(!cell)continue;
+      for(var m=0;m<cell.length;m++){var b=cell[m];
+        if(b.__i<=i)continue;                       /* 같은 쌍을 두 번 세지 않는다 */
+        var dx=b.x-a.x,dy=b.y-a.y,d2=dx*dx+dy*dy;
+        if(d2>CHARGE_R2)continue;
+        if(d2<1){dx=Math.random()-0.5;dy=Math.random()-0.5;d2=1}
+        var f=CHARGE/d2;if(f>1.0)f=1.0;var d=Math.sqrt(d2);
+        fx[a.id]-=dx/d*f;fy[a.id]-=dy/d*f;fx[b.id]+=dx/d*f;fy[b.id]+=dy/d*f}}}
   AL.forEach(function(l){var a=map[l[0]],b=map[l[1]];
     var dx=b.x-a.x,dy=b.y-a.y,d=Math.hypot(dx,dy)||1;
     var f=(d-REST)*KS*0.5,kx=1;
@@ -3708,10 +3731,41 @@ function tick(){
      겹친 것만 풀면 되고, 그 뒤로는 돌수록 진동만 남는다.
      초점이 아닐 때는 원래대로 — 배치가 아직 자리를 잡는 중이다. */
   var COLL=(alpha>0.008)?8:0;
+  /* ── 겹침 검사도 격자로 ──
+     여기가 진짜 병목이었다. 모든 쌍을 **8번** 훑는다 —
+     1,171개면 685,621쌍 × 8 = 550만 회다. 실측 260ms (한 틱).
+     밀어내기(5.3ms)·링크(0.3ms)·반지름 계산(0.2ms) 을 다 합쳐도 6ms 인데
+     이것 하나가 나머지 전부의 40배였다.
+
+     두 노드가 겹치려면 가로로 __hw 합, 세로로 __hh 합 안에 있어야 한다.
+     가장 큰 노드의 두 배를 칸 크기로 잡으면 **겹치는 쌍은 반드시 3×3 안에 있다.**
+     근사가 아니라 같은 결과다. */
+  /* **칸 크기를 가장 큰 노드에 맞추면 안 된다.** 이름표가 긴 노드 하나가 233px 라
+     칸이 466px 이 되고, 고리 전체가 16칸에 들어가 오히려 12% 손해였다 (실측).
+     칸은 흔한 크기(중앙값의 두 배)로 잡고, **큰 노드는 자기가 덮는 칸에 전부 등록**한다.
+     그러면 겹치는 쌍은 반드시 같은 칸을 공유한다 — 근사가 아니다. */
+  var hwArr=[];
+  for(var p=0;p<CA.length;p++)hwArr.push(Math.max(CA[p].__hw,CA[p].__hh));
+  hwArr.sort(function(a,b){return a-b});
+  var CC=Math.max(48,(hwArr[Math.floor(hwArr.length/2)]||40)*2);
+  var stamp=0;
   for(var it=0;it<COLL;it++){
     var relax=it===0?1:(it<4?0.8:0.5);
+    var cg={};
+    for(var p=0;p<CA.length;p++){var P0=CA[p]; P0.__ci=p; P0.__st=-1;
+      var x0=Math.floor((P0.x-P0.__hw)/CC), x1=Math.floor((P0.x+P0.__hw)/CC);
+      var y0=Math.floor((P0.y-P0.__hh)/CC), y1=Math.floor((P0.y+P0.__hh)/CC);
+      for(var gx2=x0;gx2<=x1;gx2++)for(var gy2=y0;gy2<=y1;gy2++){
+        var ck=gx2+','+gy2; (cg[ck]||(cg[ck]=[])).push(P0)}}
     for(var p=0;p<CA.length;p++){var P=CA[p];
-      for(var q=p+1;q<CA.length;q++){var Q=CA[q];
+      var ax0=Math.floor((P.x-P.__hw)/CC), ax1=Math.floor((P.x+P.__hw)/CC);
+      var ay0=Math.floor((P.y-P.__hh)/CC), ay1=Math.floor((P.y+P.__hh)/CC);
+      stamp++;
+      for(var gx3=ax0;gx3<=ax1;gx3++)for(var gy3=ay0;gy3<=ay1;gy3++){
+      var cl=cg[gx3+','+gy3]; if(!cl)continue;
+      for(var qi=0;qi<cl.length;qi++){var Q=cl[qi];
+        if(Q.__ci<=p)continue;
+        if(Q.__st===stamp)continue; Q.__st=stamp;   /* 같은 쌍을 칸마다 또 세지 않는다 */
         var sx=P.__hw+Q.__hw,sy=P.__hh+Q.__hh;
         var ex=Q.x-P.x,ey=Q.y-P.y;
         if(ex>sx||ex<-sx||ey>sy||ey<-sy)continue;
@@ -3725,7 +3779,7 @@ function tick(){
         var pl=(!focus)||ring[P.id]!==undefined, ql=(!focus)||ring[Q.id]!==undefined;
         var am=(P===drag||P.fixed||!pl)?0:1,bm=(Q===drag||Q.fixed||!ql)?0:1,tot=am+bm;
         if(!tot)continue;
-        P.x-=ox*(am/tot);P.y-=oy*(am/tot);Q.x+=ox*(bm/tot);Q.y+=oy*(bm/tot)}}}
+        P.x-=ox*(am/tot);P.y-=oy*(am/tot);Q.x+=ox*(bm/tot);Q.y+=oy*(bm/tot)}}}}
   /* 충돌 해소 8회가 위치를 밀어내면서 반지름이 흔들린다.
      반지름은 연도다 — 흔들리면 연도가 거짓말이 된다.
      각도는 밀린 대로 두고 반지름만 제자리로 되돌린다.

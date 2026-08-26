@@ -106,7 +106,17 @@ for (const want of WANT) {
     if (!DRY) db.exec('BEGIN');
     for (const [k, v] of by) {
       const good = v.vals.filter(([p, x]) => /^\d{4}$/.test(p) && x !== '');
-      if (good.length < 3) continue;         /* 3년도 안 되면 시계열이 아니다 */
+      /* ── 거르는 기준 세 가지 — 내가 정했다. 왜 그런지 적어 둔다 ──
+         ① **10년 이상**. 결과 노드는 "왜 이렇게 됐나" 를 묻는 자리다.
+            3~4년짜리는 추세를 못 보여주고 우연을 추세로 읽게 만든다.
+         ② **전국 단위만**. 시도별·시군구별을 넣으면 「쌀 생산량 시도별」 같은 것이
+            수만 개가 되고, 지도가 통계 목록이 된다. 지역 이야기는 지역 지도의 몫이다.
+         ③ 사람 생활에 닿는 것 — db/kosis_want.json 의 검색어로 한정한다.
+         셋 다 **편집 판단이다.** 그래서 코드가 아니라 여기 적어 사람이 바꿀 수 있게 둔다. */
+      if (good.length < 10) continue;
+      const c1 = (v.c1Nm || '').trim();
+      const 전국 = !c1 || /^(전국|계|합계|전체|총계|소계)$/.test(c1);
+      if (!전국) continue;
       if (insT) insT.run(k, orgId, tblId, v.tblNm, v.itmId, v.itmNm, v.c1, v.c1Nm, v.unit, want,
         `https://kosis.kr/statHtml/statHtml.do?orgId=${orgId}&tblId=${tblId}`, NOW);
       for (const [p, x] of good) { if (insV) insV.run(k, p, x); nVal++ }

@@ -435,7 +435,9 @@ db.close();
       const SKIP = new Set(['UNKNOWN', 'ASSEMBLY_KEY', 'COLLECT_AGE', 'COLLECT_STEP', 'COLLECT_DB',
         'COLLECT_PAGE', 'PROBE_GAP', 'WAREHOUSE_DB', 'ASSEMBLY_GAP', 'KOSIS', 'LAW_OC', 'OPENSRVAPI',
         'ALLBILL', 'VCONFBILLLIST', 'INF_ID', 'LICENSE', 'DISTINCT', 'DELETE', 'EXISTS', 'ISO8601',
-        'KOSIS_KEY', 'KOSIS_GAP', 'LAW_OC', 'LAW_GAP', 'GATE_WIDE', 'GATE_YEARS', 'AUTOCAT', 'SIDEN', 'KINDN', 'LABEL_FAR', 'LABEL_PX', 'LABEL_FONT_PX', 'FIT_MIN', 'NARROW_W',
+        'KOSIS_KEY', 'KOSIS_GAP', 'LAW_OC', 'LAW_GAP', 'GATE_WIDE', 'GATE_YEARS', 'AUTOCAT',
+        /* 코드 안의 상수 이름이지 API 필드가 아니다 — 문서에서 언급하면 G 가 필드로 오해한다 */
+        'NAME_RISK', 'CASE_GAP', 'CASE_YEARS', 'PREC_PER', 'KOSIS_TOP', 'KOSIS_MIN_HIT', 'BRIGHT_K', 'DRAWMODE', 'SIDEN', 'KINDN', 'LABEL_FAR', 'LABEL_PX', 'LABEL_FONT_PX', 'FIT_MIN', 'NARROW_W',
         'NARROW_MIN_S', 'RESULT_W', 'GAP_MS', 'VOTE_MIN_AGE', 'FAN_FEW', 'FAN_EASE', 'MAX_EDGES',
         'TERM_CAP', 'VOTE_OPEN_YEAR', 'ALLNAMEMBER']);
       /* 밑줄이 있는 대문자 = API 필드꼴. 다만 **값**은 뺀다 —
@@ -554,12 +556,24 @@ db.close();
       FAIL('I · yr_src 가 없다. 종국일자가 없어 사건번호(접수연도)를 쓴 것을 밝힐 길이 사라진다');
     /* 수집기가 상세(lawService.do)를 부르면 전문이 딸려 온다 — 부르지 않는지 본다 */
     const col = fs.readFileSync(path.join(ROOT, 'tools', 'collect-case.mjs'), 'utf8');
-    /* **부르는 것과 적어 두는 것을 갈라야 한다.** 처음엔 'lawService.do 라는 글자가 있으면 FAIL'
-       로 했더니, 원문을 볼 수 있는 자리(src_url)에 그 주소를 적어 둔 것까지 잡았다.
-       그건 사람이 눌러서 보는 링크지 우리가 받아 오는 것이 아니다.
-       그래서 **요청을 만드는 자리**(new URL · fetch)만 본다. */
-    if (/new URL\(\s*['"`][^'"`]*lawService\.do/.test(col) || /fetch\([^)]*lawService\.do/.test(col))
-      FAIL('I · 수집기가 lawService.do(상세)를 요청한다. 상세 응답에는 전문이 들어 있다');
+    /* **막아야 하는 것은 '부르는 것' 이 아니라 '담는 것' 이다.**
+       처음엔 상세(lawService.do)를 부르기만 해도 FAIL 로 했다. 그런데 심판대상조문·
+       참조조문은 상세에만 있고, 그게 사건 → 법을 잇는 가장 센 근거다.
+       상세를 못 부르면 **근거 없는 연결만 남는다** — 규칙을 지키려다 규칙 3 을 깬다.
+       그래서 규칙을 바꿨다: 상세는 불러도 되고, **전문을 명시적으로 버려야 한다.**
+       (그리고 창고 표에 전문 칸이 아예 없다 — 위에서 이미 본다.) */
+    const cols2 = ['tools/collect-detc.mjs', 'tools/collect-prec.mjs']
+      .filter(f => fs.existsSync(path.join(ROOT, f)));
+    for (const f of cols2) {
+      const src = fs.readFileSync(path.join(ROOT, f), 'utf8');
+      const callsDetail = /lawService\.do/.test(src) || /target['"]?\s*[:,]\s*['"](detc|prec)/.test(src);
+      const drops = /delete\s+o\.(전문|판례내용)/.test(src);
+      if (callsDetail && !drops)
+        FAIL(`I · ${f} 가 상세를 받는데 전문(전문·판례내용)을 버리는 자리가 없다 (규칙 8)`);
+      if (/(전문|판례내용)\s*[:,]/.test(src.replace(/delete[^\n]*/g, '')))
+        FAIL(`I · ${f} 가 전문을 어딘가에 담고 있다 (규칙 8)`);
+    }
+    if (!cols2.length) NOTE('I · 상세 수집기가 아직 없다');
   }
   /* 지도로 나간 사건 노드에 긴 본문이 실려 있지 않은지 — 분모와 함께 */
   const idx = fs.readFileSync(path.join(ROOT, 'index.html'), 'utf8');

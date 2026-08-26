@@ -28,6 +28,7 @@ const DB = process.env.WAREHOUSE_DB || path.join(ROOT, 'db', 'warehouse.db');
 const DRY = process.argv.includes('--dry');
 const YEARS = Number(process.env.CASE_YEARS || 3);
 const RULE_A = 'case_by_law_name', RULE_B = 'case_by_keyword_and_year';
+const RULE_C = 'case_by_reviewed_article';
 const NOW = new Date().toISOString().slice(0, 10);
 const KIND = { detc: '헌법재판소 결정', prec: '법원 판례' };
 
@@ -48,8 +49,12 @@ const results = [...html.matchAll(/\{id:'([^']+)',t:'result'[\s\S]{0,400}?lab:'(
     keys: m[4].split(',').map(x => x.replace(/'/g, '').trim()).filter(Boolean) }));
 let catKeys = {};
 try { catKeys = JSON.parse(fs.readFileSync(path.join(ROOT, 'db', 'cat_keys.json'), 'utf8')); delete catKeys._ } catch { }
-for (const r of results)
-  r.wide = r.keys.length ? [...new Set([...r.keys, ...r.cats.flatMap(c => catKeys[c] || [])])] : [];
+/* ── 사건에는 분야 사전을 쓰지 않는다 ──
+   법안은 이름이 「○○법 일부개정법률안」 이라 분야 사전(넓은 말)이 잘 맞는다.
+   사건 이름은 「손해배상(기)」·「부당이득금」 이라 넓은 말을 대면 무관한 것이 무더기로 온다.
+   실측: 넓은 말로 21,016건이 붙어 사건 노드가 19,148개가 됐다 — 대부분 근거가 약하다.
+   그래서 사건은 **결과 노드가 직접 정한 좁은 핵심어**만 쓴다. 사람이 고른 말이다. */
+for (const r of results) r.wide = r.keys;
 
 /* 법 이름이 긴 것부터 본다 — '국적법' 이 '국적법시행령' 을 먼저 삼키면 안 된다 */
 const lawsBy = [...laws].sort((a, b) => b.lab.length - a.lab.length);
@@ -59,6 +64,21 @@ const cases = db.prepare(
      FROM court_case WHERE case_nm<>'' AND yr IS NOT NULL`).all();
 console.log(`사건 ${cases.length.toLocaleString()}건 · 법률 ${laws.length}개 · 결과 ${results.length}개` +
             ` · 2관문 ±${YEARS}년${DRY ? '  (--dry)' : ''}\n`);
+
+/* ── 판시사항에도 사람 이름이 있다 (규칙 8) ──
+   "판시사항엔 이름이 없다" 고 넘겨짚었다가 검사 47 이 진짜를 하나 잡았다:
+     [당사자]청구인 박○현 국선대리인 변호사 송한사(사임) …
+   헌재 판시사항 앞머리에 당사자·대리인 블록이 붙는 경우가 있다.
+   **수술하듯 오려내지 않고 그 판시사항을 통째로 안 쓴다.**
+   오려내다 놓치면 이름이 지도에 올라간다 — 남는 쪽이 아니라 버리는 쪽으로 기운다.
+   몇 개를 버렸는지는 아래에서 밝힌다. */
+let gistDropped = 0;
+/* **익명 마스크(○)가 있으면 그 자리가 사람 이름이다.**
+   `청구인 김○현` 처럼 성만 남기고 가린 꼴이 판시사항에 그대로 온다.
+   성 한 글자도 이름이다 — 사건번호와 함께 있으면 누구인지 좁혀진다.
+   그래서 ○ 가 하나라도 있으면 그 판시사항은 안 쓴다. */
+const NAME_RISK = /[○●◯]|\[당사자\]|대리인|변호사|청구인\s*[가-힣]|피청구인\s*[가-힣]|피고인\s*[가-힣]{2,3}(?![가-힣])|증인\s*[가-힣]{2,3}(?![가-힣])/;
+function safeGist(g) { if (NAME_RISK.test(g)) { gistDropped++; return false } return true }
 
 const nodes = new Map(), links = [];
 const add = c => {
@@ -71,21 +91,57 @@ const add = c => {
     ekind: `${c.yr}년 · ${KIND[c.kind] || c.kind}` + (byNo ? ' · 연도는 사건 접수 연도' : ''),
     off: `${KIND[c.kind] || c.kind} · ${c.case_no}`,
     tip: `${KIND[c.kind] || c.kind}입니다. 사건번호는 ${c.case_no}입니다.`,
-    body: `${KIND[c.kind] || c.kind}입니다. 사건 이름은 "${c.case_nm}" 이고 사건번호는 ${c.case_no}입니다.` +
+    /* 사건명이 400자를 넘는 것이 있다 — 죄명과 피고인 번호를 다 나열한 것이다.
+       (「…위반(횡령)[피고인4·5·6…에대한예비적죄명…]」) 전문이 아니라 이름 자체가 길다.
+       그래도 카드에 그대로 실으면 못 읽고, 검사 I 의 '400자 넘는 본문' 에도 걸린다. */
+    body: `${KIND[c.kind] || c.kind}입니다. 사건 이름은 "${c.case_nm.length > 160 ? c.case_nm.slice(0, 159) + '…' : c.case_nm}" 이고 사건번호는 ${c.case_no}입니다.` +
       (byNo ? ' 결정한 날짜를 못 받아서, 연도는 사건이 접수된 해입니다.' : '') +
       ' 무슨 판단을 했는지는 아래 원문 링크에서 볼 수 있습니다.',
     src: `출처 · 법제처 국가법령정보 공동활용 (${KIND[c.kind] || c.kind})`,
     url: c.src_url, cats: []
   };
+  /* **판시사항이 있으면 그것을 싣는다.** 「손해배상(기) · 2015다200111」 만 보여주면
+     사람이 못 읽는다 — 읽을 수 없는 노드는 없는 것이나 마찬가지다.
+     판시사항은 재판부가 쓴 요약이고 **전문이 아니다** (규칙 8). */
+  const dd = detail.get(c.kind + ':' + c.case_sn);
+  if (dd && dd.gist && safeGist(dd.gist)) {
+    n.gist = dd.gist.length > 400 ? dd.gist.slice(0, 399) + '…' : dd.gist;
+    n.body = `${KIND[c.kind] || c.kind}입니다. 무엇을 다퉜는지 재판부가 적은 요약은 아래와 같습니다.` +
+             (byNo ? ' 결정한 날짜를 못 받아서, 연도는 사건이 접수된 해입니다.' : '');
+  }
   nodes.set(c.case_sn, n); return n;
 };
 
-let a = 0, b = 0, none = 0;
+/* ── C · 심판대상조문 / 참조조문 ──
+   **가장 센 근거다.** 재판부가 스스로 "이 조문을 심판했다" 고 적은 것이라
+   우리가 이름을 맞춰 본 것(A)이나 핵심어(B)와 세기가 다르다.
+   상세를 받은 사건에만 있다. */
+let detail = new Map();
+try {
+  for (const r of db.prepare('SELECT case_sn,kind,arts,gist FROM case_detail').all())
+    detail.set(r.kind + ':' + r.case_sn, r);
+} catch { }
+
+let a = 0, b = 0, cc = 0, none = 0;
 for (const c of cases) {
   const nm = c.case_nm;
   let hit = false;
-  /* A · 사건명에 법 이름이 있다 */
-  for (const L of lawsBy) {
+  /* C · 조문이 가리키는 법에 잇는다 */
+  const d = detail.get(c.kind + ':' + c.case_sn);
+  if (d && d.arts) {
+    const seenL = new Set();
+    for (const L of lawsBy) {
+      if (L.lab.length < 4 || !d.arts.includes(L.lab) || seenL.has(L.id)) continue;
+      seenL.add(L.id);
+      const n = add(c); hit = true; cc++;
+      links.push({ from: n.id, to: L.id, rule: RULE_C,
+        why: `${c.kind === 'detc' ? '헌법재판소가 심판대상조문' : '법원이 참조조문'}에 '${L.lab}' 을 적었습니다`,
+        ev: `${KIND[c.kind]} ${c.case_no}` });
+      if (seenL.size >= 3) break;    /* 한 사건이 조문을 여러 개 적어도 셋까지. 더 붙이면 같은 말이 늘어난다 */
+    }
+  }
+  /* A · 사건명에 법 이름이 있다. C 로 이미 이었으면 같은 말이라 건너뛴다 */
+  if (!hit) for (const L of lawsBy) {
     if (L.lab.length < 4 || !nm.includes(L.lab)) continue;
     const n = add(c); hit = true; a++;
     links.push({ from: n.id, to: L.id, rule: RULE_A,
@@ -106,6 +162,7 @@ for (const c of cases) {
   if (!hit) none++;
 }
 const nl = n => n.toLocaleString();
+console.log(`  C 조문이 가리키는 법        ${nl(cc).padStart(8)}건   ← 가장 센 근거`);
 console.log(`  A 사건명에 법 이름          ${nl(a).padStart(8)}건`);
 console.log(`  B 핵심어 + 시기 ±${YEARS}년      ${nl(b).padStart(8)}건`);
 console.log(`  ────────────────────────────────────`);
@@ -113,6 +170,7 @@ console.log(`  올라간 사건 ${nl(nodes.size)} / ${nl(cases.length)}  ·  선
 console.log(`  어느 관문도 못 지난 사건 ${nl(none)} (${(none / cases.length * 100).toFixed(1)}%) — 안 올린다`);
 const byKind = {}; for (const n of nodes.values()) { const k = n.id.split('_')[1]; byKind[k] = (byKind[k] || 0) + 1 }
 console.log(`  종류별 ${JSON.stringify(byKind)}`);
+console.log(`  판시사항을 버린 것 ${nl(gistDropped)}개 — 당사자·대리인 이름이 섞일 수 있다 (규칙 8)`);
 /* 같은 (사건 → 대상 → 규칙) 이 두 번 나오면 같은 사실을 두 번 적는 것이다.
    창고의 UNIQUE 가 먼저 잡아 줬다 — 몇 개였는지 밝히고 하나로 줄인다. */
 {
@@ -126,7 +184,7 @@ if (DRY) { db.close(); process.exit(0) }
 
 db.exec('BEGIN');
 try {
-  db.prepare('DELETE FROM link WHERE rule IN (?,?)').run(RULE_A, RULE_B);
+  db.prepare('DELETE FROM link WHERE rule IN (?,?,?)').run(RULE_A, RULE_B, RULE_C);
   const ins = db.prepare(
     `INSERT INTO link (from_id,to_id,role,rule,why,evidence,built_at) VALUES (?,?,'topic',?,?,?,?)`);
   for (const l of links) ins.run(l.from, l.to, l.rule, l.why, l.ev, NOW);
@@ -137,7 +195,9 @@ const q = s => "'" + String(s).replace(/\\/g, '\\\\').replace(/'/g, "\\'")
   .replace(/\r/g, '').replace(/\n/g, '\\n').replace(/\u2028|\u2029/g, ' ') + "'";
 const nodeJs = [...nodes.values()].map(n =>
   `{id:${q(n.id)},t:'event',auto:1,side:'gov',lab:${q(n.lab)},title:${q(n.title)},yr:${q(n.yr)},` +
-  `ekind:${q(n.ekind)},off:${q(n.off)},tip:${q(n.tip)},body:${q(n.body)},src:${q(n.src)},url:${q(n.url)},cats:[]}`).join('\n,');
+  `ekind:${q(n.ekind)},off:${q(n.off)},tip:${q(n.tip)},body:${q(n.body)},` +
+  (n.gist ? `gist:${q(n.gist)},` : '') +
+  `src:${q(n.src)},url:${q(n.url)},cats:[]}`).join('\n,');
 const linkJs = links.map(l =>
   `[${q(l.from)},${q(l.to)},'같은 주제','topic',${q(l.why)},${q(l.ev)},'','auto']`).join('\n,');
 

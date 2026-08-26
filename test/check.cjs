@@ -2179,11 +2179,28 @@ function boot(w, h) {
         /* 템플릿 리터럴 안에서는 \\d 로 써야 한다. \\ 를 하나만 쓰면 JS 가 먹어서
            정규식이 /(d{4})/ 가 되고 연도를 하나도 못 찾는다 — 실제로 그랬다. */
         var m=t.match(/(\\d{4})/); return m?+m[1]:null}).filter(function(v){return v});
-      var sorted=years.every(function(v,i){return i===0||years[i-1]<=v});
+      /* ── 약속이 바뀌었다: '시간순 하나' → '층 → 시간순' ──
+         근거가 어떻게 만들어졌는지로 세 층을 나누고, **같은 층 안에서만** 시간순이다.
+         옛 검사는 전체가 오름차순인지 봤다. 그대로 두면 새 화면이 FAIL 인데
+         화면이 틀린 게 아니라 검사가 낡은 것이다.
+         **한도를 풀어 통과시키지 않고, 무엇을 재는지를 바꾼다.**
+         층은 화면의 '왜 이어졌나' 줄에서 읽는다 — 검사가 층을 다시 계산하지 않는다. */
+      var TL=['손으로 확인해 이었습니다','재판부가 적은 조문으로 이었습니다','이름이 맞아 자동으로 이었습니다'];
+      var tiers=items.map(function(li){
+        var t=(li.querySelector('.ch-why')||{}).textContent||'';
+        for(var i=0;i<TL.length;i++)if(t.indexOf(TL[i])===0)return i+1;
+        return 9});
+      var tierSorted=tiers.every(function(v,i){return i===0||tiers[i-1]<=v});
+      var inTier=true;
+      for(var i2=1;i2<years.length;i2++)
+        if(tiers[i2]===tiers[i2-1]&&years[i2-1]>years[i2])inTier=false;
+      var sorted=tierSorted&&inTier;
       var hidden=hiddenEdges;
       closeAllList();
       return {chain:chain.length, drawn:drawn, hidden:hidden, items:items.length,
-              years:years.length, sorted:sorted, camSame:cam0===cam1,
+              years:years.length, sorted:sorted, tierSorted:tierSorted, inTier:inTier,
+              tierSeen:tiers.filter(function(v,i,a){return a.indexOf(v)===i}).sort(),
+              camSame:cam0===cam1,
               btn:!!cardBtn, btnAll:cardBtn?cardBtn.getAttribute('data-all'):null,
               note:(document.getElementById('allNote')||{}).textContent||''};
     })()`);
@@ -2191,7 +2208,7 @@ function boot(w, h) {
 
     if (!r || r.no) { F(`42. 모두 보기 — 못 쟀다 (${r && r.no || '실패'})`); }
     else {
-      console.log(`42. 모두 보기       이어진 것 ${r.chain} · 지도에 ${r.drawn} · 숨긴 선 ${r.hidden} · 목록 ${r.items} · 시간순 ${r.sorted ? 'O' : 'X'} · 카메라 그대로 ${r.camSame ? 'O' : 'X'}`);
+      console.log(`42. 모두 보기       이어진 것 ${r.chain} · 지도에 ${r.drawn} · 숨긴 선 ${r.hidden} · 목록 ${r.items} · 층 ${JSON.stringify(r.tierSeen)} 순서 ${r.tierSorted ? 'O' : 'X'} · 층 안 시간순 ${r.inTier ? 'O' : 'X'} · 카메라 그대로 ${r.camSame ? 'O' : 'X'}`);
       /* (1) 잘린 것이 있으면 반드시 이어주는 길이 있어야 한다 */
       if (r.hidden > 0 && !r.btn)
         F(`42. 지도에서 ${r.hidden}개가 잘렸는데 '모두 보기' 버튼이 없다. "+N" 으로 끝내면 거기서 길이 막힌다`);
@@ -2200,7 +2217,9 @@ function boot(w, h) {
         F(`42. 모두 보기에 ${r.items}/${r.chain}개만 있다. 여기서도 자르면 다 볼 길이 없다`);
       /* (3) 시간순 */
       if (!r.years) F('42. 목록에 연도가 하나도 안 보인다. 연도가 안 보이면 그냥 목록이다');
-      else if (!r.sorted) F('42. 모두 보기 목록이 시간순이 아니다. 중요도로 정렬하면 우리가 판단하는 게 되고 사건이 뒤로 밀린다');
+      else if (!r.tierSorted) F(`42. 근거의 층이 뒤섞였다 (본 층 ${JSON.stringify(r.tierSeen)}). 손으로 이은 것 → 조문 → 이름 순이어야 한다`);
+      else if (!r.inTier) F('42. 같은 층 안에서 시간순이 아니다. 층 말고 다른 것으로 정렬하면 우리가 판단하는 게 된다');
+      if (r.tierSeen && r.tierSeen.indexOf(9) >= 0) F('42. 층을 알 수 없는 항목이 있다 — 화면에 근거를 안 적었다는 뜻이다');
       /* (4) 카메라를 건드리면 안 된다 — 닫으면 원래 자리로 돌아와야 한다 */
       if (!r.camSame) F('42. 모두 보기를 열자 카메라가 움직였다. 닫으면 원래 자리여야 한다');
       /* (5) 몇 개를 지도에 그리고 몇 개가 목록에 있는지 밝혀야 한다 */
@@ -2304,16 +2323,23 @@ function boot(w, h) {
          ① **띄어쓰기** — '유전자검사' 처럼 붙은 말은 역할어가 아니다
          ② **성씨 목록으로 시작하는 2~3자** — '등의' '보호에' 는 이름이 아니다 */
     const SUR = '김|이|박|최|정|강|조|윤|장|임|한|오|서|신|권|황|안|송|전|홍|고|문|양|손|배|백|허|남|심|노|하|곽|성|차|주|우|구|민|유|진|지|엄|채|원|천|방|공|현|함|변|염|여|추|도|소|석|선|설|마|길|연|위|표|명|기|반|왕|금|육|맹|모|사|구|탁|국|어|은|편|용';
-    const ROLE = '담당변호사|변호인|변호사|피고인|피고|원고|증인|참고인|고소인|고발인|신청인|청구인';
+    /* **역할어를 골라야 한다.** '원고'·'피고' 는 판례에서 당사자를 가리키는 말로
+       늘 익명으로 쓰인다 — 「원고 주장의」·「피고 소속」 이 35곳 걸렸는데 전부 오탐이었다.
+       그리고 뒤에 조사가 붙으면 이름이 아니다 (주장의 · 명의의 · 조합이).
+       실측으로 남긴 것만 쓴다. 놓치는 것은 규칙 8 에 적어 두었다. */
+    const JOSA = '의|은|는|이|가|을|를|와|과|도|만|에|서|로|나|랑';
+    const ROLE = '담당변호사|변호인|변호사|피고인|증인|참고인|고소인|고발인|신청인|청구인|대리인';
     const HARD = [
-      new RegExp(`(?:${ROLE})\\s+(?:${SUR})[가-힣]{1,2}(?![가-힣])`, 'g'),
+      /* **띄어쓰기를 반드시 요구한다.** \s* 로 뒀더니 죄명 「증인도피」 를
+         '증인' + '도피' 로 읽어 오탐이 났다. 실제 이름은 늘 띄어져 있다. */
+      new RegExp(`(?:${ROLE})\\s+(?:${SUR})[가-힣]{0,2}(?![가-힣])(?<!${JOSA})`, 'g'),
       /* **이름 앞에도 경계를 요구한다.** 안 그러면 '금지하는 검사' 의 꼬리 '지하는' 을
          이름으로 읽는다 — 실제로 그렇게 한 곳이 걸렸다. */
-      new RegExp(`(?:^|[\\s"'(\\[\u00b7,])(?:${SUR})[가-힣]{1,2}\\s+(?:변호사|판사|검사|재판장)(?![가-힣])`, 'g'),
+      new RegExp(`(?:^|[\\s"'(\\[\u00b7,])(?:${SUR})[가-힣]{1,2}(?<!${JOSA})\\s+(?:변호사|판사|재판장)(?![가-힣])`, 'g'),
     ];
     /* 넓은 그물. 법 이름·기관명도 걸리니 WARN 이고, 눈으로 본다 */
     const SOFT = new RegExp(`(?:^|[\\s"'(\\[\u00b7,])(?:${SUR})[가-힣]{2}(?=[\\s"'),.\\]]|$)`, 'g');
-    const fields = ['lab', 'title', 'tip', 'body', 'off', 'plain', 'reason', 'ekind'];
+    const fields = ['lab', 'title', 'tip', 'body', 'off', 'plain', 'reason', 'ekind', 'gist'];
     const autoN = N.filter(n => n.auto);
     let hard = [], soft = 0, scanned = 0;
     for (const n of autoN) for (const f of fields) {

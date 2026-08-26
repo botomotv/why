@@ -14,3 +14,6 @@ INSERT OR REPLACE INTO rule (name, role, reads, note) VALUES
   '사건 이름에 법 이름이 그대로 있으면 그 법률에 잇는다. 재판부가 스스로 그 법을 적은 것이라 3관문보다 센 근거다'),
  ('case_by_keyword_and_year', 'topic', 'court_case,cat_committee',
   '사건 이름에 결과의 핵심어가 있고 시기가 ±3년이면 그 결과에 잇는다. 같은 주제·같은 시기라는 뜻이지 인과가 아니다');
+INSERT OR REPLACE INTO rule (name, role, reads, note) VALUES
+ ('case_by_reviewed_article', 'topic', 'court_case,case_detail,bill',
+  '심판대상조문(헌재)·참조조문(법원)이 가리키는 법에 잇는다. 재판부가 스스로 그 조문을 적은 것이라 세 관문 중 가장 센 근거다');

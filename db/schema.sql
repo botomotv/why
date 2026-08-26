@@ -249,3 +249,17 @@ CREATE TABLE IF NOT EXISTS stat_value (
   val   TEXT,                   -- 값. 받은 그대로 문자열이다
   PRIMARY KEY (key, prd)
 );
+
+-- 사건 상세 — **전문(판례내용·전문)은 절대 담지 않는다 (규칙 8).**
+-- 전문에는 `담당변호사 ○○○` 처럼 사람 이름이 그대로 있다.
+-- 법원이 공개한 자료라도 우리가 다시 모으면 그건 우리가 만든 명단이다.
+-- 담는 것은 무엇을 다퉜는지(심판대상조문·참조조문)와 요약(판시사항·결정요지)뿐이다.
+CREATE TABLE IF NOT EXISTS case_detail (
+  case_sn   TEXT NOT NULL,
+  kind      TEXT NOT NULL,      -- detc | prec
+  arts      TEXT,               -- 심판대상조문(헌재) · 참조조문(판례). 사건 → 법을 잇는 근거다
+  gist      TEXT,               -- 판시사항
+  summary   TEXT,               -- 결정요지 · 판결요지
+  fetched_at TEXT NOT NULL,
+  PRIMARY KEY (kind, case_sn)
+);

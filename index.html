@@ -26724,12 +26724,17 @@ var A=[],AL=[];
    MAP_N 은 눈으로 보고 정한다 — 계산이 아니라 스크린샷이다. */
 /* **100 은 스크린샷으로 정했다. 계산이 아니다.**
    30 · 50 · 100 · 200 을 실제로 그려 봤다.
-     30  결과는 또렷한데 둘레가 허전하다 — "연결고리" 라는 느낌이 약하다
-     50  읽히지만 아직 성기다
-     **100 결과 19개가 다 들어오고 법·인물·사건이 이름과 함께 읽힌다**
-     200 오른쪽에 이름 없는 점 무리가 생겨 다시 '무늬' 로 간다
+     기준은 '몇 개가 보이나' 가 아니라 **'몇 개가 읽히나'** 다.
+   이름표가 안 붙은 점은 보는 사람에게 정체불명이다 — 그건 무늬지 지도가 아니다.
+
+   | MAP_N | 지도 노드 | 이름표 | **이름 없는 점** |
+   |---:|---:|---:|---:|
+   | **30** | 48 | 36 | **12** |
+   | 50 | 69 | 40 | 29 |
+   | 100 | 118 | 68 | 50 |
+
    결과 19개는 이 수에 안 센다 — 지도의 입구라 언제나 전부 그린다. */
-var MAP_N=Number((location.search.match(/[?&]mn=(\d+)/)||[])[1]||100);
+var MAP_N=Number((location.search.match(/[?&]mn=(\d+)/)||[])[1]||30);
 var mapSet=null, mapKey='', focusNb=null;
 function planMap(){
   var key=[N.length,cat,sideF||'',kindF||'',onlyP||'',focus||'',MAP_N,focusNb?Object.keys(focusNb).length:0].join('|');
@@ -26751,15 +26756,65 @@ function planMap(){
   var auto=pool.filter(function(n){return n.auto&&!out[n.id]}).sort(byDeg);
   for(var j=0;j<hand.length&&left>0;j++){out[hand[j].id]=1;left--}
   for(var k=0;k<auto.length&&left>0;k++){out[auto[k].id]=1;left--}
+  /* ── 뽑힌 것들끼리 이어지지 않으면 지도에서 뺀다 ──
+     노드가 지도 전체에서는 이어져 있어도, **뽑힌 100개 안에 상대가 없으면**
+     화면에서는 선 없는 점이다. 그게 "정체불명 점" 이다.
+     전체 연결도(사실)로 뽑아 놓고, 그리는 화면 기준으로 한 번 더 거른다.
+     결과는 남긴다 — 이 지도의 입구라 이어진 것이 없어도 문이어야 한다
+     (실제로 방첩사·GOP 는 붙은 것이 1개뿐이다. 그 사실은 카드가 밝힌다). */
+  for(var pass=0;pass<2;pass++){
+    var has={};
+    L.forEach(function(l){ if(out[l[0]]&&out[l[1]]){has[l[0]]=1;has[l[1]]=1} });
+    Object.keys(out).forEach(function(id){
+      var n=map[id]; if(!n||n.t==='result')return;
+      if(!has[id])delete out[id];
+    });
+  }
   mapSet=out; mapKey=key; return out;
 }
 function onMap(n){ return !!planMap()[n.id] }
+/* ── 고리 크기는 **손으로 다시 재지 않는다** ──
+   ROUT 를 네 번 손으로 고쳤다 (830 → 1050 → 1500 → 2100 → 1150).
+   그때마다 이유는 같았다: **재는 대상이 바뀌었는데 상수는 그대로였다.**
+   창고에 1만 개를 넣으면 키워야 하고, 지도에 48개만 그리면 줄여야 한다.
+
+   그래서 상수 대신 식을 둔다 — **지도에 올린 노드가 차지하는 넓이**에서 구한다.
+     고리 넓이 = π·0.93·(ROUT² − RIN²) ,  목표 밀도 45%
+   45% 는 실측이다. 그보다 빽빽하면 이름표가 서로 지우고(검사 22),
+   성기면 "노드가 한쪽에 뭉쳤다" 가 된다(검사 26).
+   위아래로 잠가 둔다 — 노드가 아주 적거나 아주 많을 때 화면이 무너지지 않게. */
+function fitRingOuter(){
+  if(!A.length)return;
+  /* **초점으로는 고리 크기를 안 바꾼다.** 초점은 '보는 방식' 이지 '지도의 크기' 가 아니다.
+     바꿨더니 누르는 순간 모든 노드의 반지름이 함께 움직여 한 프레임에 105px 튀었다
+     (검사 29). 누르는 것만으로는 아무것도 안 움직인다는 약속과도 어긋난다. */
+  if(focus)return;
+  var used=0;
+  A.forEach(function(n){ used+=(2*hw(n))*(2*hh(n)) });
+  var need=used/0.45/(Math.PI*0.93)+RIN*RIN;
+  var r=Math.sqrt(need);
+  r=Math.max(430,Math.min(1600,r));
+  if(Math.abs(r-ROUT)>8){ ROUT=r; ringLUT=null; ringLUTKey=''; }
+}
 function refilter(){
   mapSet=null; mapKey='';
   var keep=planMap();
   A=N.filter(function(n){return inCat(n)&&keep[n.id]});
   AL=L.filter(function(l){return keep[l[0]]&&keep[l[1]]&&inCat(map[l[0]])&&inCat(map[l[1]])});
-  setAngles();
+  fitRingOuter();
+  /* 초점을 켜고 끌 때는 자리를 안 흔든다 — 이웃 몇 개가 더해질 뿐이다 */
+  setAngles(!!focus);
+  /* ── 새로 올라온 노드는 **제자리에 바로 놓는다** ──
+     전에는 지도 밖에 있던 좌표(초기값)에서 물리가 끌어당겼다.
+     그래서 초점을 켜면 그 노드가 한 프레임에 156px 씩 날아왔다 (검사 29).
+     보는 사람에게는 '어디선가 날아온 점' 이다 — 자리는 데이터가 정하므로
+     날아올 이유가 없다. 있던 노드는 손대지 않는다. */
+  A.forEach(function(n){
+    if(n.__onmap)return;
+    n.__onmap=1;
+    var R=ringR(n), ang=(typeof n.ang==='number'&&isFinite(n.ang))?n.ang:0;
+    n.x=Math.cos(ang)*R; n.y=Math.sin(ang)*R*0.86; n.vx=0; n.vy=0;
+  });
 }
 
 var focus=null,ring={},keyRing={},energy={},roles={},hover=null,drag=null,moved=false,pan=null,panMoved=false;
@@ -26918,10 +26973,9 @@ var PY={k1:1998,k2:2003,k3:2008,k4:2013,p5:2017,k5:2022,p4:2025,
    넘친다는 건 그 시기 노드가 고리 안에 안 들어간다는 뜻이다.
    넓이는 반지름의 제곱에 비례하므로 √1.52 ≈ 1.23 배가 필요하다 — 830 → 1050.
    여유를 두고 잡았다. 더 채우면 검사 22가 다시 잡는다. */
-/* ROUT 은 실측으로 정한다. 사건 1만 개가 들어오자 1050 에서 고리가 6/9 연대에서
-   넘쳤다(최대 138%). 넓이는 반지름의 제곱이라 1300 이면 0/9(90%), 1500 이면 67% 다.
-   1500 을 골랐다 — 90% 는 다음 수집 한 번에 다시 넘친다. 강제는 검사 22. */
-var RY0=1943,RY1=2027,RIN=150,ROUT=1150;
+/* ROUT 은 **시작값일 뿐이다.** 실제 값은 fitRingOuter() 가 지도에 올린 노드의
+   넓이에서 매번 다시 구한다 — 손으로 네 번 고치다 그만두고 식으로 바꿨다. */
+var RY0=1943,RY1=2027,RIN=150,ROUT=700;
 /* ── 가운데가 최근, 바깥이 과거 ──
    전에는 반대였다. 최근 사건일수록 서로 연결이 많은데 그것들이 바깥 고리에
    흩어져 있어서 선이 길게 늘어졌다.
@@ -26955,6 +27009,12 @@ var ringLUTKey='';
 function buildRingLUT(){
   var key=A.length+'|'+cat+'|'+(sideF||'')+'|'+(kindF||'')+'|'+(onlyP||'');
   if(ringLUT&&ringLUTKey===key)return ringLUT;
+  /* **초점으로는 고리표를 다시 만들지 않는다.**
+     고리표는 A 의 연도 분포에서 만든다. 초점을 켜면 이웃 6개가 A 에 더해지는데,
+     그것만으로 누적 비율이 밀려 **모든 노드의 반지름이 한꺼번에 바뀌었다** —
+     한 프레임에 150px 튀었다(검사 29).
+     초점은 '무엇을 보나' 지 '연도가 어디에 놓이나' 가 아니다. */
+  if(focus&&ringLUT)return ringLUT;
   var cnt={};
   (A.length?A:N).forEach(function(n){
     var y=Math.max(RY0,Math.min(RY1,pyOf(n)));
@@ -27002,10 +27062,20 @@ function radY(y){
   return Math.sqrt(RIN*RIN+t*(ROUT*ROUT-RIN*RIN))}
 function pyOf(n){var y=yr(n);if(y!==null)return y;if(PY[n.id])return PY[n.id];return 2010}
 function ringR(n){return radY(pyOf(n))}
-function setAngles(){
-  var arr=A.slice().sort(function(a,b){return pyOf(a)-pyOf(b)});
+/* 각도는 흩뿌린 값이다 — **한 번 정해지면 그 노드의 자리다.**
+   전에는 A 가 바뀔 때마다 전부 다시 뿌렸다. 그래서 초점을 켜서 이웃 6개가
+   지도에 올라오면 **나머지 42개의 각도가 전부 밀려** 한 프레임에 170px 튀었다
+   (검사 29). 남이 들어왔다고 내 자리가 바뀌면 안 된다.
+   keep=true 면 자리가 없는 노드에만 새로 준다. */
+function setAngles(keep){
   var GA=2.39996;
-  arr.forEach(function(n,i){n.ang=i*GA})}
+  var arr=A.slice().sort(function(a,b){return pyOf(a)-pyOf(b)});
+  if(!keep){ arr.forEach(function(n,i){n.ang=i*GA}); return }
+  var used=0;
+  arr.forEach(function(n){ if(typeof n.ang==='number'&&isFinite(n.ang))used++ });
+  var next=used;
+  arr.forEach(function(n){ if(typeof n.ang!=='number'||!isFinite(n.ang))n.ang=(next++)*GA });
+}
 
 
 N.forEach(function(n){
@@ -27013,7 +27083,16 @@ N.forEach(function(n){
   var deg=adj[n.id].filter(function(l){return map[l[0]].t!=='event'&&map[l[1]].t!=='event'}).length;
   /* 기본 반지름은 여기서 정하고, 화면 폭에 따라 줄인다(applyNodeScale).
      폰에서 결과 노드가 너무 커서 글씨가 겹쳤다. */
-  n.r0=(n.t==='post'?15:n.t==='event'?10:n.t==='result'?24:n.prez?12:n.t==='bill'?7:6)+Math.sqrt(deg)*(n.t==='result'?4.8:n.prez?2.0:2.4);
+  /* ── 크기는 순위를 보여주는 것이지 화면을 먹으라는 게 아니다 ──
+     자동 법률이 붙기 전에는 결과의 이웃이 10개 안팎이라 반지름이 39px 였다.
+     지금은 86개까지 늘어 **69px** 이 됐고, 결과 19개가 7쌍이나 서로 겹쳐
+     이름표가 가려졌다. 자란 것은 데이터지 뜻이 아니다.
+     그래서 **자라는 몫에만 상한을 둔다** — 순서는 그대로 남고 화면은 안 먹는다.
+     실측: 상한 18 이면 결과 반지름 29~42px, 겹침 7쌍 → 아래 표. */
+  var grow=Math.sqrt(deg)*(n.t==='result'?4.8:n.prez?2.0:2.4);
+  var GROW_CAP=(n.t==='result')?18:12;
+  if(grow>GROW_CAP)grow=GROW_CAP;
+  n.r0=(n.t==='post'?15:n.t==='event'?10:n.t==='result'?24:n.prez?12:n.t==='bill'?7:6)+grow;
   n.r=n.r0;n.lw=60});
 
 /* 좁은 화면에서는 점을 줄인다. 같은 배율이면 폰에서 점이 화면을 더 많이 먹고,

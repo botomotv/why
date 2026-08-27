@@ -977,10 +977,17 @@ function boot(w, h) {
         if(typeof fitFocus==='function')fitFocus();
         cam.s=cam.ts;cam.x=cam.tx;cam.y=cam.ty;
         labelSet=null;labelKey='';draw();
-        /* 노드가 제자리에 있나 — 초점 때문에 움직이면 안 된다 */
-        var moved=0;
-        A.forEach(function(n){ if(Math.hypot(n.x-before[n.id][0],n.y-before[n.id][1])>6)moved++ });
+        /* 노드가 제자리에 있나 — 초점 때문에 움직이면 안 된다.
+           **약속이 바뀌었다:** 첫 화면은 지도에 100개만 그리고, 초점을 켜면
+           그 이웃이 지도에 새로 올라온다. 그래서 A 의 구성원이 바뀐다.
+           옛 검사는 A 전체를 before 와 대조해 새 노드에서 터졌다.
+           재야 하는 것은 **이미 있던 노드가 움직였나** 다 — 새로 온 것은 새 것이다.
+           새로 온 개수도 같이 낸다. 말없이 늘면 그것도 모르는 변화다. */
+        var moved=0, added=0;
+        A.forEach(function(n){ if(!before[n.id]){added++;return}
+          if(Math.hypot(n.x-before[n.id][0],n.y-before[n.id][1])>6)moved++ });
         var nb=Object.keys(ring).filter(function(k){return ring[k]===1});
+        var addedN=added;
         var inn=nb.filter(function(k){var n=map[k];if(!n)return false;
           var sx=n.x*cam.s+cam.x,sy=n.y*cam.s+cam.y;
           return sx>=0&&sx<=VW&&sy>=0&&sy<=VH}).length;
@@ -989,7 +996,7 @@ function boot(w, h) {
         var inCard=nb.filter(function(k){return map[k]&&card.indexOf(map[k].lab)>=0}).length;
         var sf=map[focus];
         var selfOff=sf?Math.round(Math.hypot(sf.x*cam.s+cam.x-VW/2, sf.y*cam.s+cam.y-VH/2)):-1;
-        return {nb:nb.length, inn:inn, inCard:inCard, moved:moved, selfOff:selfOff,
+        return {nb:nb.length, inn:inn, inCard:inCard, moved:moved, added:addedN, selfOff:selfOff,
                 s:+cam.s.toFixed(2), floor:(typeof FIT_MIN==='number')?FIT_MIN:null,
                 lbl:nb.filter(function(k){return map[k]&&labelOn(map[k])}).length,
                 mw:VW, mh:Math.round(VH), fullW:W, fullH:Math.round(H),
@@ -997,7 +1004,7 @@ function boot(w, h) {
       })()`);
       d20.window.close();
       if (!r) { F(`20. ${nm} — 못 쟀다`); continue }
-      console.log(`20. 누른 뒤 화면     ${nm} ${w}×${h} (지도 ${r.fullW}×${r.fullH} · 안 가려진 자리 ${r.mw}×${r.mh}) · 화면안 ${r.inn}/${r.nb} · 카드에 ${r.inCard}/${r.nb} · 배율 ${r.s}(바닥 ${r.floor}) · 이름표 ${r.lbl} · 움직인 노드 ${r.moved} · 누른 것 중앙에서 ${r.selfOff}px`);
+      console.log(`20. 누른 뒤 화면     ${nm} ${w}×${h} (지도 ${r.fullW}×${r.fullH} · 안 가려진 자리 ${r.mw}×${r.mh}) · 화면안 ${r.inn}/${r.nb} · 카드에 ${r.inCard}/${r.nb} · 배율 ${r.s}(바닥 ${r.floor}) · 이름표 ${r.lbl} · 움직인 노드 ${r.moved} · 새로 올라온 노드 ${r.added} · 누른 것 중앙에서 ${r.selfOff}px`);
       /* (0) fitFocus 가 '안 가리는 자리' 를 쓰는가. 안 쓰면 카드 뒤를 겨눈다 */
       if (!r.mvUsed) F(`20. ${nm} — fitFocus 가 mapView() 를 안 쓴다. 카드 뒤를 겨누게 된다`);
       /* (1) 노드는 제자리여야 한다 — 이게 새 약속의 핵심이다 */
@@ -1465,8 +1472,12 @@ function boot(w, h) {
       if(!c.length)return null;
       var tgt=c.reduce(function(a,b){return (adj[b.id]||[]).length>(adj[a.id]||[]).length?b:a});
       var prev={}; A.forEach(function(n){prev[n.id]=[n.x,n.y]});
+      /* 초점을 켜면 이웃이 지도에 새로 올라온다 — 그건 '튄' 것이 아니라 '없다가 생긴' 것이다.
+         전에 본 적 없는 노드는 이번 프레임 기준만 적어 두고 다음부터 잰다. */
       var snap=function(){var m=0,who=null;
-        A.forEach(function(n){var d=Math.hypot(n.x-prev[n.id][0],n.y-prev[n.id][1])*cam.s;
+        A.forEach(function(n){
+          if(!prev[n.id]){prev[n.id]=[n.x,n.y];return}
+          var d=Math.hypot(n.x-prev[n.id][0],n.y-prev[n.id][1])*cam.s;
           if(d>m){m=d;who=n.lab} prev[n.id]=[n.x,n.y]});
         return [m,who]};
       /* 누르는 순간 — setFocus + gatherFan 이 좌표를 대입하면 여기서 잡힌다 */

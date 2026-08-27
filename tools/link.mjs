@@ -101,6 +101,29 @@ const presOf = dt => {
 
 let easy = {};
 try { easy = JSON.parse(fs.readFileSync(path.join(ROOT, 'db', 'law_easy.json'), 'utf8')); delete easy._ } catch {}
+/* ── 발의자 ──
+   **대표발의자는 이름을 쓰고, 공동발의자는 수만 쓴다.**
+   대표발의는 그 법안을 대표해 낸 공적 행위이고 의안정보시스템 첫 화면에 이름이 나온다.
+   공동발의자는 10~20명씩이라 **그대로 실으면 우리가 만든 명단이 된다** —
+   흩어져 있던 이름을 한 곳에 모으는 것이 문제라는 규칙 8 의 이유와 같다.
+   그래서 '공동발의 10명' 처럼 수만 적고, 발의 요건이 10명이라는 것도 함께 밝힌다.
+
+   법률로 묶은 것은 개정이 여러 번이라 발의자가 여럿이다.
+   **가장 최근 개정 하나만** 보여주고 나머지는 수로 밝힌다. 전부 나열하면 또 명단이다. */
+const propOf = new Map();
+try {
+  for (const r of db.prepare(
+    `SELECT json_extract(row_json,'$.BILL_ID') id, json_extract(row_json,'$.RST_PROPOSER') rst,
+            json_extract(row_json,'$.PUBL_PROPOSER') publ, json_extract(row_json,'$.PROPOSER') pro
+       FROM raw_row WHERE service='nzmimeepazxkubdpn'`).all()) {
+    if (!r.id) continue;
+    propOf.set(String(r.id), {
+      rst: String(r.rst || '').trim(),
+      n: String(r.publ || '').split(',').map(x => x.trim()).filter(Boolean).length,
+      gov: /정부/.test(String(r.pro || '')) && !String(r.rst || '').trim()
+    });
+  }
+} catch { }
 /* 분야별 핵심어 — 결과 노드의 좁은 keys 에 **더해서** 쓴다.
    노드별 keys 만으로는 법률이 62개밖에 안 붙어 지도가 비어 보였다.
    ±년을 3→10 으로 늘려도 62→77 뿐이었다 (같은 법의 개정만 늘어난다).
@@ -184,7 +207,10 @@ for (const g of [...groups.values()].sort((a, b) => a.law.localeCompare(b.law)))
          법이 확정돼 세상에 알려지는 것을 뜻한다. 화면에는 '고쳤습니다' 로 쓴다.
          자동으로 들어온 글도 손으로 쓴 글과 **같은 난이도 검사**를 통과해야 한다. */
       off: `${span} · ${g.items.length}번 고침`,
-      tip: (easy[g.law] && easy[g.law].what) || `${span} 사이에 ${g.items.length}번 고친 법입니다.`,
+      /* **'무슨 법인지' 가 없으면 비운다.** 「2015~2025년 · 11번 고침」 만으로는
+         국세기본법이 뭔지 알 수 없고, 그 카드는 의미가 없다.
+         법 이름에서 유추하지 않는다 — 그건 지어내는 것이다 (원칙 0-B). */
+      tip: (easy[g.law] && easy[g.law].what) || '',
       body: ((easy[g.law] && easy[g.law].what) ? easy[g.law].what + ' ' : '') +
             `${span} 사이에 ${g.items.length}번 고쳤습니다.`,
       /* 쉬운 말과 원문을 **따로** 담는다. 어느 쪽이 법제처 문장이고
@@ -199,6 +225,14 @@ for (const g of [...groups.values()].sort((a, b) => a.law.localeCompare(b.law)))
       rsnUrl: (reasons[g.law] && reasons[g.law].src_url) || '',
       /* 이유가 설명하지 못하는 나머지 개정 수. 말없이 하나만 보여주면 그게 전부인 줄 안다. */
       rsnRest: Math.max(0, g.items.length - 1),
+      /* ── 사건에서 나온 법 ──
+         「4·16세월호참사…특별법」·「10·29이태원참사…특별법」처럼 **법 이름 자체가
+         그 사건이 있었다는 공식 기록**이다. 우리가 사건을 판단해 붙이는 것이 아니라
+         국회가 그 이름으로 법을 만든 것이라 근거가 세다.
+         실측: 공포 법안 18,156건 중 128건, 법률 59개가 여기 걸린다.
+         **사건 노드를 새로 만들지 않는다** — 같은 이름이 두 번 생기고, 그건 우리가
+         만든 중복이다. 이 법에 표시만 달고 화면에서 갈라 보이게 한다. */
+      caseLaw: /진상규명|참사|희생자|피해자.{0,6}(지원|구제|보상)|과거사|의문사|특별검사/.test(g.law) ? 1 : 0,
       cats: [g.cat].filter(Boolean),
       src: '출처 · 국회 의안정보시스템 · 제·개정이유는 법제처 제공',
       bills: g.items.map(x => ({ id: x.id, dt: x.dt })).sort((a, b) => a.dt.localeCompare(b.dt))
@@ -206,6 +240,19 @@ for (const g of [...groups.values()].sort((a, b) => a.law.localeCompare(b.law)))
   }
   /* 공포일마다 대통령을 찾아 센다. 순서는 시간순 — 우리가 고르지 않는다. */
   const node = lawNodes.get(g.law);
+  if (!node.prop) {
+    /* 가장 최근 개정부터 거슬러 올라가며 발의자를 찾은 첫 건만 쓴다 */
+    const byDt = [...g.items].sort((a, b) => String(b.dt).localeCompare(String(a.dt)));
+    let found = null, gov = 0, withProp = 0;
+    for (const b of byDt) {
+      const p = propOf.get(String(b.id)); if (!p) continue;
+      if (p.gov) { gov++; if (!found) found = { gov: 1, dt: b.dt }; continue }
+      if (!p.rst) continue;
+      withProp++;
+      if (!found || found.gov) found = { rst: p.rst, n: p.n, dt: b.dt };
+    }
+    if (found) node.prop = { ...found, rest: Math.max(0, g.items.length - 1) };
+  }
   if (!node.presCount) {
     const c = new Map();
     for (const b of g.items) { const p = presOf(b.dt); if (p) c.set(p, (c.get(p) || 0) + 1) }
@@ -272,6 +319,8 @@ const nodeJs = [...lawNodes.values()].map(n =>
   (n.presCount && n.presCount.length
     ? `presN:[${n.presCount.map(([p, c]) => `[${q(p)},${c}]`).join(',')}],presUnknown:${n.presUnknown},` : '') +
   (n.reason ? `reason:${q(n.reason)},rsnDt:${q(n.rsnDt)},rsnUrl:${q(n.rsnUrl)},rsnRest:${n.rsnRest},` : '') +
+  (n.caseLaw ? 'caseLaw:1,' : '') +
+  (n.prop ? `prop:{${n.prop.gov ? 'gov:1' : `rst:${q(n.prop.rst)},n:${n.prop.n}`},dt:${q(n.prop.dt)},rest:${n.prop.rest}},` : '') +
   `bills:[${n.bills.map(b => `[${q(b.id)},${q(b.dt)}]`).join(',')}]}`).join('\n,');
 /* **선 자체에 자동 표시를 박는다.** 전에는 '붙은 노드가 auto 면 점선' 이라는 간접 방식이었다.
    그러면 표시가 빠져도 화면이 그대로라 아무도 모른다 — 실제로 자동 선 266개 전부가

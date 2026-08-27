@@ -1552,7 +1552,12 @@ function boot(w, h) {
            body 만 재면 정작 읽히는 글이 검사를 안 받는다.
            easy 는 다른 것이다 — 손으로 넣은 사건의 [[질문,답],…] 배열이라
            문자열로 이으면 없는 긴 문장이 만들어진다. 이름을 나눠 뒀다. */
-        var b=[String(n.body||''), (typeof n.plain==='string'?n.plain:'')].filter(Boolean).join('\\n').trim();
+        /* **tip(무슨 법인지)도 함께 본다.** 카드에서 제목 바로 아래 노란 글씨로
+           제일 먼저 읽히는 문장이다. 여기가 어려우면 나머지를 읽을 이유가 없다.
+           원문(reason)은 안 본다 — 법제처가 쓴 글이라 어려운 게 당연하고,
+           우리가 옮긴 말만 재야 '우리 글이 쉬운가' 를 재는 것이 된다. */
+        var b=[String(n.body||''), (typeof n.plain==='string'?n.plain:''),
+               (typeof n.tip==='string'?n.tip:'')].filter(Boolean).join('\\n').trim();
         if(!b)return;
         /* (1) 긴 문장 */
         sents(b).forEach(function(x){ if(x.length>60)longs.push({lab:n.lab,len:x.length,s:x.slice(0,34)}) });

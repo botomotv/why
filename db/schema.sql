@@ -263,3 +263,15 @@ CREATE TABLE IF NOT EXISTS case_detail (
   fetched_at TEXT NOT NULL,
   PRIMARY KEY (kind, case_sn)
 );
+
+-- 법 제1조(목적) — "이게 무슨 법인지" 의 원문 출처.
+-- **원문을 손대지 않는다.** 쉬운 말로 옮기는 것은 사람이 하고 db/law_easy.json 에 둔다.
+-- 원문이 없으면 비운다 — 법 이름에서 유추하면 그건 지어내는 것이다 (원칙 0-B).
+CREATE TABLE IF NOT EXISTS law_purpose (
+  law_nm    TEXT PRIMARY KEY,
+  mst       TEXT NOT NULL,
+  jo_title  TEXT,               -- 조문제목 (보통 '목적')
+  purpose   TEXT NOT NULL,      -- 제1조 원문 그대로
+  src_url   TEXT NOT NULL,
+  fetched_at TEXT NOT NULL
+);

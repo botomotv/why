@@ -1046,7 +1046,7 @@ function boot(w, h) {
       H=882; W=344; setAngles(); reheat(0.35);
       var t2=0; while(alpha>=0.02&&t2<900){tick();t2++}    /* 가라앉음을 보고 기다린다 */
       fit(); cam.s=cam.ts;cam.x=cam.tx;cam.y=cam.ty;
-      return {before:before, after:mid(), ticks:t2,
+      return {before:before, after:mid(), ticks:t2, pre:(window.__preTicks||0),
               has:typeof refitWhenSettled==='function'};
     })()`);
     d21.window.close();
@@ -1054,7 +1054,9 @@ function boot(w, h) {
     if (!r.has) F('21. refitWhenSettled 가 없다 — 화면이 커진 뒤 다시 맞추는 경로가 사라졌다');
     if (r.after == null) F('21. 화면이 커진 뒤 노드가 하나도 안 보인다');
     else if (r.after > 60) F(`21. 화면이 커진 뒤 무리 중심이 ${r.after}px 어긋났다`);
-    if (r.ticks < 20) F(`21. ${r.ticks}틱 만에 가라앉았다 — 물리가 안 도는 것일 수 있다`);
+    /* 21번은 '화면이 커진 뒤' 를 잰다 — 그때는 reheat 로 다시 데워지므로 사전 틱과 무관하다.
+       다만 사전 정착 덕에 시작이 이미 가라앉아 있으면 적게 돌 수 있다. 함께 본다. */
+    if ((r.ticks + (r.pre || 0)) < 20) F(`21. 사전 ${r.pre || 0}틱 + ${r.ticks}틱 만에 가라앉았다 — 물리가 안 도는 것일 수 있다`);
   }
 
   // 22. 고리 밀도 — 어느 시기가 넘치는가
@@ -1330,7 +1332,7 @@ function boot(w, h) {
           rOff=Math.round(Math.hypot(rx/R.length-CX, ry/R.length-H/2))}
         var empties=q.filter(function(v){return v===0}).length;
         return {resN:R.length, quad:q.join('/'), rOff:rOff, emptyQuad:empties,
-                ticks:t, off:Math.round(off), pct:+(off/diag*100).toFixed(1),
+                ticks:t, pre:(window.__preTicks||0), off:Math.round(off), pct:+(off/diag*100).toFixed(1),
                 on:on.length, tot:A.length, lbl:labelStat?labelStat.shown:0,
                 emptyIn:emptyIn, inBox:inBox, cells:g.length,
                 emptyAll:g.filter(function(v){return v===0}).length,
@@ -1342,7 +1344,11 @@ function boot(w, h) {
       const ep = Math.round(100 * r.emptyIn / Math.max(1, r.inBox));
       console.log(`26. 첫 화면        ${String(w + '×' + h).padEnd(10)} 가라앉기 ${String(r.ticks).padStart(3)}틱 · 중심어긋남 ${String(r.off + 'px').padStart(6)} (${r.pct}%) · 화면안 ${r.on}/${r.tot} · 이름표 ${String(r.lbl).padStart(2)} · 고리 안 빈칸 ${r.emptyIn}/${r.inBox} (${ep}%) · 배율 ${r.s} · 결과 ${r.resN}개 사분면 ${r.quad} 중심에서 ${r.rOff}px`);
 
-      if (r.ticks < 20) F(`26. ${w}×${h} — ${r.ticks}틱 만에 가라앉았다. 물리가 안 도는 것일 수 있다`);
+      /* **약속이 바뀌었다:** 첫 화면은 그리기 전에 자리를 잡는다(사전 틱).
+         그래서 검사가 다시 돌릴 때는 이미 가라앉아 0틱이 나온다 —
+         물리가 안 도는 게 아니라 **먼저 돌았다.** 둘을 합쳐서 본다. */
+      if ((r.ticks + (r.pre || 0)) < 20)
+        F(`26. ${w}×${h} — 사전 ${r.pre || 0}틱 + ${r.ticks}틱 만에 가라앉았다. 물리가 안 도는 것일 수 있다`);
       if (r.pct > OFF_MAX) F(`26. ${w}×${h} — 노드 무리 중심이 화면 중심에서 ${r.off}px 어긋났다 (대각선의 ${r.pct}%, 한도 ${OFF_MAX}%)`);
       if (r.on < 20) F(`26. ${w}×${h} — 첫 화면에 노드가 ${r.on}/${r.tot}개뿐이다. 빈 화면으로 보인다`);
       if (!r.lbl) F(`26. ${w}×${h} — 첫 화면에 이름표가 하나도 없다. 색깔 점만 보인다`);
@@ -2368,6 +2374,36 @@ function boot(w, h) {
       F(`47. 자동으로 들어온 글에 사람 이름이 ${hard.length}곳 있다 (규칙 8). ` +
         hard.slice(0, 3).join(' / ') + (hard.length > 3 ? ` 외 ${hard.length - 3}곳` : ''));
     if (soft) W(`47. 이름일 수 있는 것 ${soft}곳 — 성씨+2자 패턴이다. 법 이름·기관명도 걸리니 눈으로 볼 것`);
+  }
+
+  /* ── 48. 첫 화면이 확대됐다가 줄어들지 않나 ──
+     cam 은 배율 1(확대)에서 시작해 목표로 다가간다. 그 과정이 그대로 보이면
+     **들어오자마자 확대된 채 떴다가 동그랗게 줄어든다.** 우리가 보여주려던 움직임이 아니다.
+     그리기 전에 자리를 잡고(사전 틱) 첫 배율을 즉시 붙인다.
+     화면이 뜨는 동안 배율이 얼마나 오갔는지를 페이지가 __camTrace 에 적고, 여기서 읽는다.
+     **계산으로 다시 만들지 않는다** — 화면이 실제로 쓴 값이다. */
+  {
+    const d48 = boot(1280, 800);
+    await new Promise(r => setTimeout(r, 1800));
+    const r = d48.window.eval(`(function(){
+      var t=window.__camTrace||[];
+      if(!t.length)return null;
+      return {n:t.length, min:Math.min.apply(null,t), max:Math.max.apply(null,t),
+              first:t[0], pre:window.__preTicks||0, preMs:Math.round(window.__preMs||0),
+              onScreen:A.filter(function(x){var sx=x.x*cam.s+cam.x,sy=x.y*cam.s+cam.y;
+                return sx>0&&sx<W&&sy>0&&sy<H}).length, total:A.length};
+    })()`);
+    d48.window.close();
+    if (!r) F('48. __camTrace 가 없다 — 첫 배율을 재는 길이 사라졌다');
+    else {
+      const wob = +(r.max - r.min).toFixed(3);
+      console.log(`48. 첫 배율        ${r.first} 고정 · 흔들림 ${wob} · 표본 ${r.n} · 사전 정착 ${r.pre}틱 ${r.preMs}ms · 화면안 ${r.onScreen}/${r.total}`);
+      if (wob > 0.05)
+        F(`48. 첫 화면 배율이 ${r.min}~${r.max} 로 흔들린다 (허용 0.05). 확대됐다가 줄어드는 것으로 보인다`);
+      if (!r.pre) F('48. 사전 정착을 안 했다 — 물리 전 좌표로 맞추면 배율이 틀린다');
+      if (r.preMs > 400) W(`48. 사전 정착이 ${r.preMs}ms 걸린다 — 첫 그림이 그만큼 늦는다`);
+      if (r.onScreen < r.total) W(`48. 첫 화면에 ${r.total - r.onScreen}개가 화면 밖이다 (${r.onScreen}/${r.total})`);
+    }
   }
 
   /* ── 요약 ── */

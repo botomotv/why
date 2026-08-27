@@ -435,6 +435,18 @@ body.popfull .pexp .pex-i{transform:rotate(180deg)}
 .gvp b{font-weight:600;color:var(--t1)}
 .gvq{color:#C9A55E}
 .gv-note{margin-top:5px;font-size:12.5px;color:var(--t3)}
+/* ── 우리 사정은 접어서 맨 아래 ──
+   자동으로 이었는지, 원문이 무엇인지, 못 받은 것이 무엇인지는 신뢰의 근거다.
+   그런데 **먼저 읽힐 것은 아니다.** 접어 두되 한 번 누르면 전부 나온다.
+   특히 대통령별 건수는 크게 보여주고 아래에서 부정하면
+   사람들은 크게 본 것만 기억한다 — 그래서 이 안으로 넣었다. */
+.ourside{margin-top:16px;padding-top:12px;border-top:1px solid var(--line)}
+.ourside>summary{cursor:pointer;font-size:13px;color:var(--t3);list-style:none;padding:2px 0}
+.ourside>summary::-webkit-details-marker{display:none}
+.ourside>summary:before{content:'＋ ';color:#6C737E}
+.ourside[open]>summary:before{content:'－ '}
+.ourside>summary:hover{color:var(--gold)}
+.ourside .gov-bar{margin-top:10px}
 /* 제·개정이유 — 원문은 접어 둔다. 읽는 것은 쉬운 말 쪽이고, 원문은 대조용이다. */
 .rsn-when{margin-top:8px;font-size:13px;color:var(--t3);line-height:1.6}
 .rsn{margin-top:10px}
@@ -27145,6 +27157,8 @@ var BADGE_W=0;
 /* 사용자가 카메라를 직접 만졌나. 만졌으면 크기가 바뀌어도 다시 맞추지 않는다 —
    보고 있던 자리를 빼앗는 게 더 나쁘다. */
 var camUser=false;
+/* 첫 맞춤을 아직 안 붙였다는 표시. 붙이는 순간 꺼진다. */
+var camFirst=true;
 
 function size(){var b=document.getElementById('stage').getBoundingClientRect();
   var pw=W,ph=H;
@@ -28189,6 +28203,13 @@ function fade(){
     n.pw=(n.pw||0)+(want-(n.pw||0))*0.08;
     if(n.ph2===undefined)n.ph2=Math.random()*6.28;
     n.pulse=n.pw*(0.55+0.45*Math.sin(PT*2.1+n.ph2));});
+  /* ── 첫 맞춤은 **애니메이션 없이** 붙인다 ──
+     cam 은 배율 1(확대)에서 시작해 0.11씩 목표로 다가간다. 그래서 들어오면
+     **확대된 채 떴다가 동그랗게 줄어든다.** 그건 우리가 보여주려던 움직임이 아니라
+     초기값에서 목표로 가는 과정이 그대로 보이는 것이다.
+     첫 화면은 처음부터 맞는 배율이어야 한다 — 한 번만 즉시 붙이고, 그 뒤로는 부드럽게. */
+  if(camFirst&&isFinite(cam.ts)&&cam.ts>0){
+    cam.s=cam.ts;cam.x=cam.tx;cam.y=cam.ty;camFirst=false;return}
   cam.s+=(cam.ts-cam.s)*0.11;cam.x+=(cam.tx-cam.x)*0.11;cam.y+=(cam.ty-cam.y)*0.11}
 
 function arrow(ax,ay,bx,by,rr,col,wid){
@@ -29091,6 +29112,20 @@ function govBar(n){
    카드에 같은 말이 두 줄로 나오는 건 그냥 버그다 — 인물 연표 23개가 그랬다.
    데이터는 그대로 두고 화면에서만 거른다. 원본을 지우면 나중에 왜 비었는지 모른다.
    띄어쓰기·가운뎃점·괄호는 무시하고 견준다. 자동 수집이 들어오면 이런 게 또 생긴다. */
+/* 같은 말이 두 번 나오면 하나만 남긴다. 띄어쓰기·문장부호는 빼고 견준다 —
+   "선거를 어떻게 치르는지 정한 법입니다" 가 한 카드에 두 번 있었다. */
+function dropLead(body,tip){
+  var b=String(body||'').trim(), t=String(tip||'').trim();
+  if(!b)return '';
+  if(!t)return b;
+  if(sameWord(b,t))return '';
+  if(b.indexOf(t)===0){var r=b.slice(t.length).replace(/^[\s.,\u00B7]+/,'');return r}
+  return b;
+}
+function sameWord(a,b){
+  var norm=function(x){return String(x||'').replace(/[\s\u00B7,.()]/g,'')};
+  return !!a&&!!b&&norm(a)===norm(b);
+}
 function tipOf(n){
   if(!n||!n.tip)return '';
   var norm=function(x){return String(x||'').replace(/[\s·,.()\u00B7]/g,'')};
@@ -29117,21 +29152,35 @@ var VOTE_OPEN_YEAR = 2016;      /* 제20대 국회 개원 — 개인별 표결 �
    이유가 없는 27개(타법개정이거나 법제처에 없는 것)는 **비우고 그렇다고 밝힌다.**
    타법개정의 이유는 그 법의 것이 아니라 딸려 바뀌게 만든 다른 법의 것이다 —
    그대로 실었으면 "국가정보원법이 바뀐 이유는 방송통신위원회를 폐지하려고" 가 됐다. */
-function autoBlock(n){
+/* ── **읽는 순서를 뒤집었다** ──
+   전에는 카드가 이렇게 시작했다: 대통령별 건수 → 자동으로 이었다는 안내 →
+   법제처 원문 → 그러고 나서야 "공직선거법이 뭔지".
+   사람들은 "이게 무슨 법이야?" 를 알고 싶은데 **우리 사정을 먼저 읽고 있었다.**
+
+   우리 사정(자동인지·원문인지·못 받은 게 뭔지)은 중요하다. 신뢰의 근거다.
+   하지만 **먼저 읽힐 것은 아니다.** 접어서 맨 아래로 내린다.
+   접는 것과 지우는 것은 다르다 — 한 번 누르면 전부 나온다. */
+function autoWhat(n){
+  if(!n.reason)return '';
+  var dt=String(n.rsnDt||''), ymd=dt.length===8?(dt.slice(0,4)+'.'+dt.slice(4,6)+'.'+dt.slice(6,8)):dt;
+  if(!n.plain)return '';
+  return '<div class="sec"><p class="sec-lab">최근에 뭐가 바뀌었나'+(ymd?' <em>('+ymd+')</em>':'')+'</p>'+
+     '<p class="body">'+n.plain+'</p></div>';
+}
+function autoNote(n){
+  var dt=String(n.rsnDt||''), ymd=dt.length===8?(dt.slice(0,4)+'.'+dt.slice(4,6)+'.'+dt.slice(6,8)):dt;
   var h='<p class="vnote autonote"><b>자동으로 이은 것입니다.</b> '+
     '분야·시기·이름이 맞아떨어져 기계가 붙였습니다. '+
     (n.reason?'아래 이유는 <b>법제처 원문</b>이고, 쉬운 말은 우리가 옮긴 것입니다.'
              :'<b>무엇이 바뀌었는지는 확인 중입니다.</b>')+'</p>';
-  if(!n.reason)return h;
-  var dt=String(n.rsnDt||''), ymd=dt.length===8?(dt.slice(0,4)+'.'+dt.slice(4,6)+'.'+dt.slice(6,8)):dt;
-  h+='<div class="sec"><p class="sec-lab">무엇이 바뀌었나</p>'+
-     (n.plain?'<p class="body">'+n.plain+'</p>':'')+
-     '<p class="rsn-when">위 내용은 <b>'+ymd+'에 고친 것</b>의 이유입니다.'+
-     (n.rsnRest>0?' 그 앞 '+n.rsnRest+'번은 왜 고쳤는지 아직 못 받았습니다.':'')+'</p>'+
-     '<details class="rsn"><summary>법제처 원문 그대로 보기</summary>'+
-     '<p class="rsn-raw">'+String(n.reason).replace(/</g,'&lt;').replace(/\n/g,'<br>')+'</p>'+
-     (n.rsnUrl?'<p class="rsn-src"><a href="'+n.rsnUrl+'" target="_blank" rel="noopener">법제처에서 이 법 보기</a></p>':'')+
-     '</details></div>';
+  if(n.reason){
+    h+='<p class="rsn-when">위 내용은 <b>'+ymd+'에 고친 것</b>의 이유입니다.'+
+       (n.rsnRest>0?' 그 앞 '+n.rsnRest+'번은 왜 고쳤는지 아직 못 받았습니다.':'')+'</p>'+
+       '<details class="rsn"><summary>법제처 원문 그대로 보기</summary>'+
+       '<p class="rsn-raw">'+String(n.reason).replace(/</g,'&lt;').replace(/\n/g,'<br>')+'</p>'+
+       (n.rsnUrl?'<p class="rsn-src"><a href="'+n.rsnUrl+'" target="_blank" rel="noopener">법제처에서 이 법 보기</a></p>':'')+
+       '</details>';
+  }
   return h;
 }
 /* ── 자동으로 이을 근거를 못 찾은 결과 ──
@@ -29262,20 +29311,44 @@ function render(id){
     html='<div class="c-head"><div class="meta"><span class="year">'+n.yr+'</span>'+
       '<span class="badge '+(n.kind==='법률'?'b-law':'b-decree')+'">'+n.kind+'</span>'+
       '<span class="badge b-pass">'+n.st+'</span>'+(n.check?'<span class="badge b-chk">확인 중</span>':'')+'</div>'+
-      '<h2 class="title">'+n.title+'</h2><p class="official">'+n.off+'</p></div>'+govBar(n)+
-      (n.auto?autoBlock(n):'')+
-      (n.warn?'<p class="caution">'+n.warn+'</p>':'')+
+      '<h2 class="title">'+n.title+'</h2><p class="official">'+n.off+'</p></div>'+
+      /* ① 제일 먼저 — 이게 무슨 법인지 */
       (tipOf(n)?'<div class="oneline">'+tipOf(n)+'</div>':'')+
-      voteNote(n)+
+      /* ② 그다음 — 뭐가 바뀌었는지 */
+      (n.auto?autoWhat(n):'')+
+      (n.warn?'<p class="caution">'+n.warn+'</p>':'')+
       (n.eff&&n.eff.length?'<div class="sec"><p class="sec-lab">이 법으로 뭐가 달라졌나</p><ul class="efflist">'+
         n.eff.map(function(e){return '<li class="ef-'+e[0]+'"><span class="efar">'+(e[0]==='up'?'▲':'▼')+'</span>'+
           '<div><p class="efw">'+e[1]+'</p><p class="efv">'+e[2]+'</p></div></li>'}).join('')+'</ul></div>':'')+
       (n.story&&n.story.length?'<div class="sec"><p class="sec-lab">차근차근 보기</p><ol class="story">'+
         n.story.map(function(q){return '<li><p class="sq">'+q[0]+'</p><p class="sa">'+q[1]+'</p></li>'}).join('')+
-        '</ol></div>':'<div class="sec"><p class="sec-lab">설명</p><p class="body">'+n.body+'</p></div>')+
+        '</ol></div>':(function(){
+          /* **같은 말이 두 번 나오지 않게 한다.** 자동 법률의 body 는
+             "선거를 어떻게 치르는지 정한 법입니다. 2017~2026년 사이에 16번 고쳤습니다."
+             처럼 한 줄 설명(tip)으로 시작한다. 앞부분이 겹치면 떼고 나머지만 쓴다.
+             통째로 겹치면 아예 안 쓴다. */
+          var rest=dropLead(n.body,tipOf(n));
+          return rest?'<div class="sec"><p class="sec-lab">설명</p><p class="body">'+rest+'</p></div>':'';
+        })())+
       (n.limit&&n.limit.length?'<div class="sec limitsec"><p class="sec-lab">이 법의 남은 문제 · 비판</p><ul class="limlist">'+
         n.limit.map(function(q){return '<li><p class="lq">'+q[0]+'</p><p class="la">'+q[1]+'</p></li>'}).join('')+
         '</ul><p class="limnote">양쪽에서 나온 지적을 그대로 옮긴 것입니다. 옳고 그름은 판단하지 않습니다.</p></div>':'');
+    /* ③ 이어진 것 — 결과 카드와 같은 목록·같은 세 층 */
+    var bchain=chainOf(id);
+    if(bchain.length){
+      var BN=8, bshown=bchain.slice(0,BN), brest=bchain.length-bshown.length;
+      html+='<div class="sec sec-rel"><p class="sec-lab">이어진 것 '+bchain.length+'개</p>'+
+        '<ul class="chain chain-tight">'+bshown.map(function(c){return chainItem(c)}).join('')+'</ul>'+
+        '<button class="allbtn" data-all="'+id+'">'+
+          (brest>0?'이어진 것 '+bchain.length+'개 모두 보기':'시간순으로 모두 보기')+
+          '<span class="allsub">'+(brest>0?'여기 '+bshown.length+'개 · 나머지 '+brest+'개':'전체 화면에서 시간순으로')+'</span>'+
+        '</button></div>';
+    }
+    /* ④ 맨 아래 — 우리 사정. 접어 둔다.
+       중요하지만 먼저 읽힐 것이 아니다. 크게 보여주고 아래에서 부정하면
+       사람들은 크게 본 것만 기억한다 (대통령별 건수가 그랬다). */
+    html+='<details class="ourside"><summary>이 카드가 어떻게 만들어졌나</summary>'+
+      govBar(n)+(n.auto?autoNote(n):'')+voteNote(n)+'</details>';
     if(eff.length){html+='<div class="sec sec-rel"><p class="sec-lab">그 뒤에 나온 숫자</p><ul class="chain">'+
       eff.map(function(e){var g=(yr(e)||0)-(yr(n)||0);
         return '<li data-k="gold"><p class="ch-y">'+e.yr+(g>0?' · '+g+'년 뒤':'')+'</p>'+
@@ -29435,13 +29508,19 @@ function render(id){
         '<input class="refin" id="refD" type="text" placeholder="날짜 (비우면 자동)">'+
       '</div>'+
     '</div>':'')+'</div>'+
-    '<div class="sec sec-links"><p class="sec-lab">이어진 관계 '+rels.length+'개</p>'+
+    /* 법안·결과 카드에는 위에 '이어진 것 N개' 목록이 이미 있다.
+       같은 것을 두 번 늘어놓으면 카드가 두 배로 길어지고 어느 쪽이 전부인지 헷갈린다.
+       그 두 종류에서는 이 블록을 접어 둔다 — 지우지 않는다, 여기에만 있는 것(역할·근거 문장)이 있다. */
+    (n.t==='bill'||n.t==='result'
+      ? '<details class="ourside"><summary>이어진 관계를 한 줄씩 보기 ('+rels.length+'개)</summary>'
+      : '<div class="sec sec-links"><p class="sec-lab">이어진 관계 '+rels.length+'개</p>')+
     (rels.length>MAX_EDGES
       ? '<p class="cutnote">지도에는 가까운 '+MAX_EDGES+'개만 그렸습니다 · 전체 '+rels.length+'개를 아래에 모두 적습니다</p>'
       : '')+
     '<p class="linknote">선은 <b>관련이 있다</b>는 표시입니다. 어느 쪽이 원인인지는 이 지도가 말하지 않습니다.</p>'+
     '<ul class="rel">'+
-    rels.map(function(l){return sentence(l,id)}).join('')+'</ul></div>'+(n.src?'<p class="src">'+n.src+'</p>':'')+
+    rels.map(function(l){return sentence(l,id)}).join('')+'</ul>'+
+    ((n.t==='bill'||n.t==='result')?'</details>':'</div>')+(n.src?'<p class="src">'+n.src+'</p>':'')+
     /* 대립이 기록에 거의 안 남는다는 한계. 왼쪽 패널은 폰에서 서랍이라 안 보인다.
        카드는 폰에서도 열리므로 여기가 폰에서 보이는 자리다.
        근거는 docs/인물법안카드.md — 21대 임기만료폐기 67.8%, 부결 10만 건 중 19건. */
@@ -29674,6 +29753,28 @@ mountMYN();setAngles();
    (2) 포커스 중에는 alpha 바닥이 0.014로 고정돼 애니메이션이 멈추지 않는다. */
 closePop();
 reheat(0.9);
+/* **가라앉기를 기다리지 않고 먼저 한 번 맞춘다.**
+   배치는 데이터가 정한다 — 반지름=연도, 각도=흩뿌린 값. 첫 프레임에 이미 자리가 있다.
+   그래서 맞출 값도 이미 있다. 기다리면 그동안 배율 1(확대)이 보인다.
+   가라앉은 뒤 refitWhenSettled 가 한 번 더 맞춘다 — 그때는 부드럽게 움직인다. */
+/* ── 첫 화면은 **자리를 잡은 뒤에** 맞춘다 ──
+   그냥 fit() 을 부르면 아직 물리가 안 돈 좌표를 재서 배율 1.535(확대)가 나왔고,
+   그 상태로 1.5초를 있다가 줄어들었다 — 사용자가 본 "확대됐다 축소되는" 화면이다.
+   배치는 결정론적이라(반지름=연도, 각도=흩뿌린 값) 몇십 틱이면 제자리에 온다.
+   화면에 그리기 전에 그 틱을 미리 돌린다. 실측: 48개에서 아래 표. */
+size();
+(function(){
+  var t0=(performance&&performance.now)?performance.now():0, i=0;
+  while(alpha>0.02&&i<400){tick();i++}
+  window.__preTicks=i;
+  window.__preMs=((performance&&performance.now)?performance.now():0)-t0;
+})();
+fit(); cam.s=cam.ts;cam.x=cam.tx;cam.y=cam.ty; camFirst=false;
+/* 검사가 첫 배율의 흔들림을 잴 수 있게 남긴다 — 화면이 뜨는 동안 배율이
+   얼마나 오갔는지. 확대됐다가 줄어들면 여기 폭이 커진다. */
+window.__camTrace=[];
+(function traceCam(){ if(window.__camTrace.length<40){
+  window.__camTrace.push(+cam.s.toFixed(3)); setTimeout(traceCam,100)} })();
 refitWhenSettled(true);
 
 /* 편집 UI 는 방문자에게 하나도 보이면 안 된다. 이 사이트에서 데이터는 신뢰의 전부다.

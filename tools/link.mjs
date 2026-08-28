@@ -99,6 +99,21 @@ const presOf = dt => {
   return t ? t.president : null;
 };
 
+/* ── 조문 제목 ──
+   제1조 한 줄로는 "뭘 보호하는지" 가 안 나온다. 조문 제목이 그것을 알려준다 —
+   「계약갱신 요구 등」·「권리금 회수기회 보호 등」.
+   **우리가 옮긴 말이 아니라 법에 있는 제목 그대로**라서 화면에도 그렇게 밝힌다.
+   형식 조문(정의·적용 범위·벌칙…)은 어느 법에나 있어 아무것도 말해주지 않는다 — 뺀다. */
+const ART_SKIP = /^(정의|목적|적용\s*범위|적용범위|다른 법률과의 관계|벌칙|과태료|양벌규정|양벌 규정|권한의 위임|권한의 위임ㆍ위탁|시행령|규제의 재검토|비밀 유지|비밀유지|수수료|보고 및 감독|청문|위임규정|경과조치|다른 법령과의 관계|국가와 지방자치단체의 책무|국가 및 지방자치단체의 책무|기본원칙|기본 이념|책임|관장)/;
+let arts = {};
+try {
+  for (const r of db.prepare('SELECT law_nm, titles FROM law_articles').all()) {
+    const t = String(r.titles || '').split('·').map(x => x.trim())
+      .filter(x => x && !ART_SKIP.test(x) && x.length <= 14);
+    if (t.length) arts[r.law_nm] = t.slice(0, 6);
+  }
+} catch { }
+
 let easy = {};
 try { easy = JSON.parse(fs.readFileSync(path.join(ROOT, 'db', 'law_easy.json'), 'utf8')); delete easy._ } catch {}
 /* ── 발의자 ──
@@ -110,17 +125,50 @@ try { easy = JSON.parse(fs.readFileSync(path.join(ROOT, 'db', 'law_easy.json'), 
 
    법률로 묶은 것은 개정이 여러 번이라 발의자가 여럿이다.
    **가장 최근 개정 하나만** 보여주고 나머지는 수로 밝힌다. 전부 나열하면 또 명단이다. */
+/* ── 발의 **당시** 정당 ──
+   의원 명부(ALLNAMEMBER)의 `PLPT_NM` 은 **대수별 이력**이다:
+     이군현 · 한나라당/한나라당/새누리당/새누리당 ↔ 제17대,제18대,제19대,제20대
+   그래서 발의 대수(AGE)를 알면 그때 소속을 정확히 집을 수 있다.
+   **지금 정당을 쓰면 안 된다** — 탈당하면 과거 발의가 현재 당의 것이 된다.
+   개인별 표결에서 POLY_NM 을 원본 그대로 쓴 것과 같은 이유다.
+
+   **못 잡는 것:** 같은 대수 안에서 당을 옮긴 경우. 해상도가 대수 단위다.
+   그건 화면에 밝힌다 — 말없이 두면 우리가 정확한 척하는 것이 된다. */
+const partyOf = new Map();
+try {
+  for (const r of db.prepare(
+    `SELECT json_extract(row_json,'$.NAAS_CD') cd, json_extract(row_json,'$.NAAS_NM') nm,
+            json_extract(row_json,'$.PLPT_NM') p, json_extract(row_json,'$.GTELT_ERACO') e
+       FROM raw_row WHERE service='ALLNAMEMBER'`).all()) {
+    if (!r.cd) continue;
+    const ps = String(r.p || '').split('/').map(x => x.trim());
+    const es = String(r.e || '').split(',').map(x => x.trim());
+    const byAge = {};
+    es.forEach((age, i) => { if (age) byAge[age] = ps[i] || ps[ps.length - 1] || '' });
+    partyOf.set(String(r.cd), { nm: String(r.nm || ''), byAge, last: ps[ps.length - 1] || '' });
+  }
+} catch { }
+
 const propOf = new Map();
 try {
   for (const r of db.prepare(
     `SELECT json_extract(row_json,'$.BILL_ID') id, json_extract(row_json,'$.RST_PROPOSER') rst,
-            json_extract(row_json,'$.PUBL_PROPOSER') publ, json_extract(row_json,'$.PROPOSER') pro
+            json_extract(row_json,'$.PUBL_PROPOSER') publ, json_extract(row_json,'$.PROPOSER') pro,
+            json_extract(row_json,'$.RST_MONA_CD') cd, json_extract(row_json,'$.AGE') age
        FROM raw_row WHERE service='nzmimeepazxkubdpn'`).all()) {
     if (!r.id) continue;
+    let party = '', exact = 0;
+    const m = partyOf.get(String(r.cd || ''));
+    if (m) {
+      const key = '제' + String(r.age || '').replace(/[^0-9]/g, '') + '대';
+      if (m.byAge[key]) { party = m.byAge[key]; exact = 1 }
+      else party = m.last;
+    }
     propOf.set(String(r.id), {
       rst: String(r.rst || '').trim(),
       n: String(r.publ || '').split(',').map(x => x.trim()).filter(Boolean).length,
-      gov: /정부/.test(String(r.pro || '')) && !String(r.rst || '').trim()
+      gov: /정부/.test(String(r.pro || '')) && !String(r.rst || '').trim(),
+      party, exact, age: String(r.age || '')
     });
   }
 } catch { }
@@ -220,6 +268,7 @@ for (const g of [...groups.values()].sort((a, b) => a.law.localeCompare(b.law)))
          검사가 배열을 String() 해서 '질문,답,질문,답' 을 한 문장으로 읽는다 —
          실제로 없는 96자짜리 긴 문장 48개가 만들어졌다. plain 으로 나눈다. */
       plain: (easy[g.law] && easy[g.law].easy) || '',
+      arts: arts[g.law] || [],
       reason: (reasons[g.law] && reasons[g.law].reason) || '',
       rsnDt: (reasons[g.law] && reasons[g.law].promul_dt) || '',
       rsnUrl: (reasons[g.law] && reasons[g.law].src_url) || '',
@@ -249,7 +298,7 @@ for (const g of [...groups.values()].sort((a, b) => a.law.localeCompare(b.law)))
       if (p.gov) { gov++; if (!found) found = { gov: 1, dt: b.dt }; continue }
       if (!p.rst) continue;
       withProp++;
-      if (!found || found.gov) found = { rst: p.rst, n: p.n, dt: b.dt };
+      if (!found || found.gov) found = { rst: p.rst, n: p.n, dt: b.dt, party: p.party, exact: p.exact, age: p.age };
     }
     if (found) node.prop = { ...found, rest: Math.max(0, g.items.length - 1) };
   }
@@ -319,8 +368,11 @@ const nodeJs = [...lawNodes.values()].map(n =>
   (n.presCount && n.presCount.length
     ? `presN:[${n.presCount.map(([p, c]) => `[${q(p)},${c}]`).join(',')}],presUnknown:${n.presUnknown},` : '') +
   (n.reason ? `reason:${q(n.reason)},rsnDt:${q(n.rsnDt)},rsnUrl:${q(n.rsnUrl)},rsnRest:${n.rsnRest},` : '') +
+  (n.arts && n.arts.length ? `arts:[${n.arts.map(q).join(',')}],` : '') +
   (n.caseLaw ? 'caseLaw:1,' : '') +
-  (n.prop ? `prop:{${n.prop.gov ? 'gov:1' : `rst:${q(n.prop.rst)},n:${n.prop.n}`},dt:${q(n.prop.dt)},rest:${n.prop.rest}},` : '') +
+  (n.prop ? `prop:{${n.prop.gov ? 'gov:1' : `rst:${q(n.prop.rst)},n:${n.prop.n}` +
+      (n.prop.party ? `,party:${q(n.prop.party)},exact:${n.prop.exact ? 1 : 0},age:${q(n.prop.age)}` : '')},` +
+    `dt:${q(n.prop.dt)},rest:${n.prop.rest}},` : '') +
   `bills:[${n.bills.map(b => `[${q(b.id)},${q(b.dt)}]`).join(',')}]}`).join('\n,');
 /* **선 자체에 자동 표시를 박는다.** 전에는 '붙은 노드가 auto 면 점선' 이라는 간접 방식이었다.
    그러면 표시가 빠져도 화면이 그대로라 아무도 모른다 — 실제로 자동 선 266개 전부가

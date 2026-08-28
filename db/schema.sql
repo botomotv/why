@@ -275,3 +275,14 @@ CREATE TABLE IF NOT EXISTS law_purpose (
   src_url   TEXT NOT NULL,
   fetched_at TEXT NOT NULL
 );
+
+-- 법의 조문 제목들 — "무슨 법인지" 를 두세 문장으로 풀어 쓸 때 쓴다.
+-- 「제10조(계약갱신 요구권)」 같은 제목이 그 법이 무엇을 하는지 알려준다.
+-- **제목만 담는다.** 조문 본문은 담지 않는다 — 길고, 우리가 쓸 것은 제목이면 충분하다.
+CREATE TABLE IF NOT EXISTS law_articles (
+  law_nm    TEXT PRIMARY KEY,
+  mst       TEXT NOT NULL,
+  titles    TEXT NOT NULL,      -- 조문제목을 '·' 로 이은 것. 원문 그대로
+  n         INTEGER NOT NULL,
+  fetched_at TEXT NOT NULL
+);

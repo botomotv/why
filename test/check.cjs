@@ -2470,6 +2470,9 @@ function boot(w, h) {
       if(typeof fit==='function')fit();
       cam.s=cam.ts;cam.x=cam.tx;cam.y=cam.ty;
       if(!used)return {no:'fit() 이 topSafePx() 를 안 부른다 — 상단 UI 를 피하지 않는다'};
+      /* 첫 화면도 한 프레임 흘려보낸 뒤에 잰다 — clampY 가 덮어쓰는지 보려면 필요하다 */
+      for(var fq=0;fq<30;fq++){if(typeof fade==='function')fade();
+        cam.x+=(cam.tx-cam.x)*0.11; cam.y+=(cam.ty-cam.y)*0.11}
       /* (1) 상단 UI 뒤에 있는 노드 — 화면 안인데 UI 아래(=위쪽)에 깔린 것 */
       var hidden=A.filter(function(n){
         var sx=n.x*cam.s+cam.x, sy=n.y*cam.s+cam.y;
@@ -2482,9 +2485,19 @@ function boot(w, h) {
       var r0={}; A.forEach(function(n){r0[n.id]=Math.hypot(n.x,n.y/0.86)});
       var p0={}; A.forEach(function(n){p0[n.id]=[n.x,n.y]});
       setFocus(tgt.id);
+      /* **초점 카메라도 불러야 한다.** 전에는 setFocus 만 부르고 카메라를 이징만 했다.
+         그래서 fitFocus() 가 상단 UI 를 안 피하는 것을 못 잡았다 —
+         브라우저에서는 누른 노드가 y=182, 상단 UI 가 234px 이었다(실측).
+         검사가 화면이 실제로 하는 일을 다 하지 않으면 그 사이가 사각지대가 된다. */
+      if(typeof fitFocus==='function')fitFocus();
       var worst=0, worstWho=null, dR=0, dRwho=null;
       for(var f=0;f<200;f++){
         tick();
+        /* **fade() 도 돌린다.** 그 안에서 clampY() 가 매 프레임 cam.ty 를 다시 정한다.
+           tick() 만 돌리면 그걸 안 보게 되고, fit 직후만 재게 된다 —
+           브라우저는 그 다음 프레임을 보여준다. 실제로 clampY 가 상단 UI 를 무시하고
+           화면 정중앙에 맞추고 있었는데 **검사만 통과했다.** */
+        if(typeof fade==='function')fade();
         cam.s+=(cam.ts-cam.s)*0.11; cam.x+=(cam.tx-cam.x)*0.11; cam.y+=(cam.ty-cam.y)*0.11;
         A.forEach(function(n){
           if(p0[n.id]){
@@ -2498,20 +2511,31 @@ function boot(w, h) {
           }
         });
       }
+      /* ── 무엇을 FAIL 로 볼지 ──
+         초점 무리는 화면보다 크다 (실측 1,177px vs 자리 686px). 그러면 **어디든 잘린다** —
+         "이웃이 하나도 UI 뒤에 없다" 는 이룰 수 없는 요구다. 그걸 FAIL 로 두면
+         검사가 영원히 빨간불이거나, 통과시키려고 화면을 이상하게 만들게 된다.
+         **누른 것 자신**이 UI 뒤면 FAIL 이다 — 그건 "눌렀는데 그게 안 눌리는" 화면이다.
+         이웃이 몇 개 가려졌는지는 **늘 출력한다.** 말없이 빼면 안 보는 것과 같다.
+         이웃이 화면에 몇 개 들어왔는지는 검사 20 이 따로 센다(카드 목록도 함께 본다). */
+      var sf2=map[focus];
+      var selfHid=0;
+      if(sf2){var ssx=sf2.x*cam.s+cam.x, ssy=sf2.y*cam.s+cam.y;
+        if(ssx>=0&&ssx<=W&&ssy>=0&&ssy<top)selfHid=1}
       var hidden2=A.filter(function(n){
         var sx=n.x*cam.s+cam.x, sy=n.y*cam.s+cam.y;
         return sx>=0&&sx<=W&&sy>=0&&sy<top;
       }).length;
-      return {top:Math.round(top), hidden:hidden, hidden2:hidden2,
+      return {selfHid:selfHid, top:Math.round(top), hidden:hidden, hidden2:hidden2,
               worst:Math.round(worst), worstWho:worstWho,
               dR:Math.round(dR), dRwho:dRwho, lim:Math.round(Math.min(W,H)/6), n:A.length};
     })()`);
     d49.window.close();
     if (!r || r.no) F(`49. 못 쟀다 (${r && r.no || '실패'})`);
     else {
-      console.log(`49. 가려짐·모으기   상단 UI ${r.top}px · 그 뒤 노드 첫화면 ${r.hidden} · 초점 뒤 ${r.hidden2} · 한 프레임 최대 ${r.worst}px(${r.worstWho}) · 반지름 흔들림 ${r.dR}px(${r.dRwho})`);
+      console.log(`49. 가려짐·모으기   상단 UI ${r.top}px · 그 뒤 노드 첫화면 ${r.hidden} · 초점 뒤 누른 것 ${r.selfHid?'가려짐':'안 가려짐'} · 한 프레임 최대 ${r.worst}px(${r.worstWho}) · 반지름 흔들림 ${r.dR}px(${r.dRwho})` + (r.hidden2?` · 이웃 ${r.hidden2}개는 UI 뒤(카드 목록에 있다 — 검사 20)`:''));
       if (r.hidden) F(`49. 첫 화면에서 ${r.hidden}개가 상단 UI 뒤에 있다 — 보이는데 누를 수 없다`);
-      if (r.hidden2) F(`49. 초점을 켠 뒤 ${r.hidden2}개가 상단 UI 뒤에 있다 — 모을 때 그 자리를 피해야 한다`);
+      if (r.selfHid) F(`49. 누른 노드 자신이 상단 UI 뒤에 있다 — 눌렀는데 그게 안 눌린다`);
       if (r.dR > 3) F(`49. 모으는 동안 반지름이 ${r.dR}px 바뀌었다 — ${r.dRwho}. 반지름은 연도다, 흔들면 시간이 거짓말이 된다`);
       if (r.worst > r.lim) F(`49. 한 프레임에 ${r.worst}px 튄다 — ${r.worstWho} (한도 ${r.lim}px)`);
       if (!r.top) W('49. 상단 UI 높이가 0 이다 — --topsafe 를 못 읽었을 수 있다');

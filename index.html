@@ -26996,6 +26996,7 @@ function fitFocus(){
     cam.ts=want;
     cam.tx=vw.cx-(minx+maxx)/2*want;
     cam.ty=vw.cy-(miny+maxy)/2*want;
+    clampTop(miny,maxy,want);
     return}
   /* 다 담으려면 이름표 하한 밑으로 내려가야 하는 경우.
      폰(지도 412x518)이 그렇다 — 이웃이 고리 전체에 흩어져 있어
@@ -27005,7 +27006,34 @@ function fitFocus(){
      '다 보이는데 뭔지 모르는 화면' 보다 '가운데 것은 확실히 읽히는 화면' 이 낫다. */
   cam.ts=LABEL_FAR;
   cam.tx=vw.cx-self.x*LABEL_FAR;
-  cam.ty=vw.cy-self.y*LABEL_FAR}
+  cam.ty=vw.cy-self.y*LABEL_FAR;
+  /* 이 분기는 무리를 안 담는다 — **누른 것 하나**를 가운데 놓는 것이다.
+     그러니 기준도 그 하나여야 한다. 무리 범위로 재면 담지도 않은 범위를 기준으로
+     밀어 엉뚱한 자리로 간다 — 실측 초점 뒤 6개가 UI 뒤로 갔다. */
+  clampTop(self.y-self.r-24,self.y+self.r+24,LABEL_FAR)}
+/* ── 위가 상단 UI 뒤로 가면 아래로 민다 — fit() 과 fitFocus() 가 **같은 규칙**을 쓴다 ──
+   한 곳만 고치면 첫 화면은 되고 누른 뒤는 안 되는(또는 그 반대) 화면이 된다.
+
+   밀 수 있는 양을 px 로 정했더니 실행마다 0개 ↔ 1개를 오갔다 — 딱 걸치는 값이었다.
+   한도를 푸는 대신 **무엇을 재는지**를 바꾼다.
+
+   · 무리가 자리에 거의 담긴다 (1280×800: 자리 686px, 무리 711px, 25px 초과)
+     → 다 민다. 25px 을 안 밀면 노드 하나가 UI 뒤에 남아 못 눌린다.
+   · 무리가 자리보다 훨씬 크다 (882×344: 자리 230px, 무리 700px 남짓)
+     → **안 민다.** 다 밀면 무리의 윗동강만 보여 "한쪽에 뭉쳤다" 가 된다(검사 26).
+       어차피 다 못 보는 화면이면 **가운데**를 보여주는 쪽이 낫다.
+
+   가르는 선은 자리의 절반이다. 그만큼 넘치면 '거의 담긴다' 고 부를 수 없다.
+   못 피한 자리는 CSS 가 받는다 — .search 의 빈 곳은 pointer-events:none 이라
+   클릭이 통과한다. 밀기와 통과는 서로를 대신하지 못한다. */
+function clampTop(miny,maxy,s){
+  var tp=(typeof topSafePx==='function')?topSafePx():0;
+  var vh=Math.max(1,H-tp);
+  var topY=miny*s+cam.ty;
+  if(topY>=tp)return;
+  if((maxy-miny)*s-vh>=vh*0.5)return;
+  cam.ty+=(tp-topY);
+}
 /* ── 카드가 안 가리는 자리 ──
    카드는 지도를 밀지 않고 덮는다. 그래서 '화면 가운데' 와 '보이는 가운데' 가 다르다.
    **첫 화면(fit)에는 안 쓴다** — 그때는 카드가 없다.
@@ -27016,14 +27044,20 @@ function fitFocus(){
    포함해서 전환 잔상을 읽는다 — 실제로 230px 이 0 으로 나온 적이 있다.
    offset* 은 배치값이라 안 휘둘린다. */
 function mapView(){
-  var v={cx:W/2, cy:H/2, w:W, h:H};
+  /* ── **위도 깎는다** ──
+     전에는 카드(옆·아래)만 깎았다. 그래서 초점을 켜면 fitFocus 가 누른 노드를
+     H/2 에 놓았고, 상단 UI 가 282px 인 화면에서 그 노드가 y=247 — **UI 뒤**였다.
+     누른 것이 안 눌리는 화면이 된다. 카드를 피하는 것과 같은 이유다:
+     **덮여 있으면 없는 자리다.** */
+  var tp=(typeof topSafePx==='function')?topSafePx():0;
+  var v={cx:W/2, cy:tp+Math.max(80,H-tp)/2, w:W, h:Math.max(80,H-tp)};
   var p=document.getElementById('pop'), st=document.getElementById('stage');
   if(!p||!st||!document.body.classList.contains('panelon'))return v;
   var pw=p.offsetWidth, ph=p.offsetHeight;
   if(!(pw>0&&ph>0))return v;                 /* 레이아웃을 모르면 화면 전체로 둔다 */
   if(pw>=innerWidth*0.9){                    /* 아래에서 올라오는 카드 — 세로를 깎는다 */
     var top=p.offsetTop-st.offsetTop;
-    if(top>100&&top<H){v.h=top; v.cy=top/2}
+    if(top>100&&top<H){v.h=Math.max(80,top-tp); v.cy=tp+v.h/2}
   }else{                                     /* 옆에서 들어오는 카드 — 가로를 깎는다 */
     var left=p.offsetLeft-st.offsetLeft;
     if(left>140&&left<W){v.w=left; v.cx=left/2}
@@ -27090,20 +27124,7 @@ function fit(showAll){
      위아래로 넘친다. 그때 **위가 넘치면 상단 UI 뒤로 들어가 아예 못 누른다.**
      아래로 넘치는 것과는 다르다 — 아래는 끌어서 볼 수 있지만 위는 클릭이 UI 에 먹힌다.
      그래서 **위쪽만** 맞춘다. 검사 49 가 이걸 지킨다. */
-  var topY=miny*s+cam.ty, botY=maxy*s+cam.ty;
-  /* 다만 **아래 여유가 있는 만큼만** 민다. 882×344 처럼 납작한 화면에서는
-     상단 UI 가 화면의 3분의 1을 먹어 무리가 애초에 안 들어간다. 거기서 끝까지 밀면
-     아래로 밀려나 "한쪽에 뭉쳤다" 가 된다 — 검사 26 이 49% 빈칸으로 잡았다.
-     위 가림을 줄이되 아래를 새로 자르지는 않는다. */
-  /* 아래 여유가 있으면 그만큼, 없으면 **화면 높이의 4분의 1까지만** 민다.
-     1280×800 에서는 무리가 25px 더 커서 19px 만 밀면 되고 — 아래 여유가 없다고
-     안 밀면 노드 하나가 UI 뒤에 남는다(실측: 「외국인 토지 개방」).
-     882×344 에서는 470px 을 밀어야 하는데 다 밀면 아래로 쏟아져 뭉친다.
-     4분의 1을 밀었더니 882×344 에서 47% 가 비었다(검사 26). **5%로 줄인다** —
-     1280×800 에서 필요한 19px 은 34px 안에 들어오고, 882×344 는 11px 만 움직인다.
-     못 피하는 나머지는 카메라가 아니라 **CSS 가 받는다** — .search 의 빈 자리는
-     pointer-events:none 이라 클릭이 통과한다. 밀기와 통과는 서로를 대신하지 못한다. */
-  if(topY<top)cam.ty+=Math.min(top-topY,Math.max(Math.max(0,H-botY),(H-top)*0.05))}
+  clampTop(miny,maxy,s)}
 
 rebuildLinks();refilter();size();init();fit();cam.s=cam.ts;cam.x=cam.tx;cam.y=cam.ty;
 var rzT=null;
@@ -27935,15 +27956,27 @@ function tick(){
   A.forEach(function(n){
     n.x=Math.max(-BX,Math.min(BX,n.x));n.y=Math.max(-BY,Math.min(BY,n.y))});
   return true}
+/* ── 세로 가둠 ── **여기도 상단 UI 를 안다.**
+   이 함수는 fade() 안에서 **매 프레임** 돈다. 그래서 fit()·fitFocus() 가 무엇을 하든
+   다음 프레임에 `cam.ty = H/2 - …` 로 덮어썼다 — 화면 **정중앙**에 맞추느라
+   상단 UI(282px)를 통째로 무시했다.
+   fit 쪽을 다섯 번 고쳤는데 브라우저에서는 그대로였다. 검사는 fit 직후를 재고
+   화면은 그 다음 프레임을 보여주기 때문에 **검사만 통과했다.**
+   자리를 정하는 곳이 셋(fit·fitFocus·clampY)이면 셋 다 같은 것을 알아야 한다. */
 function clampY(){
   var pool=A.length?A:N,miny=1e9,maxy=-1e9;
   if(!pool.length)return;
   pool.forEach(function(n){miny=Math.min(miny,n.y-n.r-40);maxy=Math.max(maxy,n.y+n.r+52)});
+  var tp=(typeof topSafePx==='function')?topSafePx():0;
+  var vh=Math.max(80,H-tp);
   var gh=(maxy-miny)*cam.ts;
-  if(gh<=H-24){cam.ty=H/2-((miny+maxy)/2)*cam.ts;return}
+  if(gh<=vh-24){cam.ty=tp+vh/2-((miny+maxy)/2)*cam.ts;return}
   var top=cam.ty+miny*cam.ts,bot=cam.ty+maxy*cam.ts;
-  if(top>16)cam.ty+=(16-top);
+  /* 무리가 자리보다 크면 둘 다는 못 맞춘다. **나중에 쓰는 쪽이 이긴다** —
+     그래서 위를 나중에 쓴다. 아래로 넘치면 끌어서 볼 수 있지만,
+     위로 넘치면 상단 UI 뒤라 **클릭이 UI 에 먹혀 아예 못 누른다.** */
   if(bot<H-16)cam.ty+=(H-16-bot);
+  if(top>tp+16)cam.ty+=(tp+16-top);
 }
 var PT=0;
 function fade(){

@@ -217,6 +217,8 @@ function boot(w, h) {
   return dom;
 }
 
+const TKN = { result:'결과', bill:'법·정책', person:'인물', party:'정당', org:'기관', post:'자리', event:'사건' };
+
 (async () => {
   console.log('왜(Why) 점검 시작\n');
 
@@ -2602,6 +2604,52 @@ function boot(w, h) {
       String(l[4] || '').length && !/뜻이 아니|다릅니다|다른 것|아닙니다/.test(String(l[4])));
     if (bad.length)
       F(`50. 'term' 인데 문장이 그 구별을 안 한다 ${bad.length}건: "${String(bad[0][4]).slice(0,40)}…"`);
+  }
+
+  /* ── 51. 같은 이름의 노드가 둘 이상 있나 ──
+     **id 가 달라도 이름이 같으면 보는 사람에게는 같은 것이다.**
+     목록에 같은 줄이 두 번 뜨면 "새로 늘었나" 와 "중복인가" 를 구별할 수 없다.
+
+     다만 **사건은 다르다.** 판례·헌재결정은 같은 사건명이 여러 건인 것이 정상이다 —
+     「공직선거법 위반」은 실제로 사건이 11건이고 각각 다른 판결이다.
+     그건 우리가 만든 중복이 아니라 사실이라 WARN 으로만 밝힌다.
+     대신 그 사건들은 사건번호(off)가 서로 달라야 한다 — 그것까지 같으면 진짜 중복이다. */
+  {
+    const HARD = ['result', 'bill', 'person', 'party', 'org', 'post'];
+    let bad = 0;
+    for (const t of HARD) {
+      const m = {};
+      N.filter(n => n.t === t).forEach(n => { (m[n.lab] = m[n.lab] || []).push(n.id) });
+      const dup = Object.entries(m).filter(([, v]) => v.length > 1);
+      dup.forEach(([lab, ids]) => { bad++;
+        F(`51. ${TKN[t] || t} 에 같은 이름이 ${ids.length}개 있다: 「${String(lab).slice(0, 30)}」 → ${ids.join(' ')}`) });
+    }
+    /* 사건 — 이름이 같아도 사건번호가 다르면 다른 사건이다 */
+    /* **누구의 것인지(owner)까지 같아야 중복이다.** 「퇴임」은 김대중·노무현·이명박·문재인
+       카드에 각각 있고 그건 서로 다른 일이다. 「국회의원 첫 당선」·「특별사면」도 마찬가지다.
+       owner 를 안 보고 세면 **없는 중복 6건**을 FAIL 로 띄운다 — 실제로 그랬다. */
+    const em = {};
+    N.filter(n => n.t === 'event').forEach(n => {
+      const k = (n.lab || '') + '|' + (n.off || '') + '|' + (n.owner || '');
+      (em[k] = em[k] || []).push(n.id) });
+    const eDup = Object.entries(em).filter(([, v]) => v.length > 1);
+    eDup.forEach(([k, ids]) => { bad++;
+      F(`51. 사건에 이름·사건번호·주인이 모두 같은 것이 ${ids.length}개 있다: 「${k.split('|')[0].slice(0, 30)}」 → ${ids.join(' ')}`) });
+    /* 같은 실제 사건이 사람마다 따로 노드가 된 경우 — 중복은 아니지만 화면에서는 같아 보인다 */
+    const crossOwner = {};
+    N.filter(n => n.t === 'event' && n.owner).forEach(n => { (crossOwner[n.lab] = crossOwner[n.lab] || []).push(n) });
+    const shared = Object.entries(crossOwner).filter(([lab, v]) =>
+      v.length > 1 && N.some(x => x.t === 'event' && !x.owner && x.lab === lab));
+    shared.forEach(([lab, v]) =>
+      W(`51. 「${lab.slice(0, 24)}」이 사람 카드(${v.map(x => x.owner).join(',')})에도 있고 독립 사건으로도 있다. 같은 일이 여러 노드다`));
+    const nameOnly = {};
+    N.filter(n => n.t === 'event').forEach(n => { (nameOnly[n.lab] = nameOnly[n.lab] || []).push(n.id) });
+    const nDup = Object.entries(nameOnly).filter(([, v]) => v.length > 1);
+    const nExtra = nDup.reduce((a, [, v]) => a + v.length - 1, 0);
+    console.log(`51. 같은 이름 노드    ${HARD.map(t => t + ' ' + N.filter(n => n.t === t).length).join(' · ')} — 중복 ${bad}건` +
+      ` · 사건은 이름만 같은 것 ${nDup.length}가지(${nExtra}개)로 사건번호는 다르다`);
+    if (nExtra > 0)
+      W(`51. 사건 ${nExtra}개가 이름만 같다 (사건번호는 다르다). 목록에서 같은 줄로 보인다 — 「${nDup[0][0].slice(0, 24)}」 ×${nDup[0][1].length}`);
   }
 
   /* ── 요약 ── */

@@ -84,8 +84,14 @@ const NAME_RISK = /[○●◯]|\[당사자\]|대리인|변호사|청구인\s*[�
 function safeGist(g) { if (NAME_RISK.test(g)) { gistDropped++; return false } return true }
 
 const nodes = new Map(), links = [];
+/* **같은 사건번호는 하나만.** 법제처가 같은 사건을 일련번호만 달리해 두 번 주는 경우가 있다
+   (재심·병합 등). 그대로 두면 목록에 같은 줄이 두 번 뜬다 — 사람에게는 그냥 중복이다.
+   실측 35건. 검사 51 이 이름+사건번호가 같은 것을 FAIL 로 잡는다. */
+const byNoDedup = new Map();
 const add = c => {
   if (nodes.has(c.case_sn)) return nodes.get(c.case_sn);
+  const noKey = c.kind + '|' + String(c.case_no || '').replace(/\s/g, '');
+  if (c.case_no && byNoDedup.has(noKey)) { const o = byNoDedup.get(noKey); nodes.set(c.case_sn, o); return o }
   const byNo = c.yr_src === 'caseno';
   const n = {
     id: 'case_' + c.kind + '_' + c.case_sn, t: 'event', auto: 1, side: 'gov',
@@ -126,7 +132,9 @@ const add = c => {
     n.body = `${KIND[c.kind] || c.kind}입니다. 무엇을 다퉜는지 재판부가 적은 요약은 아래와 같습니다.` +
              (byNo ? ' 결정한 날짜를 못 받아서, 연도는 사건이 접수된 해입니다.' : '');
   }
-  nodes.set(c.case_sn, n); return n;
+  nodes.set(c.case_sn, n);
+  if (c.case_no) byNoDedup.set(c.kind + '|' + String(c.case_no).replace(/\s/g, ''), n);
+  return n;
 };
 
 /* ── C · 심판대상조문 / 참조조문 ──

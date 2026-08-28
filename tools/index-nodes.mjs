@@ -30,6 +30,7 @@ const MIN_HIT = Number(process.env.IDX_MIN_HIT || 3);
    **몇 건에 걸리느냐로 자른다.** 우리가 "이 말은 넓다" 고 고르는 게 아니라
    창고의 공포 법안 18,158건이 정한다. 상한은 실측으로 골랐다 (아래 표). */
 const MAX_HIT = Number(process.env.IDX_MAX_HIT || 300);
+const WIDE = Number(process.env.IDX_WIDE || 120);   /* 한 낱말로 물을 때의 상한 */
 const MAX_N = Number(process.env.IDX_MAX || 200);
 
 const db = new DatabaseSync(DB, { readOnly: true });
@@ -79,35 +80,41 @@ for (const t of tables) {
     /* **구체적인 말이 먼저다.** 전에는 짧은 것을 앞에 뒀더니 `국내` `대상` 이 대표가 돼
        「의약품 허가·신고」가 국토·경제 분야로 갔다. 긴 말일수록 그 표만의 말이다. */
     .filter(x => x.hit >= MIN_HIT && x.hit <= MAX_HIT)
-    .sort((a, b) => (df[a.w] || 0) - (df[b.w] || 0) || b.w.length - a.w.length);
+    /* **드문 말이 그 지표만의 말이다.** 두 곳에서 드물어야 한다 —
+       지표 이름들 사이에서(df) 그리고 법안 이름들 사이에서(hit).
+       df 만 보면 「의약품 허가·신고」의 대표가 `제조` 가 되어 국토 분야로 갔다.
+       `제조` 는 법안 이름 수백 건에 나오고 `의약품` 은 적게 나온다. 곱해서 고른다. */
+    .sort((a, b) => ((df[a.w]||0)*a.hit) - ((df[b.w]||0)*b.hit) || b.w.length - a.w.length);
   const keys = [];
   for (const x of cand) if (!keys.some(k => k.includes(x.w) || x.w.includes(k))) keys.push(x.w);
   const top = keys.slice(0, 4);
   if (!top.length) { noKey++; continue }
 
-  /* ── **분야는 가장 구체적인 핵심어 하나가 정한다** ──
-     핵심어를 전부 던지면 넓은 말이 표를 흩뜨린다. 「에너지 과잉 섭취자 분율」이
-     `여자` 때문에 에너지(전력) 분야로 갔다 — 영양 이야기인데.
-     우리가 "이건 의료다" 라고 정하는 게 아니라, **그 말이 걸린 법안의 소관위**가 정한다.
-     그 점은 그대로 두고, **누구에게 묻느냐만** 좁혔다. */
-  /* ── **핵심어 하나로는 못 정한다** ──
-     `제조` 하나로 물으면 「의약품 허가·신고」가 제조업 관련 법에 걸려 산업 분야로 간다.
-     `국내` 하나로 물으면 「석탄 수급」이 외국인 분야로 간다.
-     **두 개 이상이 함께 든 법안**에만 묻는다 — 「의약품」+「허가」 는 약사법에 함께 있고
-     「석탄」+「생산」 은 광업법에 함께 있다. 한 낱말은 넓어도 두 낱말이 겹치면 좁다.
-     그래도 안 걸리면(핵심어가 하나뿐이거나 함께 든 법안이 없으면) 아래에서 비운다. */
+  /* ── **핵심어를 하나 고르지 않는다. 다 같이 투표하되 몫이 다르다** ──
+     대표를 하나 뽑으려고 세 번 고쳤다 — 길이순, 지표 이름에서 드문 순, 그 둘의 곱.
+     번번이 「의약품 허가·신고」의 대표가 `허가`·`제조` 가 되어 국토 분야로 갔다.
+     **고르는 방식이 문제가 아니라 하나만 고르는 것이 문제였다.**
+
+     그래서 핵심어 넷이 다 묻는다. 다만 **낱말마다 총 한 표**다 —
+     한 낱말이 법안 n건에 걸리면 한 건당 1/n 을 준다.
+     `허가` 는 수백 건에 걸려 여러 소관위로 흩어지고,
+     `의약품` 은 몇 건에 몰려 보건복지위에 한 표를 거의 다 준다.
+     **우리가 어느 낱말이 중요한지 정하지 않는다** — 몇 건에 걸리느냐가 정한다.
+
+     그래도 1등이 4할을 못 넘으면 **비운다.** 문턱을 0.25 로 낮춰 봤더니
+     「학점은행 및 독학을 통한 학위 취득」이 국토 분야로 갔다 —
+     **낮추면 커버리지가 아니라 오답이 는다.** 여기까지가 한계다.
+     못 정한 개수는 화면에 밝힌다. 빈 것 자체는 잘못이 아니고, 말없이 비우는 것이 잘못이다. */
   const votes = {};
-  const hit2 = top.length >= 2
-    ? bills.filter(b => top.filter(k => b.nm.includes(k)).length >= 2) : [];
-  for (const b of hit2) for (const c of (cc[b.cm] || [])) votes[c] = (votes[c] || 0) + 1;
+  for (const k of top) {
+    const hs = bills.filter(b => b.nm.includes(k));
+    if (!hs.length) continue;
+    const w = 1 / hs.length;
+    for (const b of hs) for (const c of (cc[b.cm] || [])) votes[c] = (votes[c] || 0) + w;
+  }
   const ranked = Object.entries(votes).sort((a, b) => b[1] - a[1]);
   const tot = ranked.reduce((a, x) => a + x[1], 0);
-  /* ── **분야는 하나만, 그것도 압도적일 때만** ──
-     둘까지 붙였더니 두 번째가 대개 엉뚱했다 — 「국내 석탄 수급」이 `nrg,for` 로,
-     석탄은 맞고 외국인은 틀렸다. 한 칸을 채우려고 틀린 것을 넣는 셈이다.
-     4할을 못 넘으면 **비운다.** 분야가 없어도 결과 노드는 검색·목록·관문에 다 나온다 —
-     빈 것 자체는 잘못이 아니고, 말없이 틀린 것을 넣는 게 잘못이다. */
-  const cats = (ranked.length && ranked[0][1] / Math.max(tot, 1) >= 0.4) ? [ranked[0][0]] : [];
+  const cats = (ranked.length && ranked[0][1] / Math.max(tot, 1e-9) >= 0.4) ? [ranked[0][0]] : [];
   if (!cats.length) noCat++;
 
   const item = (t.itm_nm || '').trim();
@@ -141,7 +148,8 @@ nodes.sort((a, b) => b.keys.length - a.keys.length || b.n - a.n);
 const seenTbl = new Set();
 const use = nodes.filter(n => { if (seenTbl.has(n.tbl)) return false; seenTbl.add(n.tbl); return true })
                  .slice(0, MAX_N);
-console.log(`  같은 표의 다른 항목이라 안 올린 것 ${nodes.length - use.length - Math.max(0, nodes.length - MAX_N)}`);
+const dropDup = nodes.length - nodes.filter((n,i,a)=>a.findIndex(x=>x.tbl===n.tbl)===i).length;
+console.log(`  같은 표의 다른 항목이라 안 올린 것 ${dropDup}`);
 console.log(`지표누리 갈래 ${tables.length}개 → 결과 노드 후보 ${nodes.length}개 · 올릴 것 ${use.length}개`);
 console.log(`  10년 미만 ${short} · 살아 있는 핵심어가 없어 버린 것 ${noKey} · 분야를 못 정해 비운 것 ${noCat}`);
 if (use.length) {

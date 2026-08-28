@@ -81,10 +81,17 @@ for (let i = FROM; i <= TO; i++) {
   await sleep(GAP);
   if (!rows || !rows.length) continue;
   withData++;
-  /* 항목(itemNm)마다 따로 담는다 — 합치면 우리가 고른 것이 된다 */
+  /* ── 항목(itemNm) **× 갈래(valNm)** 마다 따로 담는다 ──
+     전에는 `itemNm || valNm` 이라 itemNm 이 있으면 valNm 을 버렸다.
+     그런데 「최근 주요 사망원인별 사망률 변화」는 itemNm 이 `조사망률` 하나이고
+     **자살·암·뇌혈관·심장·당뇨가 전부 valNm** 에 들어 있다.
+     그래서 55행이 11행으로 뭉개졌다 — PRIMARY KEY (key,prd) 라 같은 해의 다섯 값이
+     서로 덮어썼고, **어느 값이 남았는지도 알 수 없었다.**
+     자살률을 못 찾은 것이 이 때문이다. 합치면 우리가 고른 것이 된다. */
   const by = new Map();
   for (const r of rows) {
-    const it = String(r.itemNm || r.valNm || '').trim();
+    const a = String(r.itemNm || '').trim(), b = String(r.valNm || '').trim();
+    const it = (a && b && a !== b) ? `${a} · ${b}` : (a || b);
     const prd = String(r.descDt || '').trim();
     const val = String(r.nmbrVal == null ? '' : r.nmbrVal).trim();
     if (!it || !/^\d{4}$/.test(prd) || !val || !/^-?[\d.,]+$/.test(val)) continue;

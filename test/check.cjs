@@ -2297,14 +2297,25 @@ function boot(w, h) {
     const touch = L.filter(l => autoIds.has(l[0]) || autoIds.has(l[1]));
     const marked = L.filter(l => l[7] === 'auto');
     const missing = touch.filter(l => l[7] !== 'auto');
-    const stray = marked.filter(l => !autoIds.has(l[0]) && !autoIds.has(l[1]));
+    /* ── **자동 선 = 자동 블록에서 나온 선**. 노드가 auto 인지와 별개다 ──
+       전에는 "양쪽 노드가 다 손으로 넣은 것이면 그 선도 손으로 넣은 것" 이라고 봤다.
+       그런데 사건의 '그때 정권'(TERM_L)은 **손으로 넣은 대통령과 손으로 넣은 사건 사이에
+       계산으로 만든 선**이다. 옛 판정은 그걸 "손으로 넣은 선에 자동 표시가 붙었다" 고 했다.
+       표시의 뜻은 **"이 선을 우리가 계산으로 만들었다"** 이지 "붙은 노드가 자동" 이 아니다.
+       그래서 도구가 쓰는 블록 안에 실제로 있는지로 판정한다. */
+    const autoBlocks = ['AUTO-L', 'AUTO-TERM', 'AUTO-CASE-L'].map(k => {
+      const a = html.indexOf(`/*${k}-START*/`), b = html.indexOf(`/*${k}-END*/`);
+      return (a >= 0 && b > a) ? html.slice(a, b) : '';
+    }).join('\n');
+    const fromBlock = l => autoBlocks.includes(`'${l[0]}','${l[1]}'`);
+    const stray = marked.filter(l => !autoIds.has(l[0]) && !autoIds.has(l[1]) && !fromBlock(l));
     console.log(`45. 자동표시        자동 노드 ${autoIds.size} · 그에 닿는 선 ${touch.length} · 표시된 선 ${marked.length}`);
     if (!autoIds.size) F('45. 자동 노드가 하나도 없다. 자동 연결이 안 들어갔거나 auto 표시가 빠졌다');
     if (missing.length)
       F(`45. 자동으로 만든 선 ${missing.length}/${touch.length}개에 '자동' 표시가 없다. ` +
         `첫 번째: ${missing[0][0]} → ${missing[0][1]}. 표시가 없으면 손으로 확인해 넣은 선과 안 갈린다`);
     if (stray.length)
-      F(`45. 손으로 넣은 선 ${stray.length}개에 '자동' 표시가 붙어 있다: ${stray[0][0]} → ${stray[0][1]}`);
+      F(`45. 손으로 넣은 선 ${stray.length}개에 '자동' 표시가 붙어 있다 (어느 자동 블록에도 없다): ${stray[0][0]} → ${stray[0][1]}`);
     /* 화면에도 실제로 나오는지 — 있다고 쓰기만 하고 안 그리면 같은 거짓말이다 */
     const dash = /var isAuto=\(l\[7\]==='auto'\)/.test(html);
     if (!dash) F("45. 그리기가 선의 표시(l[7])를 안 본다. 노드에서 유추하면 표시가 빠져도 화면이 그대로다");
@@ -2540,6 +2551,57 @@ function boot(w, h) {
       if (r.worst > r.lim) F(`49. 한 프레임에 ${r.worst}px 튄다 — ${r.worstWho} (한도 ${r.lim}px)`);
       if (!r.top) W('49. 상단 UI 높이가 0 이다 — --topsafe 를 못 읽었을 수 있다');
     }
+  }
+
+  /* ── 50. 사건에 '그때 정권' 이 붙었나 ──
+     법 카드에는 "법이 확정된 때의 정부" 가 있는데 사건에는 없었다.
+     「의약분업」(2000년)을 열어도 그때가 김대중 정부라는 표시가 어디에도 없었다.
+
+     **규칙 3 그대로다.** 연도 × 재임표로만 만들고 역할은 term 이다 —
+     lead 로 분류되면 "그 정부가 밀어붙였다" 가 된다. 그건 아래에서 FAIL 로 막는다.
+
+     **판례·헌재결정(auto)에는 안 붙인다.** 법원은 정권이 아니고,
+     선고연도가 사건 발생과 28.7% 에서 2년 이상 벌어진다(실측 15,269건).
+     그래서 여기서도 손으로 넣은 사건만 센다. */
+  {
+    /* **인물에 딸린 노드(ghost·owner)는 뺀다.** 「IMF 조기 상환」(owner=k1) 은 김대중 카드의
+       업적 항목이지 독립 사건이 아니다 — 거기에 "그때 정권 김대중" 을 붙이면 중복이다.
+       그리고 index.html 이 이 노드로 가는 링크를 걸러내므로, 만들어도 화면에 안 들어간다.
+       **검사와 도구가 같은 것을 세야 숫자가 갈라지지 않는다** — 153 vs 87 로 갈라져 있었다. */
+    const hand = N.filter(n => n.t === 'event' && !n.auto && !n.ghost && !n.owner && /^\d{4}$/.test(String(n.yr || '')));
+    const prezIds = new Set(N.filter(n => n.prez).map(n => n.id));
+    const termOf = {};
+    L.forEach(l => { if (l[3] !== 'term') return;
+      if (prezIds.has(l[0])) (termOf[l[1]] = termOf[l[1]] || []).push(l[0]);
+      if (prezIds.has(l[1])) (termOf[l[0]] = termOf[l[0]] || []).push(l[1]); });
+    const withT = hand.filter(n => termOf[n.id]);
+    /* 재임표가 담는 시기인지 — 그보다 이르면 붙일 수 없는 게 맞다. 그건 WARN 이 아니다. */
+    const FIRST = 1998;
+    const missing = hand.filter(n => !termOf[n.id] && Number(n.yr) >= FIRST);
+    const tooOld = hand.filter(n => !termOf[n.id] && Number(n.yr) < FIRST);
+    console.log(`50. 사건의 그때정권  손으로 넣은 사건 ${hand.length}개 중 ${withT.length}개에 붙었다 · ` +
+      `재임표(${FIRST}~) 보다 이른 시기 ${tooOld.length}개 · 자동 사건 ${N.filter(n=>n.t==='event'&&n.auto).length}개는 대상이 아니다`);
+    if (missing.length)
+      W(`50. 연도가 있는데 '그때 정권' 이 없는 사건 ${missing.length}개: ${missing.slice(0,3).map(n=>n.id+'('+n.yr+')').join(' ')}`);
+    /* ── **자동으로 만든 lead 만 막는다** ──
+     규칙 3 이 막으려는 것은 "재임 중이었다는 이유로 밀어붙였다고 쓰는 것" 이다.
+     손으로 넣은 lead 는 **공식 기록**이다 — 실제로 p4→q1 이 걸렸는데
+     "{a} 대통령이 국회에 국정조사를 요청했습니다" 로, 실제 행위 기록이었다.
+     그것까지 FAIL 로 잡으면 검사가 사실을 지우게 한다.
+     계산으로 만든 선(l[7]==='auto')만 본다 — 계산은 행위를 알 수 없다. */
+    const leaked = L.filter(l => l[3] === 'lead' && l[7] === 'auto' &&
+      (prezIds.has(l[0]) || prezIds.has(l[1])) &&
+      N.some(n => n.t === 'event' && (n.id === l[0] || n.id === l[1])));
+    if (leaked.length)
+      F(`50. 대통령과 사건이 'lead'(밀어붙임) 로 이어져 있다 ${leaked.length}건: ${leaked[0][0]} → ${leaked[0][1]}. ` +
+        `재임 중이었다는 것과 그가 했다는 것은 다르다 — term 이어야 한다`);
+    /* 문장에도 그 구별이 있어야 한다. 선만 term 이고 글이 단정하면 화면은 단정한 것이다 */
+    const bad = L.filter(l => l[3] === 'term' && prezIds.has(l[0]) &&
+      /* **"다릅니다" 에는 "다르" 가 없다.** `것과는 다르` 로 뒀다가 멀쩡한 문장 57건을
+         FAIL 로 띄웠다 — 없는 문제였다. 거짓 경보는 거짓 통과만큼 나쁘다. */
+      String(l[4] || '').length && !/뜻이 아니|다릅니다|다른 것|아닙니다/.test(String(l[4])));
+    if (bad.length)
+      F(`50. 'term' 인데 문장이 그 구별을 안 한다 ${bad.length}건: "${String(bad[0][4]).slice(0,40)}…"`);
   }
 
   /* ── 요약 ── */

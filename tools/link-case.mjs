@@ -106,6 +106,11 @@ const add = c => {
   const dd = detail.get(c.kind + ':' + c.case_sn);
   if (dd && dd.gist && safeGist(dd.gist)) {
     n.gist = dd.gist.length > 400 ? dd.gist.slice(0, 399) + '…' : dd.gist;
+    /* **이 글은 재판부가 쓴 원문이다.** 우리가 쉬운 말로 옮긴 것이 아니다.
+       화면에도 그렇게 밝히고, 난이도 검사(30번)도 원문은 재지 않는다 —
+       원문이 어려운 것은 우리 잘못이 아니고, 재면 '고칠 수 없는 FAIL' 만 쌓인다.
+       대신 **쉬운 말이 없는 것이 몇 개인지 센다.** 그게 남은 일이다. */
+    n.raw = 1;
     n.body = `${KIND[c.kind] || c.kind}입니다. 무엇을 다퉜는지 재판부가 적은 요약은 아래와 같습니다.` +
              (byNo ? ' 결정한 날짜를 못 받아서, 연도는 사건이 접수된 해입니다.' : '');
   }
@@ -196,7 +201,7 @@ const q = s => "'" + String(s).replace(/\\/g, '\\\\').replace(/'/g, "\\'")
 const nodeJs = [...nodes.values()].map(n =>
   `{id:${q(n.id)},t:'event',auto:1,side:'gov',lab:${q(n.lab)},title:${q(n.title)},yr:${q(n.yr)},` +
   `ekind:${q(n.ekind)},off:${q(n.off)},tip:${q(n.tip)},body:${q(n.body)},` +
-  (n.gist ? `gist:${q(n.gist)},` : '') +
+  (n.gist ? `gist:${q(n.gist)},raw:1,` : '') +
   `src:${q(n.src)},url:${q(n.url)},cats:[]}`).join('\n,');
 const linkJs = links.map(l =>
   `[${q(l.from)},${q(l.to)},'같은 주제','topic',${q(l.why)},${q(l.ev)},'','auto']`).join('\n,');

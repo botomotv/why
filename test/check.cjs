@@ -1545,6 +1545,7 @@ function boot(w, h) {
          실제로 60자 넘는 문장이 83개로 부풀어 있었다. */
       function sents(t){return String(t||'').split(/(?<=[.!?])\\s+|\\n+/).map(function(x){return x.trim()}).filter(Boolean)}
       var longs=[], hard=[], tone={seum:0, da:0, other:0}, toneBad=[];
+      var rawCnt=0, byKind={};
       N.forEach(function(n){
         if(n.ghost)return;
         /* **plain(쉬운 말로 옮긴 것)도 함께 본다.** 자동으로 들어온 법에서
@@ -1556,8 +1557,15 @@ function boot(w, h) {
            제일 먼저 읽히는 문장이다. 여기가 어려우면 나머지를 읽을 이유가 없다.
            원문(reason)은 안 본다 — 법제처가 쓴 글이라 어려운 게 당연하고,
            우리가 옮긴 말만 재야 '우리 글이 쉬운가' 를 재는 것이 된다. */
+        /* ── **모든 종류를 본다.** 법만 재면 사건·판례·헌재결정이 검사를 안 받는다 ──
+           다만 raw 가 붙은 글(재판부가 쓴 판시사항 원문)은 난이도에서 뺀다.
+           원문이 어려운 것은 우리 잘못이 아니고, 재면 고칠 수 없는 FAIL 만 쌓인다.
+           **대신 쉬운 말이 없는 것을 센다** — 그게 남은 일이고, 아래에서 출력한다. */
+        if(n.raw&&n.gist)rawCnt++;
         var b=[String(n.body||''), (typeof n.plain==='string'?n.plain:''),
-               (typeof n.tip==='string'?n.tip:'')].filter(Boolean).join('\\n').trim();
+               (typeof n.tip==='string'?n.tip:''),
+               (n.raw?'':(typeof n.gist==='string'?n.gist:''))].filter(Boolean).join('\\n').trim();
+        if(b)byKind[n.t]=(byKind[n.t]||0)+1;
         if(!b)return;
         /* (1) 긴 문장 */
         sents(b).forEach(function(x){ if(x.length>60)longs.push({lab:n.lab,len:x.length,s:x.slice(0,34)}) });
@@ -1581,6 +1589,7 @@ function boot(w, h) {
         else {tone.da++; toneBad.push(n.lab)}
       });
       return {longs:longs, hard:hard, tone:tone, toneBad:toneBad,
+              raw:rawCnt, byKind:byKind,
               total:N.filter(function(n){return !n.ghost&&String(n.body||'').trim()}).length};
     })()`);
     d30.window.close();
@@ -1589,6 +1598,10 @@ function boot(w, h) {
       const uniqLong = new Set(r.longs.map(x => x.lab)).size;
       const uniqHard = new Set(r.hard.map(x => x.lab)).size;
       console.log(`30. 설명문 난이도   설명문 ${r.total}개 · 60자 넘는 문장 ${r.longs.length}개(${uniqLong}카드) · 설명 없는 어려운 말 ${r.hard.length}개(${uniqHard}카드) · 말투 존댓말 ${r.tone.seum} / 반말 ${r.tone.da} / 연표항목 ${r.tone.other}`);
+      /* **쉬운 말이 없는 것을 센다.** 0 은 "다 옮겼다" 와 "안 보고 있다" 를 구별하지 않는다 —
+         분모와 함께 낸다. 이 수가 남은 일이다. */
+      console.log(`30. 종류별 설명문    ${Object.keys(r.byKind).sort().map(k => k + ' ' + r.byKind[k]).join(' · ')}`);
+      console.log(`30. 원문 그대로      ${r.raw}개 — 재판부가 쓴 판시사항. 쉬운 말로 아직 못 옮겼다`);
       if (!r.total) F('30. 설명문이 0개다 — 검사가 아무것도 안 보고 있다');
       if (r.longs.length)
         W(`30. 60자 넘는 문장 ${r.longs.length}개 — 두 줄을 넘으면 자른다 (예: ${r.longs.slice(0,2).map(x => x.lab + ' ' + x.len + '자').join(', ')})`);

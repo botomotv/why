@@ -756,7 +756,7 @@ function boot(w, h) {
          검사는 사람이 보는 상태를 재야 한다. */
       try {
         we17.size(); if (typeof we17.gatherFan === 'function') we17.gatherFan();
-        let t = 0; while (we17.alpha >= 0.02 && t < 400) { we17.tick(); t++ }
+        let t = 0; while (we17.alpha > we17.LAY_STOP && t < 400) { we17.tick(); t++ }
         we17.size();
         if (typeof we17.fitFocus === 'function') we17.fitFocus();
         we17.cam.s = we17.cam.ts; we17.cam.x = we17.cam.tx; we17.cam.y = we17.cam.ty;
@@ -953,9 +953,16 @@ function boot(w, h) {
         if(!c.length)return null;
         var t=c.reduce(function(a,b){return (adj[b.id]||[]).length>(adj[a.id]||[]).length?b:a});
         /* 먼저 가라앉힌 뒤에 스냅샷을 찍는다. 안 그러면 원래 움직이던 것까지 센다. */
-        var t0=0; while(alpha>=0.02&&t0<600){tick();t0++}
+        var t0=0; while(alpha>LAY_STOP&&t0<600){tick();t0++}
         var before={}; A.forEach(function(n){before[n.id]=[n.x,n.y]});
+        /* 대조 — 누르지 않고 그냥 200틱. 여기서도 움직이면 setFocus 탓이 아니다. */
+        var ROUT0=(typeof ROUT!=='undefined')?ROUT:0;
+        for(var iq=0;iq<200;iq++)tick();
+        var idle=0; A.forEach(function(n){var b=before[n.id];if(!b)return;
+          if(Math.hypot(n.x-b[0],n.y-b[1])>6)idle++});
+        A.forEach(function(n){var b=before[n.id];if(b){n.x=b[0];n.y=b[1]}});
         setFocus(t.id);
+        var ROUT1=(typeof ROUT!=='undefined')?ROUT:0;
         /* 카드는 이제 지도를 밀지 않는다 — W·H 는 그대로 두고,
            '카드가 안 가리는 자리' 만 따로 구해 거기 들어왔는지를 센다.
            jsdom 은 레이아웃을 안 해 페이지의 mapView() 가 화면 전체를 돌려준다.
@@ -973,7 +980,7 @@ function boot(w, h) {
         var mvUsed=false;
         if(typeof mapView==='function'){
           mapView=function(){mvUsed=true;return {cx:VW/2,cy:VH/2,w:VW,h:VH}}}
-        var t2=0; while(alpha>=0.02&&t2<600){tick();t2++}
+        var t2=0; while(alpha>LAY_STOP&&t2<600){tick();t2++}
         if(typeof fitFocus==='function')fitFocus();
         cam.s=cam.ts;cam.x=cam.tx;cam.y=cam.ty;
         labelSet=null;labelKey='';draw();
@@ -983,9 +990,18 @@ function boot(w, h) {
            옛 검사는 A 전체를 before 와 대조해 새 노드에서 터졌다.
            재야 하는 것은 **이미 있던 노드가 움직였나** 다 — 새로 온 것은 새 것이다.
            새로 온 개수도 같이 낸다. 말없이 늘면 그것도 모르는 변화다. */
-        var moved=0, added=0;
+        /* ── **약속이 바뀌었다** ──
+           전에는 "누르는 것만으로는 아무것도 안 움직인다" 였다. 지금은 이어진 것을
+           보기 좋은 자리로 **부드럽게 모은다.** 그래서 이웃은 움직이는 게 맞다.
+           그래도 **이어지지 않은 노드는 그대로여야 한다** — 그게 남는 보증이다.
+           안 그러면 누를 때마다 지도 전체가 출렁여 무엇이 이어졌는지 못 읽는다.
+           (부드러움과 반지름 고정은 검사 29·49 가 따로 잰다.) */
+        var moved=0, added=0, movedNb=0, who=[];
         A.forEach(function(n){ if(!before[n.id]){added++;return}
-          if(Math.hypot(n.x-before[n.id][0],n.y-before[n.id][1])>6)moved++ });
+          var dd=Math.hypot(n.x-before[n.id][0],n.y-before[n.id][1]);
+          if(dd<=6)return;
+          if(ring[n.id]!==undefined)movedNb++;
+          else {moved++; who.push(n.id+':'+Math.round(dd)+'px')} });
         var nb=Object.keys(ring).filter(function(k){return ring[k]===1});
         var addedN=added;
         var inn=nb.filter(function(k){var n=map[k];if(!n)return false;
@@ -996,7 +1012,7 @@ function boot(w, h) {
         var inCard=nb.filter(function(k){return map[k]&&card.indexOf(map[k].lab)>=0}).length;
         var sf=map[focus];
         var selfOff=sf?Math.round(Math.hypot(sf.x*cam.s+cam.x-VW/2, sf.y*cam.s+cam.y-VH/2)):-1;
-        return {nb:nb.length, inn:inn, inCard:inCard, moved:moved, added:addedN, selfOff:selfOff,
+        return {who:who.slice(0,4).join(' '), idle:idle, rout:Math.round(ROUT1)-Math.round(ROUT0), nb:nb.length, inn:inn, inCard:inCard, moved:moved, movedNb:movedNb, added:addedN, selfOff:selfOff,
                 s:+cam.s.toFixed(2), floor:(typeof FIT_MIN==='number')?FIT_MIN:null,
                 lbl:nb.filter(function(k){return map[k]&&labelOn(map[k])}).length,
                 mw:VW, mh:Math.round(VH), fullW:W, fullH:Math.round(H),
@@ -1004,11 +1020,17 @@ function boot(w, h) {
       })()`);
       d20.window.close();
       if (!r) { F(`20. ${nm} — 못 쟀다`); continue }
-      console.log(`20. 누른 뒤 화면     ${nm} ${w}×${h} (지도 ${r.fullW}×${r.fullH} · 안 가려진 자리 ${r.mw}×${r.mh}) · 화면안 ${r.inn}/${r.nb} · 카드에 ${r.inCard}/${r.nb} · 배율 ${r.s}(바닥 ${r.floor}) · 이름표 ${r.lbl} · 움직인 노드 ${r.moved} · 새로 올라온 노드 ${r.added} · 누른 것 중앙에서 ${r.selfOff}px`);
+      console.log(`20. 누른 뒤 화면     ${nm} ${w}×${h} (지도 ${r.fullW}×${r.fullH} · 안 가려진 자리 ${r.mw}×${r.mh}) · 화면안 ${r.inn}/${r.nb} · 카드에 ${r.inCard}/${r.nb} · 배율 ${r.s}(바닥 ${r.floor}) · 이름표 ${r.lbl} · 이어진 것 중 움직인 ${r.movedNb} · 이어지지 않았는데 움직인 ${r.moved} · 새로 올라온 ${r.added} · 안 누르고 200틱에 움직인 ${r.idle} · 누른 것 중앙에서 ${r.selfOff}px`);
       /* (0) fitFocus 가 '안 가리는 자리' 를 쓰는가. 안 쓰면 카드 뒤를 겨눈다 */
       if (!r.mvUsed) F(`20. ${nm} — fitFocus 가 mapView() 를 안 쓴다. 카드 뒤를 겨누게 된다`);
-      /* (1) 노드는 제자리여야 한다 — 이게 새 약속의 핵심이다 */
-      if (r.moved > 3) F(`20. ${nm} — 누르자 노드 ${r.moved}개가 움직였다. 자리는 그대로여야 한다`);
+      /* (1) **이어진 것만 모인다** — 이어지지 않은 노드는 제자리여야 한다.
+             대조(누르지 않고 200틱)를 먼저 빼고 잰다. 안 그러면 아직 가라앉는 중인
+             배치의 표류가 섞여 "누르지도 않았는데 52px 움직였다" 가 된다 — 실제로 그랬다.
+             **대조값도 늘 출력한다.** 말없이 빼면 표류 자체를 못 보게 된다. */
+      if (r.moved > 0)
+        F(`20. ${nm} — 누르자 이어지지 않은 노드 ${r.moved}개가 움직였다 (${r.who}). 이어진 것만 모여야 한다`);
+      if (r.idle > 0)
+        W(`20. ${nm} — 누르지 않고 200틱만 돌려도 ${r.idle}개가 6px 넘게 움직인다. 배치가 아직 가라앉는 중이다`);
       /* (2) 못 담았으면 카메라가 바닥까지 갔어야 한다 */
       /* 다 못 담는 경우엔 누른 것이 화면 가운데 있어야 한다 — 그게 새 약속이다 */
       if (r.inn < r.nb && r.selfOff > 40)
@@ -1039,12 +1061,12 @@ function boot(w, h) {
         var cx2=0,cy2=0; on.forEach(function(p){cx2+=p[0];cy2+=p[1]});
         return Math.round(Math.hypot(cx2/on.length-W/2, cy2/on.length-H/2));
       };
-      var t=0; while(alpha>=0.02&&t<900){tick();t++}
+      var t=0; while(alpha>LAY_STOP&&t<900){tick();t++}
       fit(); cam.s=cam.ts;cam.x=cam.tx;cam.y=cam.ty;
       var before=mid();
       /* 주소창이 접혀 화면이 커졌다 — 물리가 다시 데워진다 */
       H=882; W=344; setAngles(); reheat(0.35);
-      var t2=0; while(alpha>=0.02&&t2<900){tick();t2++}    /* 가라앉음을 보고 기다린다 */
+      var t2=0; while(alpha>LAY_STOP&&t2<900){tick();t2++}    /* 가라앉음을 보고 기다린다 */
       fit(); cam.s=cam.ts;cam.x=cam.tx;cam.y=cam.ty;
       return {before:before, after:mid(), ticks:t2, pre:(window.__preTicks||0),
               has:typeof refitWhenSettled==='function'};
@@ -1278,7 +1300,7 @@ function boot(w, h) {
       await new Promise(r => setTimeout(r, 1100));
       const r = d26.window.eval(`(function(){
         if(typeof fit!=='function'||!A.length)return null;
-        var t=0; while(alpha>=0.02&&t<900){tick();t++}      /* 가라앉을 때까지 */
+        var t=0; while(alpha>LAY_STOP&&t<900){tick();t++}      /* 가라앉을 때까지 */
         fit(); cam.s=cam.ts;cam.x=cam.tx;cam.y=cam.ty;
         for(var i=0;i<30;i++)tick();
         labelSet=null;labelKey='';draw();
@@ -1444,7 +1466,7 @@ function boot(w, h) {
         up();
         var touched = camUser;
         /* 그 뒤 물리가 가라앉고 첫 화면 맞춤이 돈다 */
-        var t=0; while(alpha>=0.02&&t<900){tick();t++}
+        var t=0; while(alpha>LAY_STOP&&t<900){tick();t++}
         if(!camUser){ size(); fit(); cam.s=cam.ts;cam.x=cam.tx;cam.y=cam.ty }
         for(var i=0;i<30;i++)tick();
         var m=mid();
@@ -1472,7 +1494,7 @@ function boot(w, h) {
     const d29 = boot(412, 915);
     await new Promise(r => setTimeout(r, 1100));
     const r = d29.window.eval(`(function(){
-      var t=0; while(alpha>=0.02&&t<900){tick();t++}
+      var t=0; while(alpha>LAY_STOP&&t<900){tick();t++}
       fit(); cam.s=cam.ts;cam.x=cam.tx;cam.y=cam.ty;
       var c=A.filter(function(n){return n.t==='result'&&adj[n.id]});
       if(!c.length)return null;
@@ -1771,7 +1793,7 @@ function boot(w, h) {
       await new Promise(r => setTimeout(r, 1200));
       const win = d34.window;
       const r = win.eval(`(function(){
-        var t=0; while(alpha>=0.02&&t<600){tick()}
+        var t=0; while(alpha>LAY_STOP&&t<600){tick()}
         fit(); cam.s=cam.ts;cam.x=cam.tx;cam.y=cam.ty;
         /* 초점을 잡은 상태도 본다 — 관계 라벨과 배지는 그때만 그려진다 */
         var c=A.filter(function(n){return n.t==='result'&&adj[n.id]});
@@ -1779,7 +1801,7 @@ function boot(w, h) {
           var tg=c.reduce(function(a,b){return (adj[b.id]||[]).length>(adj[a.id]||[]).length?b:a});
           setFocus(tg.id);
           if(typeof gatherFan==='function'){size();gatherFan()}
-          var t2=0; while(alpha>=0.02&&t2<600){tick()}
+          var t2=0; while(alpha>LAY_STOP&&t2<600){tick()}
           size(); if(typeof fitFocus==='function')fitFocus();
           cam.s=cam.ts;cam.x=cam.tx;cam.y=cam.ty;
         }
@@ -1823,7 +1845,7 @@ function boot(w, h) {
     const d35 = boot(412, 915);
     await new Promise(r => setTimeout(r, 1200));
     const r = d35.window.eval(`(function(){
-      var t=0; while(alpha>=0.02&&t<600){tick();t++}
+      var t=0; while(alpha>LAY_STOP&&t<600){tick();t++}
       fit(); cam.s=cam.ts;cam.x=cam.tx;cam.y=cam.ty;
       /* 캔버스가 지워진 횟수와, 지운 뒤 다시 그렸는지를 센다 */
       var wipes=0, blanks=0, drawnSince=true;
@@ -2421,6 +2443,78 @@ function boot(w, h) {
       if (!r.pre) F('48. 사전 정착을 안 했다 — 물리 전 좌표로 맞추면 배율이 틀린다');
       if (r.preMs > 400) W(`48. 사전 정착이 ${r.preMs}ms 걸린다 — 첫 그림이 그만큼 늦는다`);
       if (r.onScreen < r.total) W(`48. 첫 화면에 ${r.total - r.onScreen}개가 화면 밖이다 (${r.onScreen}/${r.total})`);
+    }
+  }
+
+  /* ── 49. 상단 UI 뒤의 노드는 누를 수 없다 · 모으는 동안 반지름은 안 흔들린다 ──
+     검색창·범례·'처음으로' 알약은 캔버스 **위에** 떠 있다. 그 뒤에 노드가 있으면
+     클릭이 UI 에 먹혀 **누를 방법이 아예 없다.** 안 보이는 것보다 나쁘다 —
+     보이는데 안 눌린다.
+     그리고 이어진 것을 모을 때 **각도만** 움직여야 한다. 반지름은 연도이고,
+     그게 흔들리면 시간이 거짓말이 된다. 한 프레임에 튀는 양도 함께 잰다. */
+  {
+    const d49 = boot(1280, 800);
+    await new Promise(r => setTimeout(r, 1400));
+    const r = d49.window.eval(`(function(){
+      var t=0; while(alpha>LAY_STOP&&t<600){tick();t++}
+      /* ── **검사가 상단 높이를 넣어준다** ──
+         전에는 top=topSafePx() 로 페이지가 주는 값을 그대로 받아 쟀다.
+         jsdom 은 레이아웃을 안 해서 그 값이 0 이고, **0 아래에 있는 노드는 없으므로
+         언제나 "가려진 노드 0" 이었다.** var top=0 을 주입해도 통과했다 —
+         검사가 버그와 똑같은 맹점을 갖고 있었던 것이다.
+         그래서 검사가 값(114px)을 넣고, **페이지가 그것을 실제로 쓰는지**를 본다.
+         이 114 가 CSS 와 맞는지는 검사 27 이 따로 지킨다. */
+      if(typeof topSafePx!=='function')return {no:'topSafePx 가 없다'};
+      var top=114, used=0;
+      topSafePx=function(){used++;return top};
+      if(typeof fit==='function')fit();
+      cam.s=cam.ts;cam.x=cam.tx;cam.y=cam.ty;
+      if(!used)return {no:'fit() 이 topSafePx() 를 안 부른다 — 상단 UI 를 피하지 않는다'};
+      /* (1) 상단 UI 뒤에 있는 노드 — 화면 안인데 UI 아래(=위쪽)에 깔린 것 */
+      var hidden=A.filter(function(n){
+        var sx=n.x*cam.s+cam.x, sy=n.y*cam.s+cam.y;
+        return sx>=0&&sx<=W&&sy>=0&&sy<top;
+      }).length;
+      /* (2) 모으는 동안 반지름이 바뀌나 · 한 프레임에 얼마나 튀나 */
+      var res=A.filter(function(n){return n.t==='result'&&(adj[n.id]||[]).length>3});
+      if(!res.length)return {no:'결과 노드가 없다'};
+      var tgt=res.reduce(function(a,b){return (adj[b.id]||[]).length>(adj[a.id]||[]).length?b:a});
+      var r0={}; A.forEach(function(n){r0[n.id]=Math.hypot(n.x,n.y/0.86)});
+      var p0={}; A.forEach(function(n){p0[n.id]=[n.x,n.y]});
+      setFocus(tgt.id);
+      var worst=0, worstWho=null, dR=0, dRwho=null;
+      for(var f=0;f<200;f++){
+        tick();
+        cam.s+=(cam.ts-cam.s)*0.11; cam.x+=(cam.tx-cam.x)*0.11; cam.y+=(cam.ty-cam.y)*0.11;
+        A.forEach(function(n){
+          if(p0[n.id]){
+            var d=Math.hypot(n.x-p0[n.id][0],n.y-p0[n.id][1])*cam.s;
+            if(d>worst){worst=d;worstWho=n.lab}
+          }
+          p0[n.id]=[n.x,n.y];
+          if(r0[n.id]!==undefined){
+            var rr=Math.abs(Math.hypot(n.x,n.y/0.86)-r0[n.id]);
+            if(rr>dR){dR=rr;dRwho=n.lab}
+          }
+        });
+      }
+      var hidden2=A.filter(function(n){
+        var sx=n.x*cam.s+cam.x, sy=n.y*cam.s+cam.y;
+        return sx>=0&&sx<=W&&sy>=0&&sy<top;
+      }).length;
+      return {top:Math.round(top), hidden:hidden, hidden2:hidden2,
+              worst:Math.round(worst), worstWho:worstWho,
+              dR:Math.round(dR), dRwho:dRwho, lim:Math.round(Math.min(W,H)/6), n:A.length};
+    })()`);
+    d49.window.close();
+    if (!r || r.no) F(`49. 못 쟀다 (${r && r.no || '실패'})`);
+    else {
+      console.log(`49. 가려짐·모으기   상단 UI ${r.top}px · 그 뒤 노드 첫화면 ${r.hidden} · 초점 뒤 ${r.hidden2} · 한 프레임 최대 ${r.worst}px(${r.worstWho}) · 반지름 흔들림 ${r.dR}px(${r.dRwho})`);
+      if (r.hidden) F(`49. 첫 화면에서 ${r.hidden}개가 상단 UI 뒤에 있다 — 보이는데 누를 수 없다`);
+      if (r.hidden2) F(`49. 초점을 켠 뒤 ${r.hidden2}개가 상단 UI 뒤에 있다 — 모을 때 그 자리를 피해야 한다`);
+      if (r.dR > 3) F(`49. 모으는 동안 반지름이 ${r.dR}px 바뀌었다 — ${r.dRwho}. 반지름은 연도다, 흔들면 시간이 거짓말이 된다`);
+      if (r.worst > r.lim) F(`49. 한 프레임에 ${r.worst}px 튄다 — ${r.worstWho} (한도 ${r.lim}px)`);
+      if (!r.top) W('49. 상단 UI 높이가 0 이다 — --topsafe 를 못 읽었을 수 있다');
     }
   }
 

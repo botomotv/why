@@ -444,6 +444,13 @@ body.popfull .pexp .pex-i{transform:rotate(180deg)}
    둘의 무게가 같아 보인다 — 대표발의는 그 법안을 책임지고 낸 것이고 공동은 다르다. */
 .prop-v{font-size:19px;color:var(--t1);margin-top:2px;line-height:1.3}
 .prop-v2{font-size:14px;color:var(--t2);margin-top:2px}
+/* 시계열 막대 — 값에 비례한다. 0 부터가 아니라 최소~최대를 편 것이라 그렇게 밝힌다. */
+.slist{margin-top:8px;display:flex;flex-direction:column;gap:3px}
+.slist li{display:flex;align-items:center;gap:8px;font-size:12.5px;color:var(--t2)}
+.sy{flex:none;width:38px;color:var(--t3);font-variant-numeric:tabular-nums}
+.sbar{flex:1;height:8px;border-radius:99px;background:#191C21;overflow:hidden}
+.sbar>i{display:block;height:100%;border-radius:99px;background:var(--gold);opacity:.75}
+.sv{flex:none;min-width:56px;text-align:right;font-variant-numeric:tabular-nums;color:var(--t1)}
 .artbox{margin-top:12px;padding:10px 13px;border-radius:10px;background:var(--bg2);border:1px solid var(--line)}
 .art-l{font-size:11.5px;color:var(--t3);letter-spacing:.02em}
 .art-v{margin-top:4px;font-size:13.5px;color:var(--t2);line-height:1.7}
@@ -504,7 +511,16 @@ body.popfull .pexp .pex-i{transform:rotate(180deg)}
 .topbar{flex-direction:column;gap:3px}
 .tagline{font-size:13.5px;line-height:1.2;color:var(--t3);letter-spacing:-.015em;white-space:nowrap}
 .search{position:fixed;top:128px;left:50%;transform:translateX(-50%);z-index:30;
-  width:min(560px,calc(100vw - 40px));transition:left .3s,width .3s}
+  width:min(560px,calc(100vw - 40px));transition:left .3s,width .3s;
+  /* ── **빈 곳으로는 클릭이 통과한다** ──
+     이 상자는 560px 폭에 범례·버튼까지 담아 세로로 길다. 그런데 실제로 눌리는 것은
+     입력창·범례 알약·버튼뿐이고 **나머지는 투명한 빈 자리**다.
+     그 빈 자리가 클릭을 먹어서, 그 뒤에 있는 노드를 **보이는데 누를 수 없었다.**
+     카메라를 아래로 미는 것(fit 의 topY 보정)은 UI 가 실제로 덮는 자리를 피하는 것이고,
+     이것은 **덮지 않는 자리를 돌려주는 것**이다. 둘 다 필요하다 —
+     화면이 작으면 아무리 밀어도 못 피하는 자리가 남는다. */
+  pointer-events:none}
+.search input,.sres,.lgi,.ub{pointer-events:auto}
 /* body.panelon .search{left:calc(50% - 224px)} 가 여기 있었다 —
    448px 카드가 지도를 밀던 시절, 검색창도 같이 비켜주게 만든 규칙이다.
    전에 폰에서 이 규칙 때문에 검색창이 화면 밖 212px 로 나간 적이 있고 그때는 폰만 껐다.
@@ -526,7 +542,7 @@ body.popfull .pexp .pex-i{transform:rotate(180deg)}
    범례와 화면이 다르면 범례가 거짓말이 된다.
    flex-wrap 으로 좁으면 두 줄이 된다. **가로 스크롤로 자르지 않는다** —
    잘린 것은 안 보이는 것과 같고, 보는 사람은 잘린 줄도 모른다. */
-.lgd{display:flex;flex-wrap:wrap;justify-content:center;gap:5px 6px;margin-top:9px;
+.lgd{pointer-events:none;display:flex;flex-wrap:wrap;justify-content:center;gap:5px 6px;margin-top:9px;
   pointer-events:none;font-size:12px;line-height:1.4}
 /* **지도 위에 뜨므로 배경이 필요하다.** 배경 없이 뒀더니 폰에서 지도의 이름표와
    글자가 섞여 둘 다 안 읽혔다. 알약 하나하나에 바탕을 깐다. */
@@ -26921,6 +26937,12 @@ var LABEL_FAR=0.62;              /* 이 배율 미만이면 결과 숫자만 이
 var FAN = 0.24, FAN_FEW = 0.34;   /* 부채꼴 벌림(rad). 이웃이 적으면 넓게 */
 var LAY_EASE = 0.22;              /* 각도를 제자리로 당기는 세기 */
 var LAY_MAX_PX = 34;              /* 한 프레임에 화면에서 움직일 수 있는 최대 거리 */
+/* ── 배치가 **실제로 멈추는** alpha ──
+   검사는 `alpha<0.02` 를 "가라앉았다" 로 보고 스냅샷을 찍었는데, 이징은 0.012 까지
+   계속 움직인다. 그 틈(0.017)에서 찍은 자리를 기준으로 삼아 "누르지도 않은 노드가
+   52px 움직였다" 는 **없는 문제**를 사흘 봤다. 값이 두 곳에 따로 있었던 탓이다.
+   **한 곳에만 둔다.** 검사는 이 값을 읽어서 돌린다 — 공식을 베끼지 않는다. */
+var LAY_STOP = 0.012;
 var FAN_EASE = 0.36;              /* 각도를 목표로 당기는 세기. 1이면 순간이동.
                                      0.16 이면 자리를 잡는 데 3초가 넘었다 —
                                      0.36 이면 0.4초 안에 끝난다. */
@@ -27013,6 +27035,20 @@ function mapView(){
    전에는 mapInsetLeft() 가 패널 폭(230px)을 빼줬는데, 그 함수가
    transform 잔상 때문에 0 을 돌려주는 사고가 있었다. 뺄 것이 없으면 틀릴 것도 없다. */
 function viewCX(){return W/2}
+/* ── 상단 UI 가 가리는 높이 ──
+   검색창·범례·'처음으로' 알약은 캔버스 **위에** 떠 있다. 그 뒤에 노드가 있으면
+   클릭이 UI 에 먹혀 **누를 방법이 아예 없다.** 안 보이는 게 아니라 못 누른다.
+   그래서 카메라가 그 아래에만 노드를 담는다.
+   **숫자를 박지 않는다** — updateTopSafe() 가 실제 요소의 offsetTop+offsetHeight 로
+   --topsafe 를 정하고, 여기서 그 값을 읽는다. UI 가 커지면 따라 커진다. */
+function topSafePx(){
+  try{
+    var v=getComputedStyle(document.documentElement).getPropertyValue('--topsafe');
+    var n=parseFloat(String(v).trim());
+    if(isFinite(n)&&n>0)return Math.min(n, H*0.5);
+  }catch(e){}
+  return 0;
+}
 
 /* ── 첫 화면은 넓든 좁든 같은 길로 잡는다 ──
    전에는 900px 미만에 전용 경로가 있었다. 고리 전체를 담을 수 없으니
@@ -27041,7 +27077,33 @@ function fit(showAll){
      실측: 904x1114 에서 배율 0.46 · 이름표 5개 → 하한을 두면 0.62 · 이름표 12개.
      다 보고 싶으면 ⛶ '전체 보기' 가 있다. 그 버튼이 showAll 로 이 하한을 끈다. */
   if(!showAll)s=Math.max(s,LABEL_FAR);
-  cam.ts=s;cam.tx=viewCX()-((minx+maxx)/2)*s;cam.ty=H/2-((miny+maxy)/2)*s}
+  /* **상단 UI 뒤를 비운다.** 그 아래 자리의 한가운데에 맞춘다 —
+     그러면 UI 에 가려 못 누르는 노드가 생기지 않는다. */
+  var top=topSafePx();
+  var vh=Math.max(80,H-top);
+  s=Math.min(s,Math.max(0.25,vh/gh));
+  if(!showAll)s=Math.max(s,LABEL_FAR);
+  cam.ts=s;cam.tx=viewCX()-((minx+maxx)/2)*s;
+  cam.ty=top+vh/2-((miny+maxy)/2)*s;
+  /* ── 배율 바닥에 걸리면 위가 삐져나온다 ──
+     s 에는 하한이 있다(읽을 수 있는 크기). 무리가 그보다 크면 가운데를 맞춰도
+     위아래로 넘친다. 그때 **위가 넘치면 상단 UI 뒤로 들어가 아예 못 누른다.**
+     아래로 넘치는 것과는 다르다 — 아래는 끌어서 볼 수 있지만 위는 클릭이 UI 에 먹힌다.
+     그래서 **위쪽만** 맞춘다. 검사 49 가 이걸 지킨다. */
+  var topY=miny*s+cam.ty, botY=maxy*s+cam.ty;
+  /* 다만 **아래 여유가 있는 만큼만** 민다. 882×344 처럼 납작한 화면에서는
+     상단 UI 가 화면의 3분의 1을 먹어 무리가 애초에 안 들어간다. 거기서 끝까지 밀면
+     아래로 밀려나 "한쪽에 뭉쳤다" 가 된다 — 검사 26 이 49% 빈칸으로 잡았다.
+     위 가림을 줄이되 아래를 새로 자르지는 않는다. */
+  /* 아래 여유가 있으면 그만큼, 없으면 **화면 높이의 4분의 1까지만** 민다.
+     1280×800 에서는 무리가 25px 더 커서 19px 만 밀면 되고 — 아래 여유가 없다고
+     안 밀면 노드 하나가 UI 뒤에 남는다(실측: 「외국인 토지 개방」).
+     882×344 에서는 470px 을 밀어야 하는데 다 밀면 아래로 쏟아져 뭉친다.
+     4분의 1을 밀었더니 882×344 에서 47% 가 비었다(검사 26). **5%로 줄인다** —
+     1280×800 에서 필요한 19px 은 34px 안에 들어오고, 882×344 는 11px 만 움직인다.
+     못 피하는 나머지는 카메라가 아니라 **CSS 가 받는다** — .search 의 빈 자리는
+     pointer-events:none 이라 클릭이 통과한다. 밀기와 통과는 서로를 대신하지 못한다. */
+  if(topY<top)cam.ty+=Math.min(top-topY,Math.max(Math.max(0,H-botY),(H-top)*0.05))}
 
 rebuildLinks();refilter();size();init();fit();cam.s=cam.ts;cam.x=cam.tx;cam.y=cam.ty;
 var rzT=null;
@@ -27290,6 +27352,40 @@ function setFocus(id){
        잘린 개수는 캔버스 배지와 카드가 계속 밝힌다. */
     focusNb={}; focusNb[id]=1;
     kept.forEach(function(l){focusNb[other(l,id)]=1});
+    /* ── 이어진 것을 **부드럽게 모은다** ──
+       각도만 옮긴다. 반지름(연도)은 그대로다 — 그게 흔들리면 시간이 거짓말이 된다.
+       좌표를 대입하지 않는다. 목표 각도만 세우고 tick 의 이징이 옮긴다
+       (전에 gatherFan 이 좌표를 직접 넣어 한 프레임에 1,600px 뛰었다).
+
+       어디로 모으나 — **안 가려진 자리의 한가운데 방향**이다.
+       위는 검색창·범례가, 옆은 카드가 덮는다. 그 자리는 실제 요소에게 물어본다. */
+    (function(){
+      var mv=(typeof mapView==='function')?mapView():{cx:W/2,cy:H/2};
+      var top=topSafePx();
+      var sx=mv.cx, sy=top+(Math.max(80,(mv.h||H)-top))/2;
+      /* 화면 한가운데 방향을 세상 좌표의 각도로 바꾼다 */
+      var wx=(sx-cam.x)/Math.max(cam.s,0.05), wy=(sy-cam.y)/Math.max(cam.s,0.05);
+      var base=Math.atan2(wy/0.86,wx);
+      var nb=kept.map(function(l){return map[other(l,id)]}).filter(Boolean);
+      /* 부채꼴로 고루 편다. 겹치면 이름표가 서로 지운다 */
+      var span=Math.PI*0.55, i0=0;
+      nb.forEach(function(o,i){
+        if(o.fixed)return;
+        var t=nb.length>1?(i/(nb.length-1)-0.5):0;
+        o.angT=base+t*span;
+        i0++;
+      });
+      /* **누른 노드 자신은 안 옮긴다.** 그것까지 움직이면 눌렀는데 도망가는 꼴이다.
+         그리고 움직임이 길어진다 — 실측 3.23초(한도 2초)였다. */
+      /* 각도를 옮기려면 물리가 돌아야 한다 — 이징은 alpha>LAY_STOP 에서만 움직인다.
+         **얼마나 오래 움직이느냐는 이 값이 정한다.** 눈대중으로 고르지 않는다:
+         alpha 는 틱마다 ALPHA_DECAY(0.021) 만큼 0 으로 다가가므로
+         멈추는 데 걸리는 틱수 = ln(LAY_STOP/a) / ln(1-ALPHA_DECAY) 다.
+           0.5 → 176틱(2.9초) · 0.3 → 152틱(2.5초) · **0.14 → 115틱(1.9초)**
+         검사 29 의 한도가 2초다 — 2초를 넘으면 사람은 "화면이 흔들린다" 고 본다.
+         이동에는 넉넉하다: 한 프레임 최대 LAY_MAX_PX(34px) 이므로 115틱이면 3,900px 다. */
+      if(typeof reheat==='function')reheat(0.14);
+    })();
     Object.keys(ring).forEach(function(k){
       if(ring[k]===1)adj[k].forEach(function(l){var o=other(l,k);if(!(o in ring))ring[o]=2})})}
   mapSet=null;mapKey='';refilter();
@@ -27308,6 +27404,12 @@ function setFocus(id){
   }
 }
 function closePop(){focus=null;ring={};roles={};hiddenEdges=0;
+  /* 닫으면 원래 자리로 돌아간다 — 목표를 지우면 이징이 제 각도(ang)로 되돌린다 */
+  N.forEach(function(n){ if(n.angT!==undefined)delete n.angT });
+  /* 켤 때와 같은 값을 쓴다. 되돌아가는 거리가 갈 때와 같으니 시간도 같아야 한다 —
+     0.5 면 2.9초라 닫아 놓고도 화면이 흔들린다. */
+  if(typeof reheat==='function')reheat(0.14);
+  mapSet=null;mapKey='';focusNb=null;
   if(typeof closeAllList==='function')closeAllList();
   /* 여기 있던 reheat(0.5) 도 뺐다. 부채꼴이 있던 시절에는 모아둔 노드를
      제자리로 되돌리려고 물리를 데워야 했다. 지금은 노드가 애초에 안 움직인다 —
@@ -27717,11 +27819,22 @@ function tick(){
     if(n===drag||n.fixed)return;
     var R=ringR(n); if(!(R>0)||!isFinite(n.x)||!isFinite(n.y))return;
     if(n.x===0&&n.y===0){n.x=R;n.y=0}
-    var want=(typeof n.ang==='number'&&isFinite(n.ang))?n.ang:0;
+    /* **초점 이웃은 각도만 옮긴다.** 반지름(연도)은 절대 안 건드린다 —
+       그게 흔들리면 시간이 거짓말이 된다. 각도는 흩뿌린 값이라 뜻이 없다.
+       옮기는 것은 목표(angT)만 바꾸는 것이고, 실제 이동은 아래 이징이 한다 —
+       한 프레임 LAY_MAX_PX 를 넘지 않으므로 순간이동이 안 생긴다. */
+    var want=(typeof n.angT==='number'&&isFinite(n.angT))?n.angT
+            :((typeof n.ang==='number'&&isFinite(n.ang))?n.ang:0);
     want=want%(Math.PI*2);
     var a=Math.atan2(n.y/0.86,n.x);
-    /* 가라앉으면 각도는 그대로 둔다 — 충돌이 밀어낸 결과를 살린다 */
-    if(alpha>0.012){
+    /* 가라앉으면 각도는 그대로 둔다 — 충돌이 밀어낸 결과를 살린다.
+       그리고 **초점 중에는 이어진 것만 움직인다.**
+       reheat 하면 모든 노드가 자기 목표 각도(n.ang)로 되돌아간다 —
+       가라앉은 뒤 충돌이 밀어놓은 자리에서 원래 각도로 481px 이 되돌아갔다(실측).
+       밀려난 게 아니라 **복원된 것**이었는데, 화면에서는 똑같이 출렁임으로 보인다.
+       무엇이 이어졌는지 읽으라고 모으는 것인데 지도 전체가 같이 움직이면 안 읽힌다.
+       밀어내기는 아래 pl/ql 이 이미 이웃으로 좁혀 두었다 — 여기가 남은 구멍이었다. */
+    if(alpha>LAY_STOP&&(!focus||ring[n.id]!==undefined)){
       var d=((want-a+Math.PI*3)%(Math.PI*2))-Math.PI;
       var step=d*LAY_EASE;
       /* 한 프레임에 너무 많이 움직이면 눈이 못 따라가 '튀는' 것으로 보인다.
@@ -27745,7 +27858,10 @@ function tick(){
   /* 초점 중에는 일찍 쉰다. 노드가 이미 제자리에 있으므로
      겹친 것만 풀면 되고, 그 뒤로는 돌수록 진동만 남는다.
      초점이 아닐 때는 원래대로 — 배치가 아직 자리를 잡는 중이다. */
-  var COLL=(alpha>0.008)?8:0;
+  /* **이징과 같은 문턱을 쓴다.** 전에는 0.008 이라 이징이 멈춘 뒤에도 충돌만
+     따로 더 돌았다 — 계산으로는 1.93초에 끝나야 할 움직임이 2.25초까지 이어졌다.
+     문턱이 두 개면 "언제 멈추나" 에 답이 두 개가 된다. */
+  var COLL=(alpha>LAY_STOP)?8:0;
   /* ── 겹침 검사도 격자로 ──
      여기가 진짜 병목이었다. 모든 쌍을 **8번** 훑는다 —
      1,171개면 685,621쌍 × 8 = 550만 회다. 실측 260ms (한 틱).
@@ -29008,6 +29124,28 @@ function voteNote(n){
 
    **지도에 그리는 6개가 아니라 이어진 것 전부**를 돌려준다.
    지도는 이름표를 9개(폰 2개)까지만 그린다 — 실측이다. 그래서 읽는 자리는 목록이다. */
+/* ── 시계열을 카드에 살린다 ──
+   "2015년 1.239 → 2024년 0.748" 만으로는 언제 꺾였는지가 안 보인다.
+   그 사이가 보여야 "왜 이렇게 됐나" 를 묻게 된다.
+   **막대는 값에 비례한다** — 최소~최대를 0~100% 로 편다.
+   값이 하나뿐이거나 모두 같으면 막대를 안 그린다 (그럴 때 비율은 뜻이 없다). */
+function seriesBlock(n){
+  var s=n.series; if(!s||s.length<2)return '';
+  var v=s.map(function(x){return parseFloat(String(x[1]).replace(/,/g,''))}).filter(function(x){return isFinite(x)});
+  if(v.length<2)return '';
+  var lo=Math.min.apply(null,v), hi=Math.max.apply(null,v);
+  var span=hi-lo;
+  var rows=s.map(function(x){
+    var f=parseFloat(String(x[1]).replace(/,/g,''));
+    var w=(span>0&&isFinite(f))?Math.round((f-lo)/span*100):0;
+    return '<li><span class="sy">'+esc(x[0])+'</span>'+
+      '<span class="sbar"><i style="width:'+Math.max(2,w)+'%"></i></span>'+
+      '<span class="sv">'+esc(x[1])+'</span></li>';
+  }).join('');
+  return '<div class="sec"><p class="sec-lab">해마다 어떻게 바뀌었나 <em>('+s.length+'개 해)</em></p>'+
+    '<ul class="slist">'+rows+'</ul>'+
+    '<p class="art-x">막대는 이 지표 안에서 가장 낮은 해와 높은 해 사이의 자리입니다. 0 에서 시작하지 않습니다.</p></div>';
+}
 function chainOf(id){
   if(!id||!adj[id])return [];
   var seen={}, out=[];
@@ -29082,7 +29220,8 @@ function render(id){
       '<span class="badge b-res">결과 수치</span></div><h2 class="title">'+n.lab+'</h2></div>'+
       '<div class="big"><p class="big-n">'+n.big+'</p><p class="big-c">'+n.cap+'</p></div>'+
       (tipOf(n)?'<div class="oneline">'+tipOf(n)+'</div>':'')+
-      '<div class="sec"><p class="sec-lab">설명</p><p class="body">'+n.body+'</p></div>'+
+      seriesBlock(n)+
+      (sameWord(n.body,n.cap)?'':'<div class="sec"><p class="sec-lab">설명</p><p class="body">'+n.body+'</p></div>')+
       keyNote(n);
     var chain=chainOf(id);
     if(chain.length){

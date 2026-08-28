@@ -31,6 +31,9 @@ const RULE_A = 'case_by_law_name', RULE_B = 'case_by_keyword_and_year';
 const RULE_C = 'case_by_reviewed_article';
 const NOW = new Date().toISOString().slice(0, 10);
 const KIND = { detc: '헌법재판소 결정', prec: '법원 판례' };
+/* 헌재 결론(위헌·합헌·헌법불합치·각하·기각). 결정요지의 마지막 문장에서만 찾는다 —
+   본문 전체에서 찾으면 참조판례 인용에 걸린다. 자세한 이유는 tools/detc-verdict.mjs. */
+const { verdictOf } = await import('./detc-verdict.mjs');
 
 const db = new DatabaseSync(DB, DRY ? { readOnly: true } : {});
 if (!DRY) db.exec(fs.readFileSync(path.join(ROOT, 'db', 'schema.sql'), 'utf8'));
@@ -104,6 +107,15 @@ const add = c => {
      사람이 못 읽는다 — 읽을 수 없는 노드는 없는 것이나 마찬가지다.
      판시사항은 재판부가 쓴 요약이고 **전문이 아니다** (규칙 8). */
   const dd = detail.get(c.kind + ':' + c.case_sn);
+  /* ── 헌재 결정의 **결론** ──
+     삼각형을 눌러도 "헌법재판소 결정입니다. 사건번호는 …" 뿐이라 **왜 지도에 있는지
+     알 수 없었다.** 사람들이 궁금한 건 "무엇을 위헌이라고 했나" 다.
+     법제처 응답에 주문(결론)은 없다 — 【주 문】은 `전문` 에만 있고 거기엔 실명이 있다.
+     그래서 결정요지의 마지막 문장에서 찾는다. **애매하면 안 잡는다** (실측 15.2%). */
+  if (c.kind === 'detc' && dd && dd.summary) {
+    const v = verdictOf(dd.summary);
+    if (v) { n.verdict = v }   /* tip 은 안 바꾼다 — 카드는 배지를 쓴다 */
+  }
   if (dd && dd.gist && safeGist(dd.gist)) {
     n.gist = dd.gist.length > 400 ? dd.gist.slice(0, 399) + '…' : dd.gist;
     /* **이 글은 재판부가 쓴 원문이다.** 우리가 쉬운 말로 옮긴 것이 아니다.
@@ -123,7 +135,7 @@ const add = c => {
    상세를 받은 사건에만 있다. */
 let detail = new Map();
 try {
-  for (const r of db.prepare('SELECT case_sn,kind,arts,gist FROM case_detail').all())
+  for (const r of db.prepare('SELECT case_sn,kind,arts,gist,summary FROM case_detail').all())
     detail.set(r.kind + ':' + r.case_sn, r);
 } catch { }
 
@@ -201,6 +213,7 @@ const q = s => "'" + String(s).replace(/\\/g, '\\\\').replace(/'/g, "\\'")
 const nodeJs = [...nodes.values()].map(n =>
   `{id:${q(n.id)},t:'event',auto:1,side:'gov',lab:${q(n.lab)},title:${q(n.title)},yr:${q(n.yr)},` +
   `ekind:${q(n.ekind)},off:${q(n.off)},tip:${q(n.tip)},body:${q(n.body)},` +
+  (n.verdict ? `verdict:${q(n.verdict)},` : '') +
   (n.gist ? `gist:${q(n.gist)},raw:1,` : '') +
   `src:${q(n.src)},url:${q(n.url)},cats:[]}`).join('\n,');
 const linkJs = links.map(l =>

@@ -116,6 +116,16 @@ try {
 
 let easy = {};
 try { easy = JSON.parse(fs.readFileSync(path.join(ROOT, 'db', 'law_easy.json'), 'utf8')); delete easy._ } catch {}
+/* ── 이름을 풀어 쓴 한 줄 설명 (tools/name-explain.mjs) ──
+   목적 조문도 조문 제목도 못 받은 법이 32개 있었고 화면에 "확인 중" 이 떴다.
+   **미완성을 보여주는 것**이라 안 된다. 「개별소비세법」처럼 이름 안에 답이 있는 것은
+   이름을 풀어 채우고, `nameTip` 을 붙여 **그것이 원문이 아님을 화면에서 밝힌다.**
+   규칙이 못 푼 2개(에너지법·형법)는 `drop` 에 들어가고 지도에 안 올린다. */
+let nameTip = {}, nameDrop = new Set();
+try {
+  const nt = JSON.parse(fs.readFileSync(path.join(ROOT, 'db', 'law_name_tip.json'), 'utf8'));
+  nameTip = nt.tip || {}; nameDrop = new Set(nt.drop || []);
+} catch {}
 /* ── 발의자 ──
    **대표발의자는 이름을 쓰고, 공동발의자는 수만 쓴다.**
    대표발의는 그 법안을 대표해 낸 공적 행위이고 의안정보시스템 첫 화면에 이름이 나온다.
@@ -258,8 +268,11 @@ for (const g of [...groups.values()].sort((a, b) => a.law.localeCompare(b.law)))
       /* **'무슨 법인지' 가 없으면 비운다.** 「2015~2025년 · 11번 고침」 만으로는
          국세기본법이 뭔지 알 수 없고, 그 카드는 의미가 없다.
          법 이름에서 유추하지 않는다 — 그건 지어내는 것이다 (원칙 0-B). */
-      tip: (easy[g.law] && easy[g.law].what) || '',
-      body: ((easy[g.law] && easy[g.law].what) ? easy[g.law].what + ' ' : '') +
+      tip: (easy[g.law] && easy[g.law].what) || nameTip[g.law] || '',
+      /* 이름을 풀어 쓴 것이면 표시해 둔다 — 화면이 원문과 다르게 밝힌다 */
+      nameTip: (!(easy[g.law] && easy[g.law].what) && nameTip[g.law]) ? 1 : 0,
+      body: ((easy[g.law] && easy[g.law].what) ? easy[g.law].what + ' '
+             : (nameTip[g.law] ? nameTip[g.law] + ' ' : '')) +
             `${span} 사이에 ${g.items.length}번 고쳤습니다.`,
       /* 쉬운 말과 원문을 **따로** 담는다. 어느 쪽이 법제처 문장이고
          어느 쪽이 우리가 옮긴 문장인지 화면에서 갈려야 한다. */
@@ -360,9 +373,15 @@ const q = s => "'" + String(s)
   .replace(/\\/g, '\\\\').replace(/'/g, "\\'")
   .replace(/\r/g, '').replace(/\n/g, '\\n')
   .replace(/\u2028|\u2029/g, ' ') + "'";
+/* **한 줄 설명이 끝내 없는 법은 안 올린다.** "확인 중" 이 화면에 남는 것보다 낫다. */
+const dropped = [...lawNodes.values()].filter(n => !n.tip || nameDrop.has(n.id));
+dropped.forEach(n => lawNodes.delete(n.lab));
+if (dropped.length) console.log(`  한 줄 설명이 없어 지도에 안 올린 법 ${dropped.length}개: ${dropped.map(n => n.lab).join(', ')}`);
+
 const nodeJs = [...lawNodes.values()].map(n =>
   `{id:${q(n.id)},t:'bill',auto:1,side:${q(n.side)},kind:${q(n.kind)},st:${q(n.st)},` +
   `lab:${q(n.lab)},title:${q(n.title)},yr:${q(n.yr)},off:${q(n.off)},tip:${q(n.tip)},` +
+  (n.nameTip ? 'nameTip:1,' : '') +
   `body:${q(n.body)},cats:[${n.cats.map(q).join(',')}],src:${q(n.src)},` +
   (n.plain ? `plain:${q(n.plain)},` : '') +
   (n.presCount && n.presCount.length

@@ -27868,10 +27868,53 @@ function arrow(ax,ay,bx,by,rr,col,wid){
    법(사각형)·헌재(삼각형)·판례(마름모)가 다 '흐린 점선 조각' 으로 보여 안 갈렸다.
    **모양은 채워야 읽힌다.** 속을 옅게(26%) 칠하고 테두리는 점선으로 남긴다 —
    자동/사람 확인의 구분(점선 vs 실선)은 그대로 살아 있다. */
+/* **어두운 배경에서는 밝게 채워야 한다.** 0.26 으로 칠했더니 실측 픽셀이
+   (46,49,54) 였다 — 배경(14,15,18)보다 32 밝을 뿐이라 그냥 검게 보였다.
+   게다가 globalAlpha 가 이미 n.a 인데 거기에 또 곱해서, 흐린 노드는 (33,35,40)까지
+   떨어졌다. **알파가 두 번 곱해지고 있었다.**
+
+   그래서 두 가지를 고쳤다.
+     ① 채우는 비율을 0.55 로 올린다 — 실측 (82,86,95). 배경과 확실히 갈린다
+     ② **미리 섞은 색을 만들어 불투명하게 칠한다.** 알파를 겹치지 않으니
+        노드가 흐려져도 '배경보다 밝다' 는 관계가 유지된다
+   값은 계산이 아니라 캔버스에 실제로 그려 픽셀을 읽어 골랐다. */
+/* ── 테두리는 **노드 모양을 따라가야 한다** ──
+   선택·커서 표시를 늘 원으로 그렸다. 법 노드는 가로로 누운 사각형인데
+   그 둘레에 원을 그리니 **원이 사각형을 감싸 덮어** 정작 모양이 안 보였다.
+   그리기와 테두리가 같은 경로 함수를 쓰면 둘이 갈라질 수 없다. */
+function shapePath(n,pad){
+  pad=pad||0;
+  if(n.t==='bill'){
+    var bw=n.r*1.55+pad, bh=n.r*0.78+pad, rr=Math.min(3+pad,n.r*0.28+pad);
+    cx.beginPath();
+    if(cx.roundRect)cx.roundRect(n.x-bw,n.y-bh,bw*2,bh*2,rr);
+    else cx.rect(n.x-bw,n.y-bh,bw*2,bh*2);
+    return;
+  }
+  if(n.t==='event'&&/헌법재판소/.test(n.ekind||'')){
+    var tr=n.r*1.30+pad;
+    cx.beginPath();
+    cx.moveTo(n.x,n.y-tr);cx.lineTo(n.x+tr*0.92,n.y+tr*0.62);cx.lineTo(n.x-tr*0.92,n.y+tr*0.62);
+    cx.closePath(); return;
+  }
+  if(n.t==='event'){
+    var dr=n.r+pad;
+    cx.beginPath();
+    cx.moveTo(n.x,n.y-dr);cx.lineTo(n.x+dr,n.y);cx.lineTo(n.x,n.y+dr);cx.lineTo(n.x-dr,n.y);
+    cx.closePath(); return;
+  }
+  cx.beginPath();cx.arc(n.x,n.y,n.r+pad,0,7);
+}
+var AUTO_MIX=0.55, autoMixCache={};
+function mixWithBg(col,k){
+  var key=col+'|'+k; if(autoMixCache[key])return autoMixCache[key];
+  var m=/^#([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i.exec(String(col)||'');
+  var r=m?parseInt(m[1],16):138, g=m?parseInt(m[2],16):146, b=m?parseInt(m[3],16):158;
+  var out='rgb('+Math.round(14+(r-14)*k)+','+Math.round(15+(g-15)*k)+','+Math.round(18+(b-18)*k)+')';
+  autoMixCache[key]=out; return out;
+}
 function autoFill(n,col){
-  cx.fillStyle='#0E0F12';cx.fill();
-  var a0=cx.globalAlpha;
-  cx.globalAlpha=a0*0.26; cx.fillStyle=col; cx.fill(); cx.globalAlpha=a0;
+  cx.fillStyle=mixWithBg(col,AUTO_MIX);cx.fill();
   cx.strokeStyle=col;cx.lineWidth=1.5;cx.setLineDash([2.4,2.2]);cx.stroke();cx.setLineDash([]);
 }
 function draw(){
@@ -28054,10 +28097,10 @@ function draw(){
       var hpz=0.5+0.5*Math.sin(PT*3.4);
       cx.save();
       cx.globalAlpha=Math.min(1,n.a)*(0.30+hpz*0.30);
-      cx.beginPath();cx.arc(n.x,n.y,n.r+8+hpz*4,0,7);
+      shapePath(n,7+hpz*4);
       cx.strokeStyle='#F2F4F7';cx.lineWidth=1.5;cx.stroke();
       cx.globalAlpha=Math.min(1,n.a)*0.85;
-      cx.beginPath();cx.arc(n.x,n.y,n.r+3.5,0,7);
+      shapePath(n,2.5);
       cx.strokeStyle='#FFFFFF';cx.lineWidth=1.1;cx.stroke();
       cx.restore();
       cx.globalAlpha=Math.max(0,Math.min(1,n.a));
@@ -28172,10 +28215,11 @@ function draw(){
         cx.globalAlpha=Math.max(0,Math.min(1,n.a))}}
     }
     if(focus&&ring[n.id]===1&&roles[n.id]&&n.a>0.4){
-      cx.beginPath();cx.arc(n.x,n.y,n.r+5,0,7);
+      /* **덮지 않고 두른다.** 원으로 그리면 사각형·삼각형을 감싸 모양이 사라진다. */
+      shapePath(n,4);
       cx.strokeStyle=ROLE[roles[n.id]].c;cx.lineWidth=2.6;cx.stroke();
     }
-    if(n.fixed&&n.a>0.3){cx.beginPath();cx.arc(n.x,n.y,n.r+4,0,7);
+    if(n.fixed&&n.a>0.3){shapePath(n,3.5);
       cx.strokeStyle='rgba(227,174,85,'+(n.a*0.55).toFixed(2)+')';cx.lineWidth=1.1;cx.stroke()}
     if(labelOn(n)&&n.a>0.16){
       var hot=n.gl>.5,yy=n.y+n.r+15*labelFontScale();

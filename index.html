@@ -516,7 +516,27 @@ body.popfull .pexp .pex-i{transform:rotate(180deg)}
   border:1px solid var(--line2);border-radius:11px;overflow:hidden;display:none;
   box-shadow:0 16px 40px rgba(0,0,0,.6);max-height:340px;overflow-y:auto;z-index:50}
 .sres.on{display:block}
-.undo{display:flex;gap:9px;justify-content:center;margin-top:10px;pointer-events:none}
+/* ── 검색창 아래 가로 범례 ──
+   **작게, 지도를 가리지 않게.** 색과 모양은 지도에 그리는 것과 같은 것을 쓴다 —
+   범례와 화면이 다르면 범례가 거짓말이 된다.
+   flex-wrap 으로 좁으면 두 줄이 된다. **가로 스크롤로 자르지 않는다** —
+   잘린 것은 안 보이는 것과 같고, 보는 사람은 잘린 줄도 모른다. */
+.lgd{display:flex;flex-wrap:wrap;justify-content:center;gap:5px 6px;margin-top:9px;
+  pointer-events:none;font-size:12px;line-height:1.4}
+/* **지도 위에 뜨므로 배경이 필요하다.** 배경 없이 뒀더니 폰에서 지도의 이름표와
+   글자가 섞여 둘 다 안 읽혔다. 알약 하나하나에 바탕을 깐다. */
+.lgi{display:inline-flex;align-items:center;gap:5px;white-space:nowrap;
+  padding:3px 9px;border-radius:999px;background:rgba(16,18,22,.86);
+  border:1px solid var(--line);color:var(--t2)}
+.lg{flex:none;display:inline-block;width:11px;height:11px;background:#8A929E}
+.lg-res{width:12px;height:12px;border-radius:50%;background:var(--gold)}
+.lg-law{width:14px;height:8px;border-radius:2px}
+.lg-detc{background:transparent;width:0;height:0;border-left:6px solid transparent;
+  border-right:6px solid transparent;border-bottom:11px solid #8A929E}
+.lg-prec{transform:rotate(45deg);width:9px;height:9px}
+.lg-per{border-radius:50%;background:transparent;border:1.8px solid #7FB2EE}
+.lg-auto{background:transparent;border:1.4px dashed #8A929E;border-radius:2px;width:13px;height:9px}
+.undo{display:flex;gap:9px;justify-content:center;margin-top:8px;pointer-events:none}
 
 .undo>*{pointer-events:auto}
 .ub{display:flex;align-items:center;gap:8px;font-family:inherit;font-size:15.5px;font-weight:500;
@@ -936,7 +956,12 @@ details.railcard>summary.raillab:focus-visible{outline:2px solid var(--gold);out
 @media (max-width:900px){.rolebar{top:176px;}
 body.hasundo .rolebar{top:232px;width:calc(100vw - 24px);max-height:96px;overflow-y:auto}
  .rgrp{max-width:none;flex:1 1 100%}}
-@media (max-width:620px){.rolebar{top:164px}body.hasundo .rolebar{top:218px}}
+@media (max-width:620px){
+  /* 폰에서는 범례를 더 작게. 그래도 **가로로 자르지 않는다** — 두 줄이 되게 둔다.
+     잘린 것은 안 보이는 것과 같고, 보는 사람은 잘린 줄도 모른다. */
+  .lgd{font-size:11px;gap:4px 5px;margin-top:7px}
+  .lgi{padding:2px 7px}
+.rolebar{top:164px}body.hasundo .rolebar{top:218px}}
 
 @media (max-width:620px){
   /* 폰에서는 지도가 최우선이다. 상단 UI 를 최소로 줄이고, 무엇도 지도를 밀어내지 않는다. */
@@ -1027,6 +1052,19 @@ body.hasundo .rolebar{top:232px;width:calc(100vw - 24px);max-height:96px;overflo
   <span class="sicon">⌕</span>
   <input id="q" type="text" placeholder="무엇이든 검색해 보세요 — 이재명, 간첩법, 민주노총, 2020" autocomplete="off" aria-label="검색">
   <div class="sres" id="sres"></div>
+  <!-- ── 모양 범례 — 검색창 바로 아래 가로 한 줄 ──
+       '보는 법' 서랍에도 있지만 **아무도 서랍을 안 연다.**
+       모양으로 종류를 갈랐으면 그 뜻이 처음 화면에 있어야 한다.
+       색·모양을 글자가 아니라 **실제로 그려서** 보여준다 — 지도에 그리는 것과 같은 모양이다.
+       좁은 화면에서는 두 줄로 접힌다. 가로 스크롤로 잘리면 안 보이는 것과 같다. -->
+  <div class="lgd" id="lgd" aria-label="모양이 뜻하는 것">
+    <span class="lgi"><i class="lg lg-res"></i>결과</span>
+    <span class="lgi"><i class="lg lg-law"></i>법·정책</span>
+    <span class="lgi"><i class="lg lg-detc"></i>헌재 결정</span>
+    <span class="lgi"><i class="lg lg-prec"></i>판례·사건</span>
+    <span class="lgi"><i class="lg lg-per"></i>사람·정당</span>
+    <span class="lgi lgi-x"><i class="lg lg-auto"></i>점선은 자동</span>
+  </div>
   <div class="undo">
     <button class="ub" id="resetAll" hidden><span>↺</span> <b id="resetLab">처음으로</b></button>
   </div>
@@ -27825,6 +27863,17 @@ function arrow(ax,ay,bx,by,rr,col,wid){
   cx.lineTo(tx-ux*s+uy*s*0.45,ty-uy*s-ux*s*0.45);
   cx.closePath();cx.fill()}
 
+/* ── 자동으로 들어온 도형을 칠하는 법 ──
+   전에는 **속을 완전히 비우고 점선 테두리만** 그렸다. 그랬더니 r=7px 에서
+   법(사각형)·헌재(삼각형)·판례(마름모)가 다 '흐린 점선 조각' 으로 보여 안 갈렸다.
+   **모양은 채워야 읽힌다.** 속을 옅게(26%) 칠하고 테두리는 점선으로 남긴다 —
+   자동/사람 확인의 구분(점선 vs 실선)은 그대로 살아 있다. */
+function autoFill(n,col){
+  cx.fillStyle='#0E0F12';cx.fill();
+  var a0=cx.globalAlpha;
+  cx.globalAlpha=a0*0.26; cx.fillStyle=col; cx.fill(); cx.globalAlpha=a0;
+  cx.strokeStyle=col;cx.lineWidth=1.5;cx.setLineDash([2.4,2.2]);cx.stroke();cx.setLineDash([]);
+}
 function draw(){
   cx.setTransform(DPR,0,0,DPR,0,0);cx.clearRect(0,0,W,H);
   cx.setTransform(DPR*cam.s,0,0,DPR*cam.s,DPR*cam.x,DPR*cam.y);cx.lineCap='round';
@@ -28061,8 +28110,7 @@ function draw(){
       cx.beginPath();
       cx.moveTo(n.x,n.y-tr);cx.lineTo(n.x+tr*0.92,n.y+tr*0.62);cx.lineTo(n.x-tr*0.92,n.y+tr*0.62);
       cx.closePath();
-      if(n.auto){cx.fillStyle='#0E0F12';cx.fill();
-        cx.strokeStyle=col;cx.lineWidth=1.6;cx.setLineDash([2.2,2.2]);cx.stroke();cx.setLineDash([])}
+      if(n.auto){autoFill(n,col)}
       else{cx.fillStyle=col;cx.fill();cx.strokeStyle='#0E0F12';cx.lineWidth=2;cx.stroke()}
       if(labelOn(n)&&n.a>0.16){
         var hotT=n.gl>.5,yyT=n.y+n.r+15*labelFontScale();
@@ -28077,9 +28125,7 @@ function draw(){
       cx.beginPath();
       cx.moveTo(n.x,n.y-n.r);cx.lineTo(n.x+n.r,n.y);cx.lineTo(n.x,n.y+n.r);cx.lineTo(n.x-n.r,n.y);
       cx.closePath();
-      if(n.auto){ /* 자동으로 들어온 판례 — 속을 비운다. 손으로 넣은 사건과 갈린다 */
-        cx.fillStyle='#0E0F12';cx.fill();
-        cx.strokeStyle=col;cx.lineWidth=1.6;cx.setLineDash([2.2,2.2]);cx.stroke();cx.setLineDash([]);
+      if(n.auto){ autoFill(n,col);
       }else{
         cx.fillStyle=/전과/.test(n.ekind||'')?'#0E0F12':col;cx.fill();
         cx.strokeStyle=/전과/.test(n.ekind||'')?'#E2635A':col;cx.lineWidth=2;cx.stroke();
@@ -28101,17 +28147,12 @@ function draw(){
       cx.beginPath();
       if(cx.roundRect)cx.roundRect(n.x-bw,n.y-bh,bw*2,bh*2,rr);
       else cx.rect(n.x-bw,n.y-bh,bw*2,bh*2);
-      if(n.auto){cx.fillStyle='#0E0F12';cx.fill();
-        cx.strokeStyle=col;cx.lineWidth=1.6;cx.setLineDash([2.2,2.2]);cx.stroke();cx.setLineDash([])}
+      if(n.auto){autoFill(n,col)}
       else{cx.fillStyle=col;cx.fill()}
     } else {
     cx.beginPath();cx.arc(n.x,n.y,n.r,0,7);
     if(n.t==='result'){cx.fillStyle=col;cx.fill();cx.strokeStyle='#0E0F12';cx.lineWidth=2.4;cx.stroke()}
-    else if(n.auto){
-      /* 자동으로 들어온 것은 **속이 빈 원**이다. 사람이 확인한 것과 한눈에 갈린다. */
-      cx.fillStyle='#0E0F12';cx.fill();
-      cx.strokeStyle=col;cx.lineWidth=1.6;cx.setLineDash([2.2,2.2]);cx.stroke();cx.setLineDash([]);
-    }
+    else if(n.auto){ autoFill(n,col) }
     else if(n.t==='bill'||n.t==='event'){cx.fillStyle=col;cx.fill()}
     else{cx.fillStyle='#0E0F12';cx.fill();
       var pim=(n.t==='person')?getImg(n.lab):null;

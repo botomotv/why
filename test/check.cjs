@@ -2652,6 +2652,67 @@ const TKN = { result:'결과', bill:'법·정책', person:'인물', party:'정�
       W(`51. 사건 ${nExtra}개가 이름만 같다 (사건번호는 다르다). 목록에서 같은 줄로 보인다 — 「${nDup[0][0].slice(0, 24)}」 ×${nDup[0][1].length}`);
   }
 
+  /* ── 52. 첫 화면 배율은 한 곳이 정하고 아무도 안 바꾼다 ──
+     같은 버그(첫 화면이 확대된 채로 뜬다)가 **일곱 번** 났다. 원인이 매번 달랐다:
+     자동 포커스 · W/H 어긋남 · 가라앉기 전 fit() · camUser 가 1px 에 켜짐 ·
+     clampY 가 매 프레임 덮어씀(두 번) · 하한(LABEL_FAR) 강제.
+
+     **cam.ts 를 건드리는 곳이 다섯 군데라서 하나를 고치면 다른 데서 덮어썼다.**
+     지금은 firstFit() 이 값을 정하고 __firstFit 에 남긴다.
+     이 검사는 세 가지를 본다:
+       ① 실제 카메라가 그 값과 같나 (다른 데서 덮어쓰지 않았나)
+       ② 그 값으로 **결과 노드가 다 보이나** — 결과는 이 지도의 입구다
+       ③ 노드 수가 바뀌어도 같은 규칙으로 정해지나 (분야를 좁혀 노드를 줄여 본다) */
+  {
+    const SZ = [[1440,900,'PC'],[412,915,'폰'],[840,1000,'폴드'],[820,1180,'태블릿']];
+    for (const [w,h,nm] of SZ) {
+      const dm = boot(w,h);
+      await new Promise(r => setTimeout(r, 1500));
+      const r = dm.window.eval(`(function(){
+        if(typeof firstFit!=='function')return {no:'firstFit() 이 없다 — 첫 화면을 정하는 곳이 하나가 아니다'};
+        var t=0; while(alpha>LAY_STOP&&t<600){tick();t++}
+        if(typeof fit==='function')fit();
+        cam.s=cam.ts;cam.x=cam.tx;cam.y=cam.ty;
+        var f=__firstFit;
+        if(!f)return {no:'__firstFit 이 비었다 — fit() 이 firstFit() 을 안 쓴다'};
+        /* ① 실제 카메라 = 정해진 값 */
+        var same=Math.abs(cam.s-f.s)<0.001;
+        /* ② 결과 노드가 다 보이나 — 상단 UI 아래 자리 기준 */
+        var res=A.filter(function(n){return n.t==='result'});
+        var out=res.filter(function(n){
+          var sx=n.x*cam.s+cam.x, sy=n.y*cam.s+cam.y;
+          return sx<0||sx>W||sy<f.top||sy>H}).map(function(n){return n.lab});
+        /* ③ 노드를 줄여도 같은 규칙인가 — 분야 하나로 좁혀 본다 */
+        var before=f.s, beforeN=A.length;
+        var oldCat=cat; cat='med'; if(typeof refilter==='function')refilter();
+        var t2=0; while(alpha>LAY_STOP&&t2<400){tick();t2++}
+        fit(); var f2=__firstFit;
+        var narrowOK=!!(f2&&f2.s>0);
+        var narrowRes=A.filter(function(n){return n.t==='result'});
+        var narrowOut=narrowRes.filter(function(n){
+          var sx=n.x*f2.s+(viewCX()-f2.cx*f2.s), sy=n.y*f2.s+(f2.top+f2.vh/2-f2.cy*f2.s);
+          return sx<0||sx>W||sy<f2.top||sy>H}).length;
+        cat=oldCat; if(typeof refilter==='function')refilter();
+        return {s:+cam.s.toFixed(3), fs:+f.s.toFixed(3), same:same,
+                res:res.length, out:out.length, outLabs:out.slice(0,3).join(' · '),
+                top:Math.round(f.top), mapN:beforeN,
+                narrowS:f2?+f2.s.toFixed(3):null, narrowRes:narrowRes.length, narrowOut:narrowOut, narrowOK:narrowOK};
+      })()`);
+      dm.window.close();
+      if (!r || r.no) { F(`52. ${nm} — ${(r && r.no) || '못 쟀다'}`); continue }
+      console.log(`52. 첫 화면 배율     ${nm} ${w}×${h} · 배율 ${r.s} (firstFit ${r.fs}) · 상단 ${r.top}px · ` +
+        `결과 ${r.res - r.out}/${r.res} 보임 · 지도 ${r.mapN}개 · 분야 좁힌 뒤 배율 ${r.narrowS} (결과 ${r.narrowRes}개 중 ${r.narrowOut} 밖)`);
+      if (!r.same)
+        F(`52. ${nm} — 첫 배율이 firstFit 이 정한 ${r.fs} 가 아니라 ${r.s} 다. 다른 곳에서 카메라를 덮어쓴다`);
+      if (r.out)
+        F(`52. ${nm} — 첫 화면에서 결과 노드 ${r.out}/${r.res}개가 화면 밖이다 (${r.outLabs}). 결과는 이 지도의 입구다`);
+      if (!r.narrowOK)
+        F(`52. ${nm} — 분야를 좁혀 노드가 줄면 첫 배율을 못 정한다. 노드 수가 바뀌어도 같은 규칙이어야 한다`);
+      if (r.narrowOut)
+        W(`52. ${nm} — 분야를 좁힌 뒤 결과 ${r.narrowOut}개가 화면 밖이다`);
+    }
+  }
+
   /* ── 요약 ── */
   console.log('\n' + '─'.repeat(50));
   console.log('노드 진영 분포:', JSON.stringify(bySide));

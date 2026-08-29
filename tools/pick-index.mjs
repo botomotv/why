@@ -25,6 +25,14 @@ const DRY = process.argv.includes('--dry');
 const MIN_HIT = 3;
 
 const spec = JSON.parse(fs.readFileSync(path.join(ROOT, 'db', 'picked_index.json'), 'utf8'));
+/* ── **사람이 값을 직접 준 통계** (db/hand_stats.json) ──
+   API 로 못 받는 공식 통계가 많다 — KOSIS·한국은행·부동산원은 인증키가 필요하고,
+   지표누리는 810개 중 334개가 폐지된 통계표라 출처 링크가 죽는다.
+   최저임금은 법제처 고시에 있지만 **시급이 PDF 첨부에만** 있고 현행 2건뿐이라 시계열이 안 된다.
+   그래서 값을 손으로 넣되 **출처 URL 이 실제로 열려야 하고**(검사 53),
+   그 페이지에 그 값이 있어야 한다. 우리가 옮긴 것이지 만든 것이 아니다. */
+let hand = { stats: [] };
+try { hand = JSON.parse(fs.readFileSync(path.join(ROOT, 'db', 'hand_stats.json'), 'utf8')) } catch {}
 const db = new DatabaseSync(DB, { readOnly: true });
 
 const bills = db.prepare(
@@ -62,9 +70,36 @@ for (const p of spec.picked) {
     series: vals.map(v => [v.prd, v.val])
   });
 }
+/* ── 손으로 준 값 → 결과 노드 ──
+   창고를 안 거치므로 폐지 여부·시계열 길이는 여기서 직접 본다. */
+let handN = 0;
+for (const h of (hand.stats || [])) {
+  const v = (h.values || []).filter(x => x && x[0] && x[1] != null && x[1] !== '');
+  if (v.length < 10) { rejected.push([h.id, `값이 ${v.length}개 해뿐이다 (10개 이상이라야 추세를 말할 수 있다)`]); continue }
+  const dead = (h.keys || []).filter(k => bills.filter(b => b.includes(k)).length < MIN_HIT);
+  if (dead.length) { rejected.push([h.id, `핵심어가 죽었다: ${dead.join(', ')}`]); continue }
+  if (!h.srcUrl) { rejected.push([h.id, '출처 URL 이 없다 — 규칙 7']); continue }
+  const f = v[0], l = v[v.length - 1];
+  const u = h.unit || '';
+  const num = x => Number(String(x).replace(/,/g, ''));
+  const fmt = x => num(x).toLocaleString('ko-KR');
+  const times = (num(f[1]) > 0) ? (num(l[1]) / num(f[1])).toFixed(2) : null;
+  const cap = `${l[0]}년 ${fmt(l[1])}${u} · ${f[0]}년에는 ${fmt(f[1])}${u}이었습니다` +
+    (times ? ` — ${Number(l[0]) - Number(f[0])}년 만에 ${times}배` : '') +
+    `. ${v.length}개 해를 ${h.srcName} 표에서 그대로 옮겼습니다.`;
+  nodes.push({
+    id: h.id, lab: h.lab, big: `${fmt(l[1])}${u}`, cap, yr: String(l[0]),
+    cats: h.cats || [], keys: h.keys || [],
+    src: `출처 · ${h.srcName}${h.srcPage ? ' · ' + h.srcPage : ''}`,
+    url: h.srcUrl,
+    series: v.map(x => [x[0], String(num(x[1]))]),
+    hand: 1
+  });
+  handN++;
+}
 db.close();
 
-console.log(`골라 넣은 지표 ${spec.picked.length}개 → 결과 노드 ${nodes.length}개`);
+console.log(`골라 넣은 지표 ${spec.picked.length}개 · 손으로 준 통계 ${(hand.stats||[]).length}개 → 결과 노드 ${nodes.length}개 (그중 손 ${handN}개)`);
 nodes.forEach(n => console.log(`  ${n.lab}\n      ${n.cap}\n      분야 ${n.cats.join(',') || '(비움)'} · 핵심어 ${n.keys.join(' ')}`));
 if (rejected.length) { console.log('\n  거부한 것:'); rejected.forEach(([id, why]) => console.log(`   · ${id} — ${why}`)) }
 if (spec.notFound && spec.notFound.length) {
@@ -80,6 +115,7 @@ const q = s => "'" + String(s).replace(/\\/g, '\\\\').replace(/'/g, "\\'").repla
 const js = nodes.map(n =>
   `{id:${q(n.id)},t:'result',auto:1,side:'gold',lab:${q(n.lab)},big:${q(n.big)},cap:${q(n.cap)},` +
   `yr:${q(n.yr)},keys:[${n.keys.map(q).join(',')}],cats:[${n.cats.map(q).join(',')}],` +
+  (n.hand ? 'hand:1,' : '') +
   `tip:${q(n.cap.slice(0, 110))},body:${q(n.cap)},src:${q(n.src)},url:${q(n.url)},` +
   `series:[${n.series.map(s => `[${q(s[0])},${q(s[1])}]`).join(',')}]}`).join('\n,');
 

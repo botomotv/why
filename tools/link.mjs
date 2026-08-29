@@ -234,7 +234,9 @@ const nodes = [...html.matchAll(/\{id:'([^']+)',t:'result'[\s\S]{0,400}?lab:'([^
        그건 사람이 확인하고 넣는 값이라 근거가 있다. */
     const wide = own;
     const WIDENED = false;
-    return { id: m[1], lab: m[2], yr: +m[3], keys: wide, ownKeys: own, cats };
+    /* series 가 있으면 첫 해를 함께 읽는다 — 그 노드가 말하는 기간의 시작이다 */
+    const sm = /series:\[\['(\d{4})'/.exec(html.slice(m.index, m.index + 2600));
+    return { id: m[1], lab: m[2], yr: +m[3], yrFrom: sm ? +sm[1] : 0, keys: wide, ownKeys: own, cats };
   });
 
 /* ── 관문 ── */
@@ -248,7 +250,15 @@ for (const nd of nodes) {
   for (const c of nd.cats) for (const x of (cc[c] || [])) cs.add(x);
   for (const b of bills) {
     const ok1 = cs.has(b.cm);
-    const ok2 = Math.abs(b.y - nd.yr) <= YEARS;
+    /* ── **시계열 결과는 한 해가 아니라 기간이다** ──
+       「최저임금 시급 1만원 넘음」은 yr 이 2026 이지만 2015~2026 의 변화를 말한다.
+       그 한 해로만 재면 2023~2029 에 공포된 최저임금법이 없어서 **아무 법에도 안 이어졌다** —
+       실제로 최저임금법의 마지막 공포는 2018년이고, 액수는 법이 아니라 **매년 고시**로 정한다.
+       시계열이 있는 노드는 그 기간 전체(첫 해~마지막 해)에 ±YEARS 를 준다.
+       **넓히는 게 아니라 그 노드가 말하는 시기를 제대로 재는 것이다** —
+       시계열이 없는 노드는 예전과 똑같이 yr 하나에 ±YEARS 다. */
+    const y0 = (typeof nd.yrFrom === 'number' && nd.yrFrom) ? nd.yrFrom : nd.yr;
+    const ok2 = (b.y >= y0 - YEARS) && (b.y <= nd.yr + YEARS);
     const key = nd.keys.find(k => b.nm.includes(k));
     if (ok1) gate.g1++;
     if (ok2) gate.g2++;

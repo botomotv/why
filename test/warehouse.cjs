@@ -510,12 +510,23 @@ db.close();
           .map(m => ({ id: m[1], yr: +m[2],
                        keys: m[3].split(',').map(x => x.replace(/'/g, '').trim()).filter(Boolean) }));
 
+        /* ── **관문을 여기서 다시 계산하지 않는다** ──
+           전에는 `Math.abs(b.y - nd.yr) <= 3` 으로 2관문을 **베껴 썼다.**
+           그런데 link.mjs 는 시계열이 있는 노드에 기간(첫 해~마지막 해) ±3년을 쓴다 —
+           「최저임금 시급 1만원 넘음」(2015~2026)이 그렇다.
+           베껴 쓴 검사는 그 규칙을 몰라서 **실제로 1건이 붙었는데 0건이라고 WARN 했다.**
+           공식을 두 벌 두면 갈라진다. **도구가 실제로 만든 것(창고 link 표)을 센다.** */
+        const linkCnt = {};
+        /* 이 시점에는 위에서 쓰던 핸들이 닫혀 있다 — 여기서 다시 연다 */
+        const wl = new DatabaseSync(WH, { readOnly: true });
+        for (const r of wl.prepare("SELECT from_id, to_id FROM link WHERE rule LIKE 'topic_by%'").all()) {
+          linkCnt[r.to_id] = (linkCnt[r.to_id] || 0) + 1;
+          linkCnt[r.from_id] = (linkCnt[r.from_id] || 0) + 1;
+        }
+        wl.close();
         const zero = [], counts = [];
         for (const nd of nodes) {
-          const cs = new Set();
-          for (const c of (catOf[nd.id] || [])) for (const x of (cc[c] || [])) cs.add(x);
-          const n = nd.keys.length ? bills.filter(b =>
-            cs.has(b.cm) && Math.abs(b.y - nd.yr) <= 3 && nd.keys.some(k => b.nm.includes(k))).length : 0;
+          const n = linkCnt[nd.id] || 0;
           counts.push(n);
           if (!n) zero.push(nd.id);
         }

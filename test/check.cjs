@@ -424,7 +424,13 @@ const TKN = { result:'결과', bill:'법·정책', person:'인물', party:'정�
   // 10. official2 링크 검증 (규칙 2)
   //     검색 결과에 URL 이 떴다는 것만으로는 출처가 아니다. 실제로 열려야 출처다.
   //     오프라인이면 검사를 건너뛰고 그 사실을 분명히 출력한다 (조용히 PASS 하지 않는다).
+  /* ── **손으로 넣은 통계의 출처도 여기서 함께 연다** (검사 53) ──
+     값을 사람이 옮겨 적은 노드(`hand:1`)는 우리가 만든 게 아니라 옮긴 것이다.
+     그 말이 참이려면 **그 페이지가 실제로 열려야 한다.**
+     안 열리면 "출처가 있다" 는 표시만 남고 확인할 방법이 없어진다 — 규칙 7 이 겉으로만 지켜진다.
+     지표누리에서 810개 중 334개가 폐지된 통계표였던 것과 같은 종류의 사고다. */
   const linkTargets = [];
+  N.forEach(n => { if (n.hand && n.url) linkTargets.push({ id: n.id, lab: n.lab, url: String(n.url), hand: 1 }) });
   N.forEach(n => (n.official2 || []).forEach((r, k) => {
     const u = String(r[1] || '');
     if (u) linkTargets.push({ id: n.id, lab: n.lab, title: String(r[0] || ''), url: u, k });

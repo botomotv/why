@@ -2798,6 +2798,70 @@ const TKN = { result:'결과', bill:'법·정책', person:'인물', party:'정�
     }
   }
 
+  /* ── 54. 뒤로 — 한 칸씩 되돌아간다 ──
+     결과 → 법 → 판례 로 파고들면 되돌아올 길이 있어야 한다.
+     '처음으로' 는 전부 초기화라서 파고든 길을 한 칸씩 되짚을 수 없다.
+
+     두 가지를 본다. 둘 다 **사람이 실제로 하는 짓**이다:
+       ① 세 번 누르고 세 번 뒤로 → 처음 상태로 돌아오나
+       ② 뒤로 갈 게 없으면 버튼이 숨나 (눌러도 아무 일 없는 버튼을 두지 않는다)
+
+     ②를 빼면 안 된다 — 버튼이 늘 보이면 사람이 누르고 아무 일도 안 일어난다.
+     그건 고장난 것과 구별되지 않는다. */
+  {
+    const dm = boot(1440, 900);
+    await new Promise(r => setTimeout(r, 1400));
+    const r = dm.window.eval(`(function(){
+      var t=0; while(alpha>LAY_STOP&&t<600){tick();t++}
+      var b=document.getElementById('backBtn');
+      if(!b)return {no:'뒤로 버튼(#backBtn)이 없다'};
+      if(typeof navHist==='undefined')return {no:'이력(navHist)이 없다'};
+      var st=[{hidden:b.hidden,hist:navHist.length,focus:focus}];
+      /* 파고드는 길을 흉내 낸다 — 결과 → 그 이웃 → 또 그 이웃 */
+      var c=A.filter(function(n){return n.t==='result'&&adj[n.id]&&adj[n.id].length>1});
+      if(c.length<1)return {no:'누를 결과 노드가 없다'};
+      var chain=[c[0].id], seen={}; seen[c[0].id]=1;
+      for(var k=0;k<2;k++){
+        var cur=chain[chain.length-1], nx=null;
+        (adj[cur]||[]).forEach(function(l){ var o=l[0]===cur?l[1]:l[0];
+          if(!nx&&!seen[o]&&map[o]){nx=o} });
+        if(!nx)break; seen[nx]=1; chain.push(nx);
+      }
+      if(chain.length<3)return {no:'세 칸 파고들 길이 없다 (이웃이 모자란다)'};
+      var clicked=[];
+      chain.forEach(function(id){ setFocus(id); clicked.push({focus:focus,hist:navHist.length,hidden:b.hidden}) });
+      /* 버튼을 **실제로 누른다.** goBack() 을 직접 부르면 버튼이 안 걸려 있어도 통과한다. */
+      var backs=[];
+      for(var i=0;i<3;i++){ b.onclick&&b.onclick(); backs.push({focus:focus,hist:navHist.length,hidden:b.hidden}) }
+      /* 이력이 빈 뒤에 한 번 더 눌러도 아무 일 없어야 하고, 그때 버튼은 숨어 있어야 한다 */
+      var wasHidden=b.hidden; b.onclick&&b.onclick();
+      return {st0:st[0], clicked:clicked, backs:backs, endFocus:focus, endHist:navHist.length,
+              endHidden:b.hidden, emptyHidden:wasHidden, chain:chain.length};
+    })()`);
+    dm.window.close();
+    if (!r || r.no) F(`54. ${(r && r.no) || '못 쟀다'}`);
+    else {
+      console.log(`54. 뒤로  처음 [숨음 ${r.st0.hidden} · 이력 ${r.st0.hist}] → ` +
+        `세 번 누름 [이력 ${r.clicked.map(c => c.hist).join('→')}] → ` +
+        `세 번 뒤로 [이력 ${r.backs.map(c => c.hist).join('→')}] · 끝 초점 ${r.endFocus === null ? '없음' : r.endFocus}`);
+      if (!r.st0.hidden)
+        F('54. 처음부터 뒤로 갈 게 없는데 버튼이 보인다. 눌러도 아무 일 없는 버튼을 두지 않는다');
+      if (r.st0.focus !== null) W('54. 처음부터 초점이 켜져 있다 — 검사 기준이 흔들린다');
+      if (r.clicked[r.clicked.length - 1].hist !== 3)
+        F(`54. 세 번 눌렀는데 이력이 ${r.clicked[r.clicked.length - 1].hist}칸이다. 한 번 누를 때마다 한 칸이어야 한다`);
+      if (r.clicked.some(c => c.hidden))
+        F('54. 눌러서 파고들었는데 뒤로 버튼이 숨어 있다');
+      if (r.endFocus !== null)
+        F(`54. 세 번 누르고 세 번 뒤로 했는데 처음 상태가 아니다 (초점 ${r.endFocus} 가 남았다)`);
+      if (r.endHist !== 0)
+        F(`54. 세 번 뒤로 했는데 이력이 ${r.endHist}칸 남았다`);
+      if (!r.emptyHidden)
+        F('54. 뒤로 갈 게 없는데 버튼이 안 숨는다');
+      if (!r.endHidden)
+        F('54. 이력이 빈 뒤에도 버튼이 보인다');
+    }
+  }
+
   /* ── 요약 ── */
   console.log('\n' + '─'.repeat(50));
   console.log('노드 진영 분포:', JSON.stringify(bySide));

@@ -584,6 +584,10 @@ body.popfull .pexp .pex-i{transform:rotate(180deg)}
 /* '· OO 보는 중' 은 쓰지 않는다. 무엇을 보고 있는지는 필터가 노랗게 켜져 있어 알 수 있고,
    알약이 길어지면 지도를 그만큼 더 가린다. */
 .ub em{display:none}
+/* '뒤로' 는 '처음으로' 보다 약하게. 되돌리는 폭이 작으니 눈에도 작아야 한다.
+   다만 **손가락으로 누를 크기**는 지킨다 — .ub 의 padding 12px 20px 을 그대로 쓴다. */
+.ub-back{border-color:var(--line);background:rgba(22,24,28,.92);color:var(--t1)}
+.ub-back span{color:var(--t2)}
 .ub span{font-size:15.5px}
 .ub:hover:not(:disabled){background:#332C1F;border-color:var(--gold);transform:translateY(-1px)}
 .ub:active:not(:disabled){transform:translateY(0)}
@@ -1023,7 +1027,12 @@ body.hasundo .rolebar{top:232px;width:calc(100vw - 24px);max-height:96px;overflo
   /* ③ '처음으로' 알약이 지도를 가렸다. 아이콘 + 짧은 글자만 남긴다.
      무엇을 보고 있는지는 필터 칩이 노랗게 켜져 있어 이미 알 수 있다. */
   .undo{margin-top:5px}
-  .ub{font-size:12.5px;padding:5px 10px;gap:5px;border-radius:8px}
+  .ub{font-size:12.5px;padding:5px 10px;gap:5px;border-radius:8px;position:relative}
+  /* 폰에서는 알약을 작게 만든다 — 크면 지도를 그만큼 더 가린다. 그런데 실측 높이가
+     **31px** 이라 손가락으로 누르기엔 작다 (44px 이 통용되는 하한이다).
+     그래서 **보이는 크기는 그대로 두고 누를 수 있는 자리만 넓힌다.**
+     알약을 키우면 지도를 가리고, 안 키우면 못 누른다 — 둘 다 피하는 길이다. */
+  .ub::after{content:'';position:absolute;left:0;right:0;top:50%;transform:translateY(-50%);height:44px}
   .ub span{font-size:13.5px}
 
 }
@@ -1103,6 +1112,9 @@ body.hasundo .rolebar{top:232px;width:calc(100vw - 24px);max-height:96px;overflo
     <span class="lgi lgi-x"><i class="lg lg-auto"></i>점선은 자동</span>
   </div>
   <div class="undo">
+    <!-- ← 뒤로 · 한 칸씩. '처음으로' 와 나란히 두되 왼쪽이다 —
+         읽는 순서가 곧 되돌아가는 순서다 (한 칸 → 전부). -->
+    <button class="ub ub-back" id="backBtn" hidden><span>←</span> <b>뒤로</b></button>
     <button class="ub" id="resetAll" hidden><span>↺</span> <b id="resetLab">처음으로</b></button>
   </div>
 </div>
@@ -14123,6 +14135,54 @@ function renderMList(){
     delete map[id];delete adj[id];delete REFS[id];
     rebuildLinks();setAngles();reheat(0.6);renderMList();
     if(focus===id)closePop()}})}
+/* ===== 뒤로 =====
+   결과 → 법 → 판례 로 파고들었을 때 **한 칸씩** 돌아온다.
+   '처음으로' 는 전부 초기화이고 이건 한 칸이다.
+
+   ── 무엇을 쌓나 ──
+   초점이 **실제로 바뀔 때만** 쌓는다. 같은 노드를 두 번 누르면 이력이 늘지 않는다 —
+   그러면 '뒤로' 를 눌러도 화면이 그대로여서 "눌러도 아무 일 없다" 가 된다.
+
+   ── 브라우저 뒤로가기 ──
+   그대로 두면 **사이트를 나가버린다.** 초점을 켤 때마다 history 에 한 칸을 쌓고
+   popstate 에서 우리 '뒤로' 를 부른다. 첫 진입에도 한 칸을 깔아 두어
+   맨 처음에서 뒤로 가도 바로 나가지 않게 한다. */
+var navHist = [];
+var backBtn = document.getElementById('backBtn');
+var navSkip = false;          /* 뒤로 가는 중에는 이력을 안 쌓는다 */
+function syncBack(){ if(backBtn) backBtn.hidden = navHist.length === 0 }
+function navSentinel(){ try{ history.pushState({why:navHist.length}, '') }catch(e){} }
+function navPush(prev){
+  if(navSkip) return;
+  if(navHist.length && navHist[navHist.length-1] === prev) return;
+  var was = navHist.length;
+  navHist.push(prev);
+  if(navHist.length > 60) navHist.shift();
+  /* **칸은 한 개만 깔아 둔다.** 누를 때마다 쌓으면, 화면의 '뒤로' 로 되돌아온 뒤에도
+     그 칸들이 남아서 브라우저 뒤로가기를 눌러도 아무 일이 안 일어난다 — 사람이 갇힌다. */
+  if(!was) navSentinel();
+  syncBack();
+}
+function goBack(){
+  if(!navHist.length) return false;
+  var prev = navHist.pop();
+  navSkip = true;
+  try{ if(prev && map[prev]) setFocus(prev); else closePop() }
+  finally{ navSkip = false }
+  syncBack();
+  return true;
+}
+if(backBtn) backBtn.onclick = function(){ goBack() };
+window.addEventListener('popstate', function(){
+  /* 브라우저 뒤로가기 = 지도에서 한 칸 뒤로. 그래야 파고들다가 뒤로가기를 눌렀을 때
+     사이트를 통째로 나가버리지 않는다.
+
+     **되돌아갈 게 남았을 때만 칸을 다시 깐다.** 늘 깔면 뒤로가기로 영영 못 나간다 —
+     나가지 못하게 막는 것은 되돌려 주는 것이 아니라 가두는 것이다. */
+  if(goBack() && navHist.length) navSentinel();
+});
+try{ history.replaceState({why:0}, '') }catch(e){}
+
 /* ===== 처음으로 =====
    필터·검색·포커스 중 하나라도 걸려 있으면 검색창 밑에 나타난다.
    아무것도 안 걸렸을 때는 숨어 있어서 화면을 어지럽히지 않는다. */
@@ -14155,14 +14215,24 @@ function resetAllView(){
     b.setAttribute('aria-pressed',b.dataset.k==='all'?'true':'false')});
   syncSide();syncKind();refilter();setAngles();reheat(0.9);
   var qq=document.getElementById('q');if(qq){qq.value='';if(typeof qClose==='function')qClose()}
+  /* 전부 초기화이므로 이력도 비운다. 안 그러면 '처음으로' 뒤에 '뒤로' 가 남아
+     방금 지운 상태로 되돌아간다 — '처음으로' 라는 말과 어긋난다. */
+  navHist.length=0;syncBack();
   refitWhenSettled(true);syncReset()}
 if(resetBtn)resetBtn.onclick=resetAllView;
 /* 상태가 바뀌는 모든 길목에 syncReset 을 건다 */
 ['setKind','setSide','setCat','setFocus','closePop'].forEach(function(fn){
   var orig=window[fn];
   if(typeof orig!=='function')return;
-  window[fn]=function(){var r=orig.apply(this,arguments);syncReset();return r}});
-syncReset();
+  window[fn]=function(){
+    /* **바뀌기 전** 초점을 담는다. 그게 '한 칸 뒤' 다.
+       초점이 실제로 달라졌을 때만 쌓는다 — 같은 것을 두 번 눌러도 이력이 늘면
+       '뒤로' 를 눌렀을 때 화면이 그대로여서 눌러도 아무 일 없는 버튼이 된다. */
+    var was=(fn==='setFocus'||fn==='closePop')?focus:null;
+    var r=orig.apply(this,arguments);
+    if((fn==='setFocus'||fn==='closePop') && focus!==was) navPush(was);
+    syncReset();return r}});
+syncReset();syncBack();
 window.addEventListener('keydown',function(e){
   if(e.key==='Escape'&&activeFilterLabel())resetAllView()});
 

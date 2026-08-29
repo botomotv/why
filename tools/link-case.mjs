@@ -174,22 +174,31 @@ for (const c of cases) {
       ev: `${KIND[c.kind]} ${c.case_no}` });
     break;                              /* 가장 긴 이름 하나만. 여러 개 붙이면 같은 말이 늘어난다 */
   }
-  /* B · 사건명에 결과의 핵심어가 있고 시기가 겹친다 */
-  for (const r of results) {
-    if (!r.wide.length || Math.abs(c.yr - r.yr) > YEARS) continue;
-    const k = r.wide.find(x => x.length >= 2 && nm.includes(x));
-    if (!k) continue;
-    const n = add(c); hit = true; b++;
-    links.push({ from: n.id, to: r.id, rule: RULE_B,
-      why: `사건 이름에 '${k}' 이 있고 시기가 ${Math.abs(c.yr - r.yr) === 0 ? '같은 해' : Math.abs(c.yr - r.yr) + '년 차이'}입니다`,
-      ev: `${KIND[c.kind]} ${c.case_no}` });
-  }
+  /* ── B · 사건명에 결과의 핵심어 — **없앴다** ──
+     「중국 국적 81%」(외국인 유권자 중 중국 국적 비율)에 74개가 붙었는데
+     **69개가 이 관문으로 들어왔고 전부 무관했다:**
+       · 외국인투자세액감면 대상이 아님
+       · 베트남에 둔 고정사업장 외국납부세액공제
+       · 마약류관리법위반 · 출입국관리법위반
+       · 성매매알선등행위처벌법위반 · 출입국관리법위반
+     `외국인` 이라는 **글자**가 사건명에 있으면 붙었다. 세금 판례와 형사 판례가
+     유권자 비율에 붙은 것이다. **글자가 같은 것과 주제가 같은 것은 다르다.**
+
+     ── 그리고 구조 자체가 틀렸다 ──
+     판례는 **법에 붙어야지 통계에 붙는 것이 아니다.** 판결은 그 법을 어떻게 적용할지
+     정한 것이고, 통계 숫자를 만든 것이 아니다. 그래서 길을 하나로 한다:
+
+         결과 —(법 관문: 분야·시기·핵심어)→ 법 —(관문 C: 참조조문)→ 판례·헌재
+
+     관문 C 는 **재판부가 스스로 "이 조문을 심판했다" 고 적은 것**이라 근거가 세다.
+     관문 A(사건명에 법 이름이 그대로)도 법으로만 간다.
+     결과 카드에는 법 3~5개가 남고, 그 법을 누르면 판례가 보인다. */
   if (!hit) none++;
 }
 const nl = n => n.toLocaleString();
 console.log(`  C 조문이 가리키는 법        ${nl(cc).padStart(8)}건   ← 가장 센 근거`);
 console.log(`  A 사건명에 법 이름          ${nl(a).padStart(8)}건`);
-console.log(`  B 핵심어 + 시기 ±${YEARS}년      ${nl(b).padStart(8)}건`);
+console.log(`  B 핵심어 + 시기 ±${YEARS}년      ${nl(b).padStart(8)}건   ← 없앴다 (결과에 직접 잇지 않는다)`);
 console.log(`  ────────────────────────────────────`);
 console.log(`  올라간 사건 ${nl(nodes.size)} / ${nl(cases.length)}  ·  선 ${nl(links.length)}개`);
 console.log(`  어느 관문도 못 지난 사건 ${nl(none)} (${(none / cases.length * 100).toFixed(1)}%) — 안 올린다`);

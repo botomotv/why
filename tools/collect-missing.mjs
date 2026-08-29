@@ -48,6 +48,12 @@ const win = dom.window;
 const need = win.N.filter(n => n.t === 'bill' && !(win.tipOf ? win.tipOf(n) : n.tip))
   .map(n => ({ id: n.id, lab: n.lab, arts: (n.arts || []).length }));
 dom.window.close();
+/* link.mjs 가 "설명이 없어 못 올렸다" 고 남긴 것도 함께 받는다 —
+   그 법들은 노드가 아예 없어서 위 목록(index.html)에는 안 잡힌다. */
+try {
+  const nd = JSON.parse(fs.readFileSync(path.join(ROOT, 'db', 'law_need_tip.json'), 'utf8'));
+  for (const lab of (nd.laws || [])) if (!need.some(x => x.lab === lab)) need.push({ id: '(미등재)', lab, arts: 0 });
+} catch {}
 console.log(`한 줄 설명이 없는 법 ${need.length}개 — 이것만 다시 받는다\n`);
 if (!need.length) process.exit(0);
 

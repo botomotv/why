@@ -125,6 +125,21 @@ try { easy = JSON.parse(fs.readFileSync(path.join(ROOT, 'db', 'law_easy.json'), 
    **미완성을 보여주는 것**이라 안 된다. 「개별소비세법」처럼 이름 안에 답이 있는 것은
    이름을 풀어 채우고, `nameTip` 을 붙여 **그것이 원문이 아님을 화면에서 밝힌다.**
    규칙이 못 푼 2개(에너지법·형법)는 `drop` 에 들어가고 지도에 안 올린다. */
+/* ── **제1조(목적) 원문** ──
+   collect-missing 이 받아 창고(law_purpose)에 담는데 **여기서 안 읽고 있었다.**
+   그래서 목적 조문을 7개 새로 받고도 법 9개가 "설명이 없다" 며 지도에서 빠졌고,
+   그 법을 가리키던 결과 2개가 고립됐다.
+   순서는 이렇다: **쉬운 말(사람이 쓴 것) → 제1조 원문 → 이름 풀기.**
+   원문은 어렵지만 "확인 중" 보다 낫고, 화면에 원문이라고 밝힌다. */
+let purpose = {};
+try {
+  const pdb = new DatabaseSync(DB, { readOnly: true });
+  for (const r of pdb.prepare('SELECT law_nm, purpose FROM law_purpose').all()) {
+    const t = String(r.purpose || '').replace(/^제1조\([^)]*\)\s*/, '').trim();
+    if (t.length > 10) purpose[r.law_nm] = t.length > 220 ? t.slice(0, 219) + '…' : t;
+  }
+  pdb.close();
+} catch {}
 let nameTip = {}, nameDrop = new Set();
 try {
   const nt = JSON.parse(fs.readFileSync(path.join(ROOT, 'db', 'law_name_tip.json'), 'utf8'));
@@ -291,10 +306,12 @@ for (const g of [...groups.values()].sort((a, b) => a.law.localeCompare(b.law)))
       /* **'무슨 법인지' 가 없으면 비운다.** 「2015~2025년 · 11번 고침」 만으로는
          국세기본법이 뭔지 알 수 없고, 그 카드는 의미가 없다.
          법 이름에서 유추하지 않는다 — 그건 지어내는 것이다 (원칙 0-B). */
-      tip: (easy[g.law] && easy[g.law].what) || nameTip[g.law] || '',
-      /* 이름을 풀어 쓴 것이면 표시해 둔다 — 화면이 원문과 다르게 밝힌다 */
-      nameTip: (!(easy[g.law] && easy[g.law].what) && nameTip[g.law]) ? 1 : 0,
+      tip: (easy[g.law] && easy[g.law].what) || purpose[g.law] || nameTip[g.law] || '',
+      /* 어디서 온 말인지 표시해 둔다 — 화면이 그렇게 밝힌다 */
+      nameTip: (!(easy[g.law] && easy[g.law].what) && !purpose[g.law] && nameTip[g.law]) ? 1 : 0,
+      lawTip: (!(easy[g.law] && easy[g.law].what) && purpose[g.law]) ? 1 : 0,
       body: ((easy[g.law] && easy[g.law].what) ? easy[g.law].what + ' '
+             : purpose[g.law] ? purpose[g.law] + ' '
              : (nameTip[g.law] ? nameTip[g.law] + ' ' : '')) +
             `${span} 사이에 ${g.items.length}번 고쳤습니다.`,
       /* 쉬운 말과 원문을 **따로** 담는다. 어느 쪽이 법제처 문장이고
@@ -399,12 +416,24 @@ const q = s => "'" + String(s)
 /* **한 줄 설명이 끝내 없는 법은 안 올린다.** "확인 중" 이 화면에 남는 것보다 낫다. */
 const dropped = [...lawNodes.values()].filter(n => !n.tip || nameDrop.has(n.id));
 dropped.forEach(n => lawNodes.delete(n.lab));
-if (dropped.length) console.log(`  한 줄 설명이 없어 지도에 안 올린 법 ${dropped.length}개: ${dropped.map(n => n.lab).join(', ')}`);
+if (dropped.length) {
+  console.log(`  한 줄 설명이 없어 지도에 안 올린 법 ${dropped.length}개: ${dropped.map(n => n.lab).join(', ')}`);
+  /* ── **뺀 것을 파일로 남긴다** ──
+     이 법들은 노드가 아예 안 만들어지므로 index.html 을 훑는 도구(collect-missing ·
+     name-explain)가 **찾을 수가 없다.** 그래서 "설명이 없어서 뺐다 → 설명을 받을 수 없다"
+     는 고리에 갇힌다. 실제로 결과 노드 2개가 그 법을 가리켜 **고립**됐다.
+     여기 남겨 두면 다음에 그 도구들이 이어서 받는다. */
+  fs.writeFileSync(path.join(ROOT, 'db', 'law_need_tip.json'),
+    JSON.stringify({ _: ['한 줄 설명이 없어 지도에 못 올린 법. tools/link.mjs 가 쓴다.',
+      '노드가 안 만들어지므로 index.html 로는 못 찾는다 — 여기서 찾아 받는다.'],
+      laws: dropped.map(n => n.lab) }, null, 2), 'utf8');
+}
 
 const nodeJs = [...lawNodes.values()].map(n =>
   `{id:${q(n.id)},t:'bill',auto:1,side:${q(n.side)},kind:${q(n.kind)},st:${q(n.st)},` +
   `lab:${q(n.lab)},title:${q(n.title)},yr:${q(n.yr)},off:${q(n.off)},tip:${q(n.tip)},` +
   (n.nameTip ? 'nameTip:1,' : '') +
+  (n.lawTip ? 'lawTip:1,' : '') +
   `body:${q(n.body)},cats:[${n.cats.map(q).join(',')}],src:${q(n.src)},` +
   (n.plain ? `plain:${q(n.plain)},` : '') +
   (n.presCount && n.presCount.length

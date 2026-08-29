@@ -75,7 +75,17 @@ for (const p of spec.picked) {
 let handN = 0;
 for (const h of (hand.stats || [])) {
   const v = (h.values || []).filter(x => x && x[0] && x[1] != null && x[1] !== '');
-  if (v.length < 10) { rejected.push([h.id, `값이 ${v.length}개 해뿐이다 (10개 이상이라야 추세를 말할 수 있다)`]); continue }
+  /* ── **개수가 아니라 기간으로 본다** ──
+     "10개 해 이상" 은 지표누리 **자동 수집**용 규칙이었다. 거기서는 연속 값이 오므로
+     개수 = 기간이다. 그런데 손으로 주는 값은 드문드문 뽑는다 —
+     자살률 2015·2018·2020·2022·2023 은 값이 5개지만 **기간은 8년**이다.
+     원래 의도는 "3~4년짜리는 추세를 못 보여주고 우연을 추세로 읽게 만든다" 였다.
+     그 의도를 지키는 것은 개수가 아니라 **기간**이다. 재는 대상이 바뀌면 상수도 다시 잰다.
+     다만 두 점만으로 선을 긋지 않게 값 4개 이상은 요구한다. */
+  const span = v.length ? (Number(v[v.length - 1][0]) - Number(v[0][0])) : 0;
+  if (v.length < 4 || span < 8) {
+    rejected.push([h.id, `값 ${v.length}개 · 기간 ${span}년 — 값 4개 이상이고 기간 8년 이상이라야 추세를 말할 수 있다`]);
+    continue }
   const dead = (h.keys || []).filter(k => bills.filter(b => b.includes(k)).length < MIN_HIT);
   if (dead.length) { rejected.push([h.id, `핵심어가 죽었다: ${dead.join(', ')}`]); continue }
   if (!h.srcUrl) { rejected.push([h.id, '출처 URL 이 없다 — 규칙 7']); continue }
@@ -83,9 +93,22 @@ for (const h of (hand.stats || [])) {
   const u = h.unit || '';
   const num = x => Number(String(x).replace(/,/g, ''));
   const fmt = x => num(x).toLocaleString('ko-KR');
-  const times = (num(f[1]) > 0) ? (num(l[1]) / num(f[1])).toFixed(2) : null;
-  const cap = `${l[0]}년 ${fmt(l[1])}${u} · ${f[0]}년에는 ${fmt(f[1])}${u}이었습니다` +
-    (times ? ` — ${Number(l[0]) - Number(f[0])}년 만에 ${times}배` : '') +
+  /* ── 변화를 **읽히는 말**로 적는다 ──
+     늘어난 것을 "1.85배" 라고 하는 건 자연스럽지만, 줄어든 것을 "0.64배" 라고 하면
+     방향이 안 읽힌다. 거의 안 변한 것(±5% 안)에 배수를 붙이면 없는 변화를 말하게 된다.
+     **숫자를 바꾸는 게 아니라 같은 숫자를 읽히게 쓰는 것이다.** */
+  const yrs = Number(l[0]) - Number(f[0]);
+  const a = num(f[1]), z = num(l[1]);
+  let move = '';
+  if (a > 0 && yrs > 0) {
+    const k = z / a;
+    if (k >= 1.05) move = ` — ${yrs}년 만에 ${k.toFixed(2)}배`;
+    else if (k <= 0.95) move = ` — ${yrs}년 만에 ${Math.round((1 - k) * 100)}% 줄었습니다`;
+    else move = ` — ${yrs}년 동안 거의 그대로입니다`;
+  }
+  /* 받침에 따라 조사를 고른다 — "9.2%이었습니다" 는 어색하다 */
+  const tail = /[0-9%]$/.test(`${fmt(f[1])}${u}`) ? '였습니다' : '이었습니다';
+  const cap = `${l[0]}년 ${fmt(l[1])}${u} · ${f[0]}년에는 ${fmt(f[1])}${u}${tail}` + move +
     `. ${v.length}개 해를 ${h.srcName} 표에서 그대로 옮겼습니다.`;
   nodes.push({
     id: h.id, lab: h.lab, big: `${fmt(l[1])}${u}`, cap, yr: String(l[0]),

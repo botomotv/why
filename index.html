@@ -11664,8 +11664,9 @@ function setFocus(id){
     kindF=null;sideF=null;
     if(typeof syncKind==='function')syncKind();
     if(typeof syncSide==='function')syncSide();
-    refilter();setAngles();reheat(0.85);
-    refitWhenSettled(true);
+    /* 필터를 풀어도 자리는 그대로다. setAngles()·reheat()·refitWhenSettled() 를
+       여기서 부르면 누르는 순간 지도가 통째로 다시 배치된다. */
+    refilter();
   }
   focus=id;ring={};keyRing={};energy={};roles={};
   /* ── 초점이 바뀌면 **지도에 그릴 것을 다시 고른다** ──
@@ -11718,40 +11719,12 @@ function setFocus(id){
        잘린 개수는 캔버스 배지와 카드가 계속 밝힌다. */
     focusNb={}; focusNb[id]=1;
     kept.forEach(function(l){focusNb[other(l,id)]=1});
-    /* ── 이어진 것을 **부드럽게 모은다** ──
-       각도만 옮긴다. 반지름(연도)은 그대로다 — 그게 흔들리면 시간이 거짓말이 된다.
-       좌표를 대입하지 않는다. 목표 각도만 세우고 tick 의 이징이 옮긴다
-       (전에 gatherFan 이 좌표를 직접 넣어 한 프레임에 1,600px 뛰었다).
-
-       어디로 모으나 — **안 가려진 자리의 한가운데 방향**이다.
-       위는 검색창·범례가, 옆은 카드가 덮는다. 그 자리는 실제 요소에게 물어본다. */
-    (function(){
-      var mv=(typeof mapView==='function')?mapView():{cx:W/2,cy:H/2};
-      var top=topSafePx();
-      var sx=mv.cx, sy=top+(Math.max(80,(mv.h||H)-top))/2;
-      /* 화면 한가운데 방향을 세상 좌표의 각도로 바꾼다 */
-      var wx=(sx-cam.x)/Math.max(cam.s,0.05), wy=(sy-cam.y)/Math.max(cam.s,0.05);
-      var base=Math.atan2(wy/0.86,wx);
-      var nb=kept.map(function(l){return map[other(l,id)]}).filter(Boolean);
-      /* 부채꼴로 고루 편다. 겹치면 이름표가 서로 지운다 */
-      var span=Math.PI*0.55, i0=0;
-      nb.forEach(function(o,i){
-        if(o.fixed)return;
-        var t=nb.length>1?(i/(nb.length-1)-0.5):0;
-        o.angT=base+t*span;
-        i0++;
-      });
-      /* **누른 노드 자신은 안 옮긴다.** 그것까지 움직이면 눌렀는데 도망가는 꼴이다.
-         그리고 움직임이 길어진다 — 실측 3.23초(한도 2초)였다. */
-      /* 각도를 옮기려면 물리가 돌아야 한다 — 이징은 alpha>LAY_STOP 에서만 움직인다.
-         **얼마나 오래 움직이느냐는 이 값이 정한다.** 눈대중으로 고르지 않는다:
-         alpha 는 틱마다 ALPHA_DECAY(0.021) 만큼 0 으로 다가가므로
-         멈추는 데 걸리는 틱수 = ln(LAY_STOP/a) / ln(1-ALPHA_DECAY) 다.
-           0.5 → 176틱(2.9초) · 0.3 → 152틱(2.5초) · **0.14 → 115틱(1.9초)**
-         검사 29 의 한도가 2초다 — 2초를 넘으면 사람은 "화면이 흔들린다" 고 본다.
-         이동에는 넉넉하다: 한 프레임 최대 LAY_MAX_PX(34px) 이므로 115틱이면 3,900px 다. */
-      if(typeof reheat==='function')reheat(0.14);
-    })();
+    /* ── **누르면 아무것도 안 움직인다** ──
+       전에는 이어진 것을 부채꼴로 모았다(angT). 그런데 화면에서는
+       "한두 개씩 움직이다 화면이 확대된다" 로 보였다 — 산만하다.
+       누르는 것은 **무엇이 이어졌는지 보는 일**이지 지도를 바꾸는 일이 아니다.
+       이어진 것만 밝아지고 나머지는 어두워진다. 그게 전부다.
+       움직이고 싶으면 **끈다** — 끌면 이어진 것이 고무줄처럼 따라온다(아래 dragPull). */
     Object.keys(ring).forEach(function(k){
       if(ring[k]===1)adj[k].forEach(function(l){var o=other(l,k);if(!(o in ring))ring[o]=2})})}
   mapSet=null;mapKey='';refilter();
@@ -11761,20 +11734,12 @@ function setFocus(id){
   /* A안 · 부채꼴이 자리를 잡은 뒤 카메라를 거기에 맞춘다.
      물리가 안정되기 전에 맞추면 그 뒤 노드가 더 움직여 다시 화면 밖으로 나간다.
      size() 는 카드가 열려 지도가 좁아진 뒤의 크기를 준다 — 그래서 카드에 안 가린다. */
-  if(id){
-    /* 여기서 size() 를 다시 부르던 것도 뺐다. 카드가 열려 지도가 줄어든 뒤의
-       크기를 읽으려던 것인데, 이제 줄어들지 않는다. size() 는 캔버스 크기를
-       다시 대입하는 순간 비트맵을 지운다(검사 35) — 부를 이유가 없으면 부르지 않는다.
-       부채꼴(gatherFan)도 이미 없다. */
-    refitWhenSettled(true);
-  }
+  /* **카메라도 안 움직인다.** 여기서 refitWhenSettled(true) 로 화면을 다시 맞췄는데,
+     그게 "클릭하면 화면이 확대된다" 의 정체였다. 누른 것이 화면 밖이면
+     카드의 관계 목록이 받는다 — 검사 20 이 그걸 지킨다. */
 }
 function closePop(){focus=null;ring={};roles={};hiddenEdges=0;
-  /* 닫으면 원래 자리로 돌아간다 — 목표를 지우면 이징이 제 각도(ang)로 되돌린다 */
-  N.forEach(function(n){ if(n.angT!==undefined)delete n.angT });
-  /* 켤 때와 같은 값을 쓴다. 되돌아가는 거리가 갈 때와 같으니 시간도 같아야 한다 —
-     0.5 면 2.9초라 닫아 놓고도 화면이 흔들린다. */
-  if(typeof reheat==='function')reheat(0.14);
+  /* **닫아도 아무것도 안 움직인다.** 켤 때 안 움직였으니 되돌릴 것도 없다. */
   mapSet=null;mapKey='';focusNb=null;
   if(typeof closeAllList==='function')closeAllList();
   /* 여기 있던 reheat(0.5) 도 뺐다. 부채꼴이 있던 시절에는 모아둔 노드를
@@ -12090,8 +12055,23 @@ function tick(){
      처음 온 사람에게는 화면이 계속 흔들리는 걸로 보인다.
      "살아있는 느낌" 보다 "읽을 수 있는 것" 이 우선이다. 바닥을 없앤다. */
   var floorA=0;
-  if(alpha<ALPHA_MIN&&!drag&&!focus)return false;
+  /* ── **초점만으로는 물리를 깨우지 않는다** ──
+     전에는 `!focus` 가 붙어 있어서 **누르고 있는 동안 물리가 계속 돌았다.**
+     그러면 충돌이 밀어놓았던 자리에서 각도 이징이 원래 각도로 되돌리고,
+     새로 올라온 이웃이 옆 노드를 밀어낸다 — 실측 5~7px.
+     밀려난 게 아니라 복원된 것이지만 **화면에서는 똑같이 "누르니까 움직인다"** 다.
+     끌 때(drag)는 그대로 돈다 — 그때는 움직이는 게 약속이다. */
+  if(alpha<ALPHA_MIN&&!drag)return false;
   alpha+=((drag?0.32:floorA)-alpha)*ALPHA_DECAY;
+  /* ── **누르고 있는 동안에는 좌표를 한 픽셀도 안 건드린다** ──
+     alpha 를 안 데워도 ALPHA_MIN 까지 내려가는 동안에는 물리가 계속 돌았다.
+     그 구간에서 각도 이징이 원래 각도로 되돌리고 새 이웃이 옆을 밀어내
+     **5~7px 씩 움직였다.** 조건을 하나씩 좁히는 대신 여기서 통째로 멈춘다 —
+     "누르면 아무것도 안 움직인다" 는 약속을 한 곳에서 지킨다.
+     끌 때(drag)는 그대로 돈다. 검사 53 이 양쪽을 다 잰다. */
+  if(focus&&!drag)return true;
+  /* 끄는 중이면 이어진 것이 따라온다 — **매 프레임** 이라야 고무줄처럼 이어진다 */
+  if(drag&&dragPull)pullNeighbors();
   if(alpha<floorA)alpha=floorA;
   /* ── 힘은 **배열**에 담는다. 전에는 id 를 열쇠로 한 객체였다 ──
      노드가 11,094개가 되자 매 틱 문자열 열쇠 22,188개를 새로 만들고
@@ -12227,7 +12207,11 @@ function tick(){
   /* **이징과 같은 문턱을 쓴다.** 전에는 0.008 이라 이징이 멈춘 뒤에도 충돌만
      따로 더 돌았다 — 계산으로는 1.93초에 끝나야 할 움직임이 2.25초까지 이어졌다.
      문턱이 두 개면 "언제 멈추나" 에 답이 두 개가 된다. */
-  var COLL=(alpha>LAY_STOP)?8:0;
+  /* **초점 중에는 겹침을 안 푼다.** 누르면 이웃이 새로 올라오는데,
+     그것이 기존 노드를 밀어내 5~7px 씩 움직였다 (검사 53).
+     겹침을 푸는 것은 이름표를 읽히게 하려는 것인데, **누른 순간 화면이 흔들리면
+     그게 더 안 읽힌다.** 끌 때는 돈다 — drag 가 있으면 alpha 가 살아 있다. */
+  var COLL=(alpha>LAY_STOP&&(!focus||drag))?8:0;
   /* ── 겹침 검사도 격자로 ──
      여기가 진짜 병목이었다. 모든 쌍을 **8번** 훑는다 —
      1,171개면 685,621쌍 × 8 = 550만 회다. 실측 260ms (한 틱).
@@ -12292,7 +12276,11 @@ function tick(){
   /* 충돌 해소가 밀어낸 뒤 반지름을 되돌린다. 각도는 밀린 대로 둔다.
      반지름은 연도다 — 흔들리면 연도가 거짓말이 된다. 초점일 때만이 아니라 언제나. */
   A.forEach(function(n){
-    if(n===drag||n.fixed)return;
+    /* **끌려오는 중인 이웃은 빼 둔다.** 매 틱 반지름을 되돌리면 거리가 유지되지 않아
+       "따라온다" 가 각도만 조금 도는 것으로 보인다 — 실측 13개 중 2개만 움직였다.
+       놓으면 이 표시가 사라지고 **다음 틱에 반지름이 제자리로 돌아간다** —
+       각도는 남고 연도는 지켜진다. 끄는 동안만 잠시 푸는 것이다. */
+    if(n===drag||n.fixed||n.__pulling)return;
     var R=ringR(n); if(!(R>0)||!isFinite(n.x)||!isFinite(n.y))return;
     if(n.x===0&&n.y===0)return;
     var a=Math.atan2(n.y/0.86,n.x);
@@ -12309,6 +12297,11 @@ function tick(){
    화면은 그 다음 프레임을 보여주기 때문에 **검사만 통과했다.**
    자리를 정하는 곳이 셋(fit·fitFocus·clampY)이면 셋 다 같은 것을 알아야 한다. */
 function clampY(){
+  /* **초점 중에는 카메라를 안 건드린다.** 누르면 지도에 올리는 집합이 바뀌고
+     (이웃이 올라온다) 그러면 무리 범위가 달라져 여기서 cam.ty 를 다시 계산했다.
+     실측 0.125px — 눈에는 안 보이지만 **"누르면 카메라가 안 움직인다"는 약속이 깨진다.**
+     첫 화면에서 이미 자리를 잡았으니 그대로 두면 된다. 검사 53 이 이걸 지킨다. */
+  if(focus)return;
   var pool=A.length?A:N,miny=1e9,maxy=-1e9;
   if(!pool.length)return;
   pool.forEach(function(n){miny=Math.min(miny,n.y-n.r-40);maxy=Math.max(maxy,n.y+n.r+52)});
@@ -12845,11 +12838,61 @@ function rel2(e){var b=cv.getBoundingClientRect();return [e.clientX-b.left,e.cli
    손가락은 가만히 눌러도 그보다 쉽게 흔들린다. 그래서 지도를 끌었는데
    점이 눌려 카드가 열렸다. 손가락은 마우스보다 더 흔들리므로 따로 잡는다. */
 var TAP_SLOP_MOUSE=4, TAP_SLOP_TOUCH=12, tapSlop=TAP_SLOP_MOUSE, downAt=null;
+/* ── 끌면 이어진 것이 따라온다 ──
+   **누르는 것과 끄는 것은 다르다.** 누르면 아무것도 안 움직인다(setFocus).
+   움직이고 싶으면 끈다 — 그때 이어진 것이 고무줄에 매달린 것처럼 따라온다.
+
+   ── 무엇을 유지하나 ──
+   끌 때 기록한 **원래 거리(dx·dy)** 를 목표로 삼는다. 붙지도 멀어지지도 않는다.
+   다만 tick 의 반지름 복원이 매 틱 `n.x=cos(a)*R` 을 돌리므로,
+   결과적으로 **각도만 따라오고 반지름(연도)은 그대로다.** 그게 맞다 —
+   반지름이 흔들리면 시간이 거짓말이 된다.
+
+   ── 왜 이징인가 ──
+   목표에 바로 대입하면 이웃이 손가락에 붙어 한 덩어리로 움직인다. 뻣뻣하다.
+   남은 거리의 PULL_EASE 만큼만 가면 조금 늦게 따라와 고무줄이 된다.
+
+   ── 2단계는 안 따라온다 ──
+   이웃의 이웃까지 끌면 지도의 절반이 움직인다. 화면에 선이 그려진 것(ring===1)만 따라온다. */
+var PULL_EASE = 0.18;
+var dragPull = null;
+function beginPull(n){
+  dragPull = [];
+  (adj[n.id]||[]).forEach(function(l){
+    var o = map[other(l,n.id)];
+    if(!o || o===n || o.fixed) return;
+    if(!isFinite(o.x) || !isFinite(o.y)) return;
+    o.__pulling=1;
+    dragPull.push({ n:o, dx:o.x-n.x, dy:o.y-n.y });
+  });
+}
+function pullNeighbors(){
+  if(!drag || !dragPull) return;
+  for(var i=0;i<dragPull.length;i++){
+    var p=dragPull[i], tx=drag.x+p.dx, ty=drag.y+p.dy;
+    p.n.x += (tx-p.n.x)*PULL_EASE;
+    p.n.y += (ty-p.n.y)*PULL_EASE;
+  }
+}
+/* 놓으면 **그 자리에 있는다.** 각도를 목표(ang)로 굳히지 않으면
+   tick 의 이징이 원래 각도로 되돌린다 — 놓자마자 제자리로 가는 꼴이 된다. */
+/* 놓으면 **그 자리에 있는다.** 끈 노드가 fixed 로 남는 것과 같다 —
+   **사람이 끈 결과**이지 우리가 흔든 것이 아니다. (자동으로는 반지름을 절대 안 건드린다.)
+   각도도 굳힌다. 안 그러면 이징이 원래 각도로 되돌린다. */
+function endPull(moved){
+  if(dragPull) for(var i=0;i<dragPull.length;i++){
+    var o=dragPull[i].n;
+    delete o.__pulling;
+    if(isFinite(o.x)&&isFinite(o.y)) o.ang = Math.atan2(o.y/0.86, o.x);
+    if(moved) o.fixed = true;
+  }
+  dragPull = null;
+}
 function down(px,py,isTouch){
   tapSlop=isTouch?TAP_SLOP_TOUCH:TAP_SLOP_MOUSE;
   downAt=[px,py];
   var n=at(px,py);
-  if(n){snapshot();drag=n;moved=false;cv.style.cursor='grabbing';reheat(0.34);return true}
+  if(n){snapshot();drag=n;moved=false;beginPull(n);cv.style.cursor='grabbing';return true}
   pan={x:px,y:py};panMoved=false;cv.style.cursor='grabbing';return false}
 function movedFar(px,py){
   if(!downAt)return false;
@@ -12857,7 +12900,11 @@ function movedFar(px,py){
 function move(px,py){
   if(drag){var w=toWorld(px,py);
     if(movedFar(px,py))moved=true;
-    drag.x=w[0];drag.y=w[1];reheat(0.34);return}
+    drag.x=w[0];drag.y=w[1];
+    /* 따라오기는 **매 프레임**(tick)이 한다. 여기서만 부르면 마우스 이벤트 수만큼만
+       이징이 돌아 12번 움직여도 이웃이 67px 밖에 안 왔다 — 고무줄이 아니라 뚝뚝 끊긴다.
+       끄는 동안 물리를 돌려야 tick 이 따라오기를 돌린다. */
+    reheat(0.34);return}
   if(pan){var dx=px-pan.x,dy=py-pan.y;
     if(movedFar(px,py))panMoved=true;
     /* 손가락이 1px 만 흔들려도 '사용자가 카메라를 잡았다' 로 치면 안 된다.
@@ -12874,10 +12921,10 @@ function up(){
   if(!moved&&!panMoved&&downAt&&badgeRect&&focus){
     var bx=downAt[0], by=downAt[1];
     if(bx>=badgeRect[0]&&bx<=badgeRect[0]+badgeRect[2]&&by>=badgeRect[1]&&by<=badgeRect[1]+badgeRect[3]){
-      drag=null;pan=null;panMoved=false;downAt=null;cv.style.cursor='default';
+      drag=null;dragPull=null;pan=null;panMoved=false;downAt=null;cv.style.cursor='default';
       openAllList(focus); return}
   }
-  if(drag){if(moved)drag.fixed=true;else setFocus(drag.id)}
+  if(drag){ if(moved){drag.fixed=true;endPull(1)} else {endPull(0);setFocus(drag.id)} }
   else if(pan&&!panMoved)closePop();
   drag=null;pan=null;panMoved=false;downAt=null;cv.style.cursor='default'}
 cv.addEventListener('mousedown',function(e){e.preventDefault();var p=rel2(e);down(p[0],p[1])});
@@ -12909,9 +12956,9 @@ cv.addEventListener('touchmove',function(e){
 },{passive:false});
 cv.addEventListener('touchend',function(e){
   e.preventDefault();
-  if(e.touches.length===0){if(!pinch)up();pinch=null;drag=null;pan=null;downAt=null}
+  if(e.touches.length===0){if(!pinch)up();pinch=null;drag=null;dragPull=null;pan=null;downAt=null}
 },{passive:false});
-cv.addEventListener('touchcancel',function(){pinch=null;drag=null;pan=null});
+cv.addEventListener('touchcancel',function(){pinch=null;drag=null;dragPull=null;pan=null});
 
 /* 더블탭 확대 차단 (보조).
    touch-action:manipulation 로 대부분 막히지만 iOS 사파리는 남는 경우가 있다.

@@ -1543,7 +1543,10 @@ const TKN = { result:'결과', bill:'법·정책', person:'인물', party:'정�
         F(`29. 누르는 순간 노드가 ${r.onTap}px 튄다 (한도 ${r.lim}px). 사라졌다가 다른 자리에 나타난다`);
       if (r.worst > r.lim)
         F(`29. 한 프레임에 ${r.worst}px 튄다 — ${r.worstWho} (한도 ${r.lim}px)`);
-      if (!r.endsAt) F('29. 누른 뒤 아무것도 안 움직인다 — 부채꼴이 안 도는 것일 수 있다');
+      /* **약속이 바뀌었다.** 전에는 부채꼴로 모았으므로 "안 움직이면 부채꼴이 고장" 이었다.
+         지금은 **안 움직이는 것이 약속**이다 — 누르면 이어진 것만 밝아진다.
+         이 검사는 그래서 '움직임이 있나' 가 아니라 **'튀지 않나'** 만 본다.
+         움직임이 0 인 것은 정상이고, 그것을 재는 것은 검사 53 이다. */
       else if (r.endsAt > 2) F(`29. 움직임이 ${r.endsAt}초까지 이어진다. 2초를 넘으면 흔들리는 걸로 보인다`);
       if (r.alpha > 0.01) F(`29. 마지막 alpha 가 ${r.alpha} 다 — 물리가 잠들지 않는다`);
     }
@@ -2716,6 +2719,82 @@ const TKN = { result:'결과', bill:'법·정책', person:'인물', party:'정�
         F(`52. ${nm} — 분야를 좁혀 노드가 줄면 첫 배율을 못 정한다. 노드 수가 바뀌어도 같은 규칙이어야 한다`);
       if (r.narrowOut)
         W(`52. ${nm} — 분야를 좁힌 뒤 결과 ${r.narrowOut}개가 화면 밖이다`);
+    }
+  }
+
+  /* ── 53. 누르면 **아무것도 안 움직인다** ──
+     "클릭하면 이어진 것들이 한두 개씩 움직이고 그다음 화면이 확대된다" 는 것이
+     산만하다는 지적을 받았다. 누르는 것은 **무엇이 이어졌는지 보는 일**이지
+     지도를 바꾸는 일이 아니다.
+
+     전에 있던 두 가지를 뺐다:
+       · setFocus 의 부채꼴 모으기(angT) — 이웃을 안 가려진 쪽으로 옮겼다
+       · setFocus 끝의 refitWhenSettled(true) — 카메라를 다시 맞췄다 (= 화면 확대)
+
+     이 검사는 **노드 좌표와 카메라를 동시에** 본다. 하나만 재면 다른 쪽으로 샌다 —
+     실제로 첫 화면 버그가 일곱 번 났고 매번 다른 곳이 카메라를 건드렸다.
+     움직여도 되는 것은 **끌 때**뿐이고, 그건 아래에서 따로 확인한다. */
+  {
+    for (const [w, h, nm] of [[1440,900,'PC'],[412,915,'폰']]) {
+      const dm = boot(w, h);
+      await new Promise(r => setTimeout(r, 1400));
+      const r = dm.window.eval(`(function(){
+        var t=0; while(alpha>LAY_STOP&&t<600){tick();t++}
+        if(typeof fade==='function')fade();
+        cam.s=cam.ts;cam.x=cam.tx;cam.y=cam.ty;
+        var c=A.filter(function(n){return n.t==='result'&&adj[n.id]&&adj[n.id].length>2});
+        if(!c.length)return {no:'누를 결과 노드가 없다'};
+        var t0=c.reduce(function(a,b){return (adj[b.id]||[]).length>(adj[a.id]||[]).length?b:a});
+        /* **지도에 이미 올라와 있던 노드**만 기준으로 삼는다.
+           누르면 이웃이 새로 올라오는데, 그건 **나타나는 것**이지 움직이는 것이 아니다.
+           (자리는 데이터가 정하므로 올라오는 순간 제자리에 놓인다 — refilter 의 __onmap)
+           그걸 같이 세면 332px 이 나오고, 그 숫자로는 진짜 움직임을 못 가린다.
+           새로 올라온 개수는 아래에서 따로 출력한다 — 말없이 빼지 않는다. */
+        var onMapBefore={}; A.forEach(function(n){onMapBefore[n.id]=1});
+        var before={}; A.forEach(function(n){before[n.id]=[n.x,n.y]});
+        var cam0={s:cam.s,x:cam.x,y:cam.y,ts:cam.ts,tx:cam.tx,ty:cam.ty};
+        setFocus(t0.id);
+        /* 누른 **직후**만 보면 안 된다 — 전에는 tick 이 도는 동안 이징이 옮겼다.
+           사람이 보는 시간(약 2초)만큼 돌려 놓고 잰다. */
+        for(var f=0;f<120;f++){ tick(); if(typeof fade==='function')fade();
+          cam.s+=(cam.ts-cam.s)*0.11; cam.x+=(cam.tx-cam.x)*0.11; cam.y+=(cam.ty-cam.y)*0.11 }
+        var movedN=[], mx=0, appeared=0;
+        A.forEach(function(n){ if(!onMapBefore[n.id])appeared++ });
+        N.forEach(function(n){ var b=before[n.id]; if(!b)return;
+          var d=Math.hypot(n.x-b[0],n.y-b[1]);
+          if(d>1){ if(d>mx)mx=d; if(movedN.length<4)movedN.push(n.lab+':'+Math.round(d)+'px') } });
+        var camMove={ s:Math.abs(cam.s-cam0.s), x:Math.abs(cam.x-cam0.x), y:Math.abs(cam.y-cam0.y),
+                      ts:Math.abs(cam.ts-cam0.ts), tx:Math.abs(cam.tx-cam0.tx), ty:Math.abs(cam.ty-cam0.ty) };
+        /* 끌면 따라오나 — 여기서는 **따라와야 한다** (안 따라오면 그것도 FAIL) */
+        var pullOK=null, pullN=0;
+        if(typeof beginPull==='function'&&typeof pullNeighbors==='function'){
+          var nb=(adj[t0.id]||[]).map(function(l){return map[l[0]===t0.id?l[1]:l[0]]}).filter(Boolean);
+          var p0={}; nb.forEach(function(o){p0[o.id]=[o.x,o.y]});
+          drag=t0; beginPull(t0);
+          t0.x+=300; t0.y+=200;
+          for(var q=0;q<40;q++)pullNeighbors();
+          nb.forEach(function(o){ var b=p0[o.id]; if(b&&Math.hypot(o.x-b[0],o.y-b[1])>10)pullN++ });
+          if(typeof endPull==='function')endPull();
+          drag=null;
+          pullOK=pullN>0;
+        }
+        return {moved:movedN.length, max:Math.round(mx), who:movedN.join(' '), appeared:appeared,
+                cam:camMove, pullOK:pullOK, pullN:pullN, nb:(adj[t0.id]||[]).length, lab:t0.lab};
+      })()`);
+      dm.window.close();
+      if (!r || r.no) { F(`53. ${nm} — ${(r && r.no) || '못 쟀다'}`); continue }
+      const camMoved = ['s','x','y','ts','tx','ty'].filter(k => r.cam[k] > 0.001);
+      console.log(`53. 눌러도 안 움직임  ${nm} ${w}×${h} · 「${r.lab}」(이웃 ${r.nb}) 누름 → ` +
+        `움직인 노드 ${r.moved}개(최대 ${r.max}px) · 카메라 ${camMoved.length ? '움직임 ' + camMoved.join(',') : '그대로'} · ` +
+        `새로 올라온 노드 ${r.appeared}개 · 끌면 따라오는 이웃 ${r.pullN}개`);
+      if (r.moved)
+        F(`53. ${nm} — 누르자 노드 ${r.moved}개가 움직였다 (최대 ${r.max}px: ${r.who}). 누르면 한 픽셀도 안 움직여야 한다`);
+      if (camMoved.length)
+        F(`53. ${nm} — 누르자 카메라가 움직였다 (${camMoved.map(k => k + ' ' + r.cam[k].toFixed(3)).join(' · ')}). 배율도 위치도 그대로여야 한다`);
+      if (r.pullOK === false)
+        F(`53. ${nm} — 끌었는데 이어진 것이 안 따라온다. 누를 때는 가만히, 끌 때는 따라와야 한다`);
+      if (r.pullOK === null)
+        F('53. beginPull/pullNeighbors 가 없다 — 끌어도 이어진 것이 안 따라온다');
     }
   }
 

@@ -149,13 +149,21 @@ let html = fs.readFileSync(HTML, 'utf8');
    두 곳에 있어야 하는 것이 이상하지만, CATMAP 은 화면의 분야 단추도 쓰는 표라
    한쪽만 채우면 지도에서는 안 보이고 연결만 되거나 그 반대가 된다.
    여기서 함께 넣어 갈라지지 않게 한다. */
+/* **CATMAP 블록 안에서만 찾는다.** 파일 전체에서 찾으면 같은 이름의 다른 필드를 고친다 —
+   실제로 분야 'edu' 를 넣었더니 인물 노드의 **학력**(`edu:[['초등학교','…졸업']]`)에
+   'hs_edu' 가 들어갔다. 문법 오류가 안 나고 검사도 안 잡는다. 화면만 틀린다. */
+const CM_A = html.indexOf('var CATMAP');
+const CM_B = html.indexOf('\n};', CM_A);
+if (CM_A < 0 || CM_B < 0) { console.error('index.html 에 CATMAP 블록이 없다'); process.exit(1) }
+let cmap = html.slice(CM_A, CM_B);
 for (const n of nodes) for (const c of n.cats) {
   const re = new RegExp(`(\\n ['"]?${c}['"]?:\\[)([^\\]]*)(\\])`);
-  const m = re.exec(html);
+  const m = re.exec(cmap);
   if (!m) { console.log(`  ! CATMAP 에 분야 '${c}' 가 없다 — ${n.id} 는 분야 필터에 안 나온다`); continue }
   if (m[2].includes(`'${n.id}'`)) continue;
-  html = html.replace(re, `$1$2,'${n.id}'$3`);
+  cmap = cmap.replace(re, `$1$2${m[2] ? ',' : ''}'${n.id}'$3`);
 }
+html = html.slice(0, CM_A) + cmap + html.slice(CM_B);
 const A = '/*AUTO-KOSIS-START*/', B = '/*AUTO-KOSIS-END*/';
 const i = html.indexOf(A), j = html.indexOf(B);
 if (i < 0 || j < 0) { console.error('index.html 에 AUTO-KOSIS 블록이 없다'); process.exit(1) }

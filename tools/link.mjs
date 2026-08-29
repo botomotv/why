@@ -42,7 +42,7 @@ const NOW = new Date().toISOString().slice(0, 10);
 const CATLAB = { spy:'간첩·기밀', sec:'안보·정보기관', land:'부동산', for:'외국인·참정권',
   pen:'연금', med:'의료', birth:'저출생', tax:'세금', nrg:'전기·에너지',
   demo:'민주화·정치제도', safe:'재난·안전', labor:'노동', civic:'시민단체·장애인',
-  party:'정당 계보', elec:'선거·투표', just:'검찰·사법', econ:'기업·주식' };
+  party:'정당 계보', elec:'선거·투표', just:'검찰·사법', econ:'기업·주식', edu:'교육' };
 
 /* 법안명 → 법률명. '출입국관리법 일부개정법률안' → '출입국관리법'
    **자르는 순서가 중요하다.** 처음엔 '법률안$' 를 '법' 으로 바꿨는데

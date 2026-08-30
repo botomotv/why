@@ -591,7 +591,15 @@ body.popfull .pexp .pex-i{transform:rotate(180deg)}
 .ub span{font-size:15.5px}
 .ub:hover:not(:disabled){background:#332C1F;border-color:var(--gold);transform:translateY(-1px)}
 .ub:active:not(:disabled){transform:translateY(0)}
-.ub:disabled{opacity:0;pointer-events:none;transform:translateY(-6px)}
+/* ── 눌러도 아무 일 없을 때 ──
+   전에는 `opacity:0` 이라 **버튼이 통째로 사라졌다.** 그러면 두 가지가 나빠진다:
+     · 처음 들어온 사람이 그런 버튼이 있는 줄 모른다
+     · 나타났다 사라지며 화면이 흔들린다
+   그래서 **자리는 늘 지키고 흐리게만** 한다. `visibility` 도 `display` 도 안 쓴다 —
+   둘 다 자리를 없애거나 잡는 방식이 달라 결국 흔들린다.
+   그리고 흐린 것은 **실제로 못 눌러야 한다** — 보이는데 눌러도 아무 일 없으면
+   "안 되는 버튼" 이 아니라 "고장난 사이트" 로 읽힌다. `disabled` 가 클릭 자체를 막는다. */
+.ub:disabled{opacity:.38;cursor:default;box-shadow:none}
 
 .catbar{position:fixed;top:62px;left:0;right:0;height:52px;z-index:39;display:flex;align-items:center;
   padding:0 18px;background:rgba(18,20,24,.94);backdrop-filter:blur(12px);border-bottom:1px solid var(--line)}
@@ -1114,8 +1122,8 @@ body.hasundo .rolebar{top:232px;width:calc(100vw - 24px);max-height:96px;overflo
   <div class="undo">
     <!-- ← 뒤로 · 한 칸씩. '처음으로' 와 나란히 두되 왼쪽이다 —
          읽는 순서가 곧 되돌아가는 순서다 (한 칸 → 전부). -->
-    <button class="ub ub-back" id="backBtn" hidden><span>←</span> <b>뒤로</b></button>
-    <button class="ub" id="resetAll" hidden><span>↺</span> <b id="resetLab">처음으로</b></button>
+    <button class="ub ub-back" id="backBtn" disabled><span>←</span> <b>뒤로</b></button>
+    <button class="ub" id="resetAll" disabled><span>↺</span> <b id="resetLab">처음으로</b></button>
   </div>
 </div>
 <div class="rolebar" id="roleBar" hidden></div>
@@ -14212,7 +14220,9 @@ function renderMList(){
 var navHist = [];
 var backBtn = document.getElementById('backBtn');
 var navSkip = false;          /* 뒤로 가는 중에는 이력을 안 쌓는다 */
-function syncBack(){ if(backBtn) backBtn.hidden = navHist.length === 0 }
+/* 자리는 늘 잡고 있고 **누를 게 있을 때만 진해진다.** 숨기지 않는다 —
+   숨기면 처음 온 사람이 이 버튼이 있는 줄 모르고, 나타날 때 화면이 흔들린다. */
+function syncBack(){ if(backBtn) backBtn.disabled = navHist.length === 0 }
 function navSentinel(){ try{ history.pushState({why:navHist.length}, '') }catch(e){} }
 function navPush(prev){
   if(navSkip) return;
@@ -14261,8 +14271,8 @@ function activeFilterLabel(){
 function syncReset(){
   if(!resetBtn)return;
   var lab=activeFilterLabel();
-  var was=resetBtn.hidden;
-  resetBtn.hidden=!lab;
+  var was=resetBtn.disabled;
+  resetBtn.disabled=!lab;
   if(lab)resetLab.innerHTML='처음으로 <em>· '+lab+' 보는 중</em>';
   /* 이 알약이 켜지면 검색창 상자가 62 → 110px 로 커진다. 카드가 열릴 수 있는
      자리도 그만큼 내려가야 한다. **여기서 불러야 한다** —
@@ -14295,6 +14305,9 @@ if(resetBtn)resetBtn.onclick=resetAllView;
     if((fn==='setFocus'||fn==='closePop') && focus!==was) navPush(was);
     syncReset();return r}});
 syncReset();syncBack();
+/* 알약 줄이 **처음부터 늘 있으므로** 상단 여백도 처음부터 그 값이어야 한다.
+   전에는 알약이 켜지는 순간 62 → 110px 로 커져서 그때 다시 쟀다. 이제 안 변한다. */
+if(typeof updateTopSafe==='function')updateTopSafe();
 window.addEventListener('keydown',function(e){
   if(e.key==='Escape'&&activeFilterLabel())resetAllView()});
 

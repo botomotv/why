@@ -2804,10 +2804,13 @@ const TKN = { result:'결과', bill:'법·정책', person:'인물', party:'정�
 
      두 가지를 본다. 둘 다 **사람이 실제로 하는 짓**이다:
        ① 세 번 누르고 세 번 뒤로 → 처음 상태로 돌아오나
-       ② 뒤로 갈 게 없으면 버튼이 숨나 (눌러도 아무 일 없는 버튼을 두지 않는다)
+       ② 뒤로 갈 게 없을 때 **자리는 지키되 못 누르나**
 
-     ②를 빼면 안 된다 — 버튼이 늘 보이면 사람이 누르고 아무 일도 안 일어난다.
-     그건 고장난 것과 구별되지 않는다. */
+     ②의 약속이 바뀌었다. 전에는 '숨는다' 였다 — 그런데 숨으면 처음 들어온 사람이
+     그런 버튼이 있는 줄 모르고, 나타났다 사라지며 화면이 흔들린다.
+     지금은 **늘 보이고 흐려지고 disabled 로 막힌다.**
+     약속이 바뀌었으니 재는 것도 바꾼다. 다만 '눌러도 아무 일 없으면 안 된다' 는
+     그대로라서, 흐린 상태에서 실제로 눌러 보고 아무 일도 안 일어나는지 확인한다. */
   {
     const dm = boot(1440, 900);
     await new Promise(r => setTimeout(r, 1400));
@@ -2816,7 +2819,10 @@ const TKN = { result:'결과', bill:'법·정책', person:'인물', party:'정�
       var b=document.getElementById('backBtn');
       if(!b)return {no:'뒤로 버튼(#backBtn)이 없다'};
       if(typeof navHist==='undefined')return {no:'이력(navHist)이 없다'};
-      var st=[{hidden:b.hidden,hist:navHist.length,focus:focus}];
+      var vis=function(el){ var cs=window.getComputedStyle(el);
+        return {disabled:!!el.disabled, hidden:!!el.hidden,
+                display:cs.display, opacity:cs.opacity, vis:cs.visibility} };
+      var st=[Object.assign({hist:navHist.length,focus:focus},vis(b))];
       /* 파고드는 길을 흉내 낸다 — 결과 → 그 이웃 → 또 그 이웃 */
       var c=A.filter(function(n){return n.t==='result'&&adj[n.id]&&adj[n.id].length>1});
       if(c.length<1)return {no:'누를 결과 노드가 없다'};
@@ -2829,36 +2835,50 @@ const TKN = { result:'결과', bill:'법·정책', person:'인물', party:'정�
       }
       if(chain.length<3)return {no:'세 칸 파고들 길이 없다 (이웃이 모자란다)'};
       var clicked=[];
-      chain.forEach(function(id){ setFocus(id); clicked.push({focus:focus,hist:navHist.length,hidden:b.hidden}) });
+      chain.forEach(function(id){ setFocus(id); clicked.push({focus:focus,hist:navHist.length,disabled:!!b.disabled}) });
       /* 버튼을 **실제로 누른다.** goBack() 을 직접 부르면 버튼이 안 걸려 있어도 통과한다. */
       var backs=[];
-      for(var i=0;i<3;i++){ b.onclick&&b.onclick(); backs.push({focus:focus,hist:navHist.length,hidden:b.hidden}) }
-      /* 이력이 빈 뒤에 한 번 더 눌러도 아무 일 없어야 하고, 그때 버튼은 숨어 있어야 한다 */
-      var wasHidden=b.hidden; b.onclick&&b.onclick();
+      for(var i=0;i<3;i++){ b.click(); backs.push({focus:focus,hist:navHist.length,disabled:!!b.disabled}) }
+      /* ── 흐릴 때 실제로 눌러 본다 ──
+         goBack() 을 직접 부르면 막혔는지 알 수 없고, onclick() 을 직접 부르면
+         disabled 를 건너뛴다. **버튼을 누른다** — 그래야 사람이 하는 짓과 같다. */
+      var beforeIdle={focus:focus,hist:navHist.length};
+      b.click();
+      var afterIdle={focus:focus,hist:navHist.length};
       return {st0:st[0], clicked:clicked, backs:backs, endFocus:focus, endHist:navHist.length,
-              endHidden:b.hidden, emptyHidden:wasHidden, chain:chain.length};
+              end:vis(b), idleSame:(beforeIdle.focus===afterIdle.focus&&beforeIdle.hist===afterIdle.hist),
+              chain:chain.length};
     })()`);
     dm.window.close();
     if (!r || r.no) F(`54. ${(r && r.no) || '못 쟀다'}`);
     else {
-      console.log(`54. 뒤로  처음 [숨음 ${r.st0.hidden} · 이력 ${r.st0.hist}] → ` +
+      console.log(`54. 뒤로  처음 [막힘 ${r.st0.disabled} · 보임 ${r.st0.display !== 'none' && !r.st0.hidden} ` +
+        `· 흐리기 ${r.st0.opacity} · 이력 ${r.st0.hist}] → ` +
         `세 번 누름 [이력 ${r.clicked.map(c => c.hist).join('→')}] → ` +
         `세 번 뒤로 [이력 ${r.backs.map(c => c.hist).join('→')}] · 끝 초점 ${r.endFocus === null ? '없음' : r.endFocus}`);
-      if (!r.st0.hidden)
-        F('54. 처음부터 뒤로 갈 게 없는데 버튼이 보인다. 눌러도 아무 일 없는 버튼을 두지 않는다');
+      /* ── 홈 화면부터 자리를 지킨다 ── */
+      const gone = v => v.hidden || v.display === 'none' || v.vis === 'hidden';
+      if (gone(r.st0))
+        F(`54. 홈 화면에서 뒤로 버튼이 자리를 안 잡고 있다 (hidden=${r.st0.hidden} · display=${r.st0.display} · visibility=${r.st0.vis}). ` +
+          `있는 줄 모르고, 나타날 때 화면이 흔들린다`);
+      if (gone(r.end))
+        F(`54. 이력이 빈 뒤 버튼이 사라졌다 (display=${r.end.display} · visibility=${r.end.vis}). 자리는 지켜야 한다`);
+      /* ── 그런데 못 눌러야 한다 ── */
+      if (!r.st0.disabled)
+        F('54. 홈 화면에서 뒤로 갈 게 없는데 버튼이 안 막혀 있다. 눌러도 아무 일 없는 버튼을 두지 않는다');
+      if (!r.end.disabled)
+        F('54. 이력이 빈 뒤에도 버튼이 안 막혀 있다');
+      if (!r.idleSame)
+        F('54. 막힌 버튼을 눌렀는데 상태가 바뀌었다. disabled 가 클릭을 못 막고 있다');
       if (r.st0.focus !== null) W('54. 처음부터 초점이 켜져 있다 — 검사 기준이 흔들린다');
       if (r.clicked[r.clicked.length - 1].hist !== 3)
         F(`54. 세 번 눌렀는데 이력이 ${r.clicked[r.clicked.length - 1].hist}칸이다. 한 번 누를 때마다 한 칸이어야 한다`);
-      if (r.clicked.some(c => c.hidden))
-        F('54. 눌러서 파고들었는데 뒤로 버튼이 숨어 있다');
+      if (r.clicked.some(c => c.disabled))
+        F('54. 눌러서 파고들었는데 뒤로 버튼이 막혀 있다');
       if (r.endFocus !== null)
         F(`54. 세 번 누르고 세 번 뒤로 했는데 처음 상태가 아니다 (초점 ${r.endFocus} 가 남았다)`);
       if (r.endHist !== 0)
         F(`54. 세 번 뒤로 했는데 이력이 ${r.endHist}칸 남았다`);
-      if (!r.emptyHidden)
-        F('54. 뒤로 갈 게 없는데 버튼이 안 숨는다');
-      if (!r.endHidden)
-        F('54. 이력이 빈 뒤에도 버튼이 보인다');
     }
   }
 

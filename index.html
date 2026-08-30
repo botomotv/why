@@ -12173,7 +12173,10 @@ function tick(){
     fx[n.__fi]+=(tx-n.x)*0.055*LOOSE;
     fy[n.__fi]+=(ty-n.y)*0.055*LOOSE});
   A.forEach(function(n){
-    if(n===drag||n.fixed){n.vx=0;n.vy=0;return}
+    /* **끌려오는 이웃은 물리가 안 건드린다.** 목표 자리(반지름=연도, 각도)로 당기는
+       용수철이 고무줄과 반대로 당겨서, 따라오는 것이 매 프레임 뒤로 채였다.
+       끄는 동안 이웃의 자리는 pullNeighbors 한 곳만 정한다 — 두 곳이 정하면 떤다. */
+    if(n===drag||n.fixed||n.__pulling){n.vx=0;n.vy=0;return}
     var live=(!focus)||ring[n.id]!==undefined;
     if(!live){n.vx*=0.55;n.vy*=0.55;
       if(Math.hypot(n.vx,n.vy)<0.04){n.vx=0;n.vy=0;return}}
@@ -12196,7 +12199,13 @@ function tick(){
      그래서 첫 화면이 부채꼴로 한쪽에 몰렸다. 연도 탓이 아니라 링크 탓이었다.
      선은 관련을 보여주는 것이지 자리를 정하는 것이 아니다. */
   A.forEach(function(n){
-    if(n===drag||n.fixed)return;
+    /* **여기가 「뚝뚝 끊긴다」의 진짜 원인이었다.** 이 줄 끝의 `n.x=cos(a)*R` 이
+       매 프레임 반지름을 원래대로 되돌린다. pullNeighbors 가 고무줄로 당겨 놓은 것이
+       같은 프레임에 통째로 취소되고 **각도 성분만 남는다** — 그래서 이웃이
+       손가락을 따라오는 게 아니라 제 고리 위를 호를 그리며 건너뛰었다.
+       실측: 이웃이 한 프레임에 55.3px 뛰었다. 끈 노드는 17.3px 이었는데도.
+       (뒤쪽 반지름 복원 루프에는 이미 이 예외가 있었다. 여기만 빠져 있었다.) */
+    if(n===drag||n.fixed||n.__pulling)return;
     var R=ringR(n); if(!(R>0)||!isFinite(n.x)||!isFinite(n.y))return;
     if(n.x===0&&n.y===0){n.x=R;n.y=0}
     /* **초점 이웃은 각도만 옮긴다.** 반지름(연도)은 절대 안 건드린다 —
@@ -12233,7 +12242,14 @@ function tick(){
      점은 이미 데이터가 자리를 정해 놨다 — 반지름=연도, 각도=흩뿌린 값.
      물리가 손댈 이유가 없다. **계산을 줄인 게 아니라 안 해도 되는 일을 뺀 것이다.** */
   var CA=[];
-  A.forEach(function(n){n.__hw=hw(n);n.__hh=hh(n); if(!noLabel(n))CA.push(n)});
+  /* **끄는 것과 따라오는 것은 겹침 해소에서 뺀다.**
+     실측: 이웃이 한 프레임에 42.1px 튀었는데, 튄 것이 전부 이름표를 그리는 결과 노드였다
+     (서울 전세 · 집값 · 의대 정원 · GOP). 겹침 해소 8회가 그들을 서로 밀어낸 것이다.
+     겹침을 푸는 까닭은 이름표가 읽히게 하려는 것인데, **끄는 동안에는 손가락을 보고 있다.**
+     놓으면 __pulling 이 사라지고 다음 틱부터 다시 겹침이 풀린다.
+     덤으로 끌 때 지도의 나머지가 안 흔들린다 — 밀 쪽이 없으니 밀리지도 않는다. */
+  A.forEach(function(n){n.__hw=hw(n);n.__hh=hh(n);
+    if(!noLabel(n)&&n!==drag&&!n.__pulling)CA.push(n)});
   collCount=CA.length;
   /* 초점 중에는 일찍 쉰다. 노드가 이미 제자리에 있으므로
      겹친 것만 풀면 되고, 그 뒤로는 돌수록 진동만 남는다.
@@ -12319,9 +12335,21 @@ function tick(){
     if(n.x===0&&n.y===0)return;
     var a=Math.atan2(n.y/0.86,n.x);
     n.x=Math.cos(a)*R; n.y=Math.sin(a)*R*0.86});
-  var BX=ROUT+340,BY=ROUT*0.86+300;
+  /* ── 벽 ──
+     자동으로 자리를 잡는 노드는 고리 근처를 벗어날 일이 없다. 튀어 나가면 그건 버그다.
+     그런데 **사람이 끄는 것까지 같은 벽에 가뒀다.** 실측: 손가락은 월드 2,687px 을 갔는데
+     노드는 1,374px 에서 멈췄고, 멈춘 자리가 (-1179,-1021) — BX·BY 와 정확히 같았다.
+
+     끄는 것 · 따라오는 것 · **놓여서 굳은 것**은 훨씬 넓게 둔다.
+     놓인 것(fixed)까지 넓혀야 하는 이유는 "놓으면 그 자리에 있는다" 는 약속 때문이다 —
+     좁은 벽이면 놓자마자 다음 틱에 벽 안으로 끌려 들어간다.
+     완전히 무제한으로 두지는 않는다. NaN·무한대가 한 번 새면 그 뒤 계산이 전부 망가지고,
+     화면에서 되찾을 방법도 없다. 고리 반지름의 20배면 사람 손으로는 닿지 않는다. */
+  var BX=ROUT+340,BY=ROUT*0.86+300,FAR=ROUT*20;
   A.forEach(function(n){
-    n.x=Math.max(-BX,Math.min(BX,n.x));n.y=Math.max(-BY,Math.min(BY,n.y))});
+    var free=(n===drag||n.__pulling||n.fixed);
+    var bx=free?FAR:BX, by=free?FAR:BY;
+    n.x=Math.max(-bx,Math.min(bx,n.x));n.y=Math.max(-by,Math.min(by,n.y))});
   return true}
 /* ── 세로 가둠 ── **여기도 상단 UI 를 안다.**
    이 함수는 fade() 안에서 **매 프레임** 돈다. 그래서 fit()·fitFocus() 가 무엇을 하든
@@ -12922,6 +12950,18 @@ function endPull(moved){
   }
   dragPull = null;
 }
+/* ── 놓은 자리가 화면 밖이면 ──
+   벽을 없앴으니 화면 밖에 놓을 수 있다. 그러면 되찾을 방법이 없다.
+   **되돌려 놓지는 않는다** — 사람이 옮긴 자리를 우리가 무르는 것이기 때문이다.
+   대신 그 자리를 보여준다. 넘친 만큼만 밀어서 지도 전체 인상이 안 바뀌게 한다.
+   상단 UI 아래로 들어오게 하는 것은 fit·fitFocus 와 같은 규칙이다(topSafePx). */
+function ensureVisible(n){
+  if(!n||!isFinite(n.x)||!isFinite(n.y))return;
+  var tp=(typeof topSafePx==='function')?topSafePx():0, m=70;
+  var sx=n.x*cam.ts+cam.tx, sy=n.y*cam.ts+cam.ty, r=(n.r||10)*cam.ts;
+  if(sx-r<m)cam.tx+=(m-(sx-r)); else if(sx+r>W-m)cam.tx-=((sx+r)-(W-m));
+  if(sy-r<tp+m)cam.ty+=((tp+m)-(sy-r)); else if(sy+r>H-m)cam.ty-=((sy+r)-(H-m));
+}
 function down(px,py,isTouch){
   tapSlop=isTouch?TAP_SLOP_TOUCH:TAP_SLOP_MOUSE;
   downAt=[px,py];
@@ -12958,7 +12998,7 @@ function up(){
       drag=null;dragPull=null;pan=null;panMoved=false;downAt=null;cv.style.cursor='default';
       openAllList(focus); return}
   }
-  if(drag){ if(moved){drag.fixed=true;endPull(1)} else {endPull(0);setFocus(drag.id)} }
+  if(drag){ if(moved){drag.fixed=true;endPull(1);ensureVisible(drag)} else {endPull(0);setFocus(drag.id)} }
   else if(pan&&!panMoved)closePop();
   drag=null;pan=null;panMoved=false;downAt=null;cv.style.cursor='default'}
 cv.addEventListener('mousedown',function(e){e.preventDefault();var p=rel2(e);down(p[0],p[1])});

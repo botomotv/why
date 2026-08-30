@@ -2862,6 +2862,91 @@ const TKN = { result:'결과', bill:'법·정책', person:'인물', party:'정�
     }
   }
 
+  /* ── 55. 끌기 — 벽이 없고, 따라오는 것이 안 튄다 ──
+     두 가지가 **같은 검사**여야 한다. 하나만 재면 다른 쪽으로 샌다 —
+     실제로 벽을 넓히자 이웃이 42px 씩 튀는 것이 드러났고, 튐을 고치자
+     벽이 다시 보였다. 끄는 동안의 일이라 한 번의 끌기로 둘 다 잰다.
+
+     ① **벽** — 손가락이 간 만큼 노드가 가야 한다.
+        고치기 전 실측: 손가락 2,687px · 노드 1,374px. 멈춘 자리가 (-1179,-1021) 로
+        `BX=ROUT+340` 과 정확히 같았다. 사람이 원해서 끄는 것을 막을 이유가 없다.
+     ② **튐** — 이웃은 **끈 노드보다 빨리 갈 수 없다.** 고무줄은 늦게 따라오지
+        앞지르지 않는다. 절대 px 로 재면 손가락 속도가 바뀔 때마다 기준이 흔들린다 —
+        끈 노드의 걸음을 기준으로 삼으면 속도와 무관하게 옳다.
+
+     rAF 가 아니라 tick() 을 직접 프레임처럼 돌린다. jsdom 에 rAF 가 없고,
+     **끊김이 나는 곳은 rAF 가 아니라 tick 안**이기 때문이다. */
+  {
+    const dm = boot(1440, 900);
+    await new Promise(r => setTimeout(r, 1400));
+    const r = dm.window.eval(`(function(){
+      var t=0; while(alpha>LAY_STOP&&t<600){tick();t++}
+      var c=A.filter(function(n){return n.t==='result'&&adj[n.id]&&adj[n.id].length>3});
+      if(!c.length)return {no:'이웃이 넷 넘는 결과 노드가 없다'};
+      var n=c.reduce(function(a,b){return (adj[b.id]||[]).length>(adj[a.id]||[]).length?b:a});
+      var nbs=(adj[n.id]||[]).map(function(l){return map[l[0]===n.id?l[1]:l[0]]}).filter(Boolean);
+      var sx=n.x*cam.s+cam.x, sy=n.y*cam.s+cam.y;
+      var start={x:n.x,y:n.y};
+      var d0=nbs.map(function(o){return Math.hypot(o.x-n.x,o.y-n.y)});
+      down(sx,sy);
+      var dmax=0,nmax=0,zero=0,cnt=0,ahead=0;
+      var prev={x:n.x,y:n.y}, pnb=nbs.map(function(o){return {x:o.x,y:o.y}});
+      var px=sx,py=sy,last=null;
+      var steps=[];
+      for(var f=0;f<160;f++){
+        px-=7; py-=3.5;
+        move(px,py); tick();
+        last=[(px-cam.x)/cam.s,(py-cam.y)/cam.s];
+        var d=Math.hypot(n.x-prev.x,n.y-prev.y); if(d>dmax)dmax=d; prev={x:n.x,y:n.y};
+        steps.push(d);
+        for(var i=0;i<nbs.length;i++){
+          var q=Math.hypot(nbs[i].x-pnb[i].x,nbs[i].y-pnb[i].y);
+          cnt++; if(q<0.05)zero++; if(q>nmax)nmax=q;
+          pnb[i]={x:nbs[i].x,y:nbs[i].y};
+        }
+      }
+      for(var i=0;i<nbs.length;i++){} /* (거리 유지는 아래에서 본다) */
+      var d1=nbs.map(function(o){return Math.hypot(o.x-n.x,o.y-n.y)});
+      var want=Math.hypot(last[0]-start.x,last[1]-start.y);
+      var got=Math.hypot(n.x-start.x,n.y-start.y);
+      var gap=Math.hypot(n.x-last[0],n.y-last[1]);
+      /* 끈 노드의 걸음보다 큰 이웃 걸음이 몇 번인가 */
+      var lim=dmax*1.2;
+      pnb=nbs.map(function(o){return {x:o.x,y:o.y}});
+      up();
+      /* 놓은 뒤 화면 안으로 들어왔나 — 벽 대신 이것으로 되찾는다 */
+      var vx=n.x*cam.ts+cam.tx, vy=n.y*cam.ts+cam.ty;
+      var tp=(typeof topSafePx==='function')?topSafePx():0;
+      return {want:Math.round(want), got:Math.round(got), gap:Math.round(gap),
+        dmax:+dmax.toFixed(1), nmax:+nmax.toFixed(1), lim:+lim.toFixed(1),
+        zero:zero, cnt:cnt, nb:nbs.length, lab:n.lab,
+        keep:d1.map(function(v,i){return Math.round(v-d0[i])}),
+        wall:Math.round(ROUT+340),
+        vis:(vx>=-1&&vx<=W+1&&vy>=tp-1&&vy<=H+1), vxy:[Math.round(vx),Math.round(vy)], WH:[W,H]};
+    })()`);
+    dm.window.close();
+    if (!r || r.no) F(`55. ${(r && r.no) || '못 쟀다'}`);
+    else {
+      console.log(`55. 끌기  「${r.lab}」(이웃 ${r.nb}) 를 160프레임 끌었다 → ` +
+        `손가락 ${r.want}px · 노드 ${r.got}px (어긋남 ${r.gap}px, 벽은 ${r.wall}px) · ` +
+        `프레임당 끈노드 최대 ${r.dmax}px · 이웃 최대 ${r.nmax}px · ` +
+        `안 움직인 프레임 ${r.zero}/${r.cnt} · 놓은 뒤 화면 안 ${r.vis ? '예' : '아니오'}`);
+      /* ① 벽 — 손가락과 5% 넘게 벌어지면 무언가가 막고 있는 것이다 */
+      if (r.want > 200 && r.gap > r.want * 0.05)
+        F(`55. 끌기에 한계가 걸렸다 — 손가락은 ${r.want}px 갔는데 노드는 ${r.got}px 에서 멈췄다 ` +
+          `(어긋남 ${r.gap}px). 사람이 원해서 끄는 것을 막지 않는다`);
+      /* ② 튐 — 이웃이 끈 노드보다 빠르면 그건 따라오는 게 아니라 튀는 것이다 */
+      if (r.nmax > r.lim)
+        F(`55. 따라오는 것이 튄다 — 이웃이 한 프레임에 ${r.nmax}px 갔다. ` +
+          `끈 노드는 ${r.dmax}px 이었다(한도 ${r.lim}px). 고무줄은 늦게 따라오지 앞지르지 않는다`);
+      /* ③ 끊김 — 끄는 내내 매 프레임 따라와야 한다 */
+      if (r.zero > r.cnt * 0.02)
+        F(`55. 따라오는 것이 끊긴다 — ${r.cnt}프레임 중 ${r.zero}번 한 픽셀도 안 움직였다`);
+      if (!r.vis)
+        F(`55. 놓았는데 화면 밖이다 (화면 ${r.vxy} · 창 ${r.WH}). 되찾을 방법이 없다`);
+    }
+  }
+
   /* ── 요약 ── */
   console.log('\n' + '─'.repeat(50));
   console.log('노드 진영 분포:', JSON.stringify(bySide));

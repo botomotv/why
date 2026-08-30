@@ -2163,7 +2163,9 @@ const TKN = { result:'결과', bill:'법·정책', person:'인물', party:'정�
     if (!sheetCap) F('41. 아래 카드에 max-height 상한이 없다. 펼치면 위쪽 UI 를 덮는다');
 
     /* (c) --topsafe 를 요소에게 물어서 정하는가 · 상태가 바뀔 때마다 다시 재는가 */
-    const fn = html.match(/function updateTopSafe\(\)[\s\S]*?\n\}/);
+    /* 인자를 받게 바뀌었다(force). **약속은 그대로**다 — 요소에게 물어서 정한다.
+       시그니처를 박아 두면 이런 변화에 검사가 엉뚱하게 FAIL 한다. */
+    const fn = html.match(/function updateTopSafe\([^)]*\)[\s\S]*?\n\}/);
     if (!fn) F('41. updateTopSafe 를 못 찾았다');
     else {
       const b = fn[0];
@@ -2194,7 +2196,9 @@ const TKN = { result:'결과', bill:'법·정책', person:'인물', party:'정�
           Object.defineProperty(e,'offsetTop',{value:v[0],configurable:true});
           Object.defineProperty(e,'offsetHeight',{value:v[1],configurable:true});
         });
-        updateTopSafe();
+        /* **강제로 다시 잰다.** 이 함수는 상태가 그대로면 건너뛴다(리플로가 비싸다).
+           여기서 보는 것은 '계산식이 맞나' 이지 '언제 재나' 가 아니다. */
+        updateTopSafe(1);
         return D.documentElement.style.getPropertyValue('--topsafe');
       })()`);
       d41.window.close();

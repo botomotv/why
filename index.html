@@ -12366,12 +12366,51 @@ function tick(){
    fit 쪽을 다섯 번 고쳤는데 브라우저에서는 그대로였다. 검사는 fit 직후를 재고
    화면은 그 다음 프레임을 보여주기 때문에 **검사만 통과했다.**
    자리를 정하는 곳이 셋(fit·fitFocus·clampY)이면 셋 다 같은 것을 알아야 한다. */
+/* ── 사람이 화면을 잡은 뒤에는 **네 방향 다 자유롭다** ──
+   전에는 아래로 끌면 막혔다. 실측(1440×900, 손가락 320px):
+
+     아래로 320px → 카메라 **16px**    (5%)
+     위로   320px → 카메라 **83px**    (26%)
+     좌·우  320px → 카메라 320px      (100%)
+
+   가로에는 가둠이 없고 **세로만 clampY 가 매 프레임 되돌리고 있었다.**
+   그 함수는 첫 화면을 위한 것이다 — 상단 UI 아래에 무리를 앉히려고
+   `cam.ty` 를 다시 계산한다. 자동 배치에는 맞지만 **사람 손까지 되돌리면 안 된다.**
+   벽 문제(검사 55)와 같은 종류다: 자동을 지키는 제한이 사람 손도 막았다.
+
+   그래서 사람이 잡기 전까지만 그 규칙을 쓰고, 잡은 뒤에는 느슨한 가둠으로 바꾼다.
+   느슨하다고 무제한은 아니다 — 지도가 화면에서 완전히 사라지면 되찾을 방법이 없다.
+   **어느 방향으로 끌든 지도 상자가 화면과 CAM_KEEP 만큼은 겹쳐 있게** 둔다.
+   가로에도 같은 가둠을 넣는다. 전에는 무한이라 지도를 잃을 수 있었다. */
+var CAM_KEEP=150;
+function clampPan(){
+  var pool=A.length?A:N; if(!pool.length)return;
+  var mnx=1e9,mxx=-1e9,mny=1e9,mxy=-1e9;
+  pool.forEach(function(n){
+    mnx=Math.min(mnx,n.x-n.r);mxx=Math.max(mxx,n.x+n.r);
+    mny=Math.min(mny,n.y-n.r);mxy=Math.max(mxy,n.y+n.r)});
+  var tp=(typeof topSafePx==='function')?topSafePx():0;
+  /* 지도가 화면보다 작으면 그 크기보다 더 많이 겹치라고 할 수 없다 */
+  var kx=Math.min(CAM_KEEP,(mxx-mnx)*cam.ts,W*0.5);
+  var ky=Math.min(CAM_KEEP,(mxy-mny)*cam.ts,Math.max(80,H-tp)*0.5);
+  var L=mnx*cam.ts+cam.tx, Rr=mxx*cam.ts+cam.tx;
+  var T=mny*cam.ts+cam.ty, B=mxy*cam.ts+cam.ty;
+  var dx=0,dy=0;
+  if(Rr<kx)dx=kx-Rr; else if(L>W-kx)dx=(W-kx)-L;
+  if(B<tp+ky)dy=(tp+ky)-B; else if(T>H-ky)dy=(H-ky)-T;
+  /* **목표만 고치면 튕겨 돌아온다.** 끄는 동안 cam.x 는 손가락을 그대로 따라가므로
+     현재값도 같이 고쳐야 손가락 밑에서 화면이 미끄러지지 않는다. */
+  if(dx){cam.tx+=dx;cam.x+=dx}
+  if(dy){cam.ty+=dy;cam.y+=dy}
+}
 function clampY(){
   /* **초점 중에는 카메라를 안 건드린다.** 누르면 지도에 올리는 집합이 바뀌고
      (이웃이 올라온다) 그러면 무리 범위가 달라져 여기서 cam.ty 를 다시 계산했다.
      실측 0.125px — 눈에는 안 보이지만 **"누르면 카메라가 안 움직인다"는 약속이 깨진다.**
      첫 화면에서 이미 자리를 잡았으니 그대로 두면 된다. 검사 53 이 이걸 지킨다. */
   if(focus)return;
+  /* 사람이 화면을 잡았으면 첫 화면 규칙은 끝났다 — 느슨한 가둠으로 넘긴다 */
+  if(camUser)return clampPan();
   var pool=A.length?A:N,miny=1e9,maxy=-1e9;
   if(!pool.length)return;
   pool.forEach(function(n){miny=Math.min(miny,n.y-n.r-40);maxy=Math.max(maxy,n.y+n.r+52)});

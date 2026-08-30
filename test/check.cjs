@@ -2967,6 +2967,79 @@ const TKN = { result:'결과', bill:'법·정책', person:'인물', party:'정�
     }
   }
 
+  /* ── 56. 빈 곳을 잡고 화면을 끈다 — 네 방향 다 ──
+     노드를 끄는 것(검사 55)과 **다른 일이다.** 이건 카메라가 움직인다.
+
+     고치기 전 실측(1440×900, 손가락 320px):
+       아래로 16px(5%) · 위로 83px(26%) · 좌·우 320px(100%)
+     **세로만 막혀 있었다.** `clampY()` 가 fade() 안에서 매 프레임 돌며
+     첫 화면 규칙(상단 UI 아래에 무리를 앉힌다)으로 되돌리고 있었다.
+     자동 배치에는 맞는 규칙인데 사람 손까지 되돌린 것이다 —
+     검사 55 의 벽과 같은 종류다.
+
+     한 방향이라도 손가락의 80% 를 못 따라가면 FAIL.
+     그리고 아주 멀리 끌어도 **지도가 화면에서 완전히 사라지면 안 된다** —
+     사라지면 되찾을 방법이 없다. 그것도 같이 잰다. */
+  {
+    for (const [w, h, nm] of [[1440,900,'PC'],[412,915,'폰']]) {
+      const dm = boot(w, h);
+      await new Promise(r => setTimeout(r, 1400));
+      const r = dm.window.eval(`(function(){
+        var t=0; while(alpha>LAY_STOP&&t<600){tick();t++}
+        if(typeof fade!=='function')return {no:'fade 가 없다'};
+        cam.s=cam.ts;cam.x=cam.tx;cam.y=cam.ty;
+        /* 노드가 없는 자리를 찾는다 — 노드를 잡으면 카메라가 아니라 노드가 움직인다 */
+        var ex=null;
+        for(var y=H-60;y>60&&!ex;y-=20)for(var x=40;x<W-40;x+=20){ if(!at(x,y)){ex=[x,y];break} }
+        if(!ex)return {no:'빈 자리를 못 찾았다'};
+        var out={ex:ex};
+        function pull(dx,dy,name,n){
+          var t0={tx:cam.tx,ty:cam.ty};
+          down(ex[0],ex[1]);
+          var px=ex[0],py=ex[1];
+          for(var i=0;i<n;i++){ px+=dx;py+=dy; move(px,py); tick(); fade() }
+          up();
+          for(var i=0;i<30;i++){ tick(); fade();
+            cam.x+=(cam.tx-cam.x)*0.11; cam.y+=(cam.ty-cam.y)*0.11 }
+          var want=(dx?dx:dy)*n, got=dx?(cam.tx-t0.tx):(cam.ty-t0.ty);
+          out[name]={want:Math.round(want), got:Math.round(got),
+                     pct:Math.round(100*Math.abs(got)/Math.abs(want))};
+        }
+        /* ── **반대쪽으로 먼저 밀어 놓고 잰다** ──
+           폰에서 오른쪽이 89% 로 나왔다. 막힌 게 아니라 **느슨한 가둠에 닿은 것**이다 —
+           화면이 좁아 한 번(320px) 끄는 것으로 지도 반대쪽 끝이 와 버린다.
+           한도를 80% 로 풀면 검사가 약해지고, 그대로 두면 없는 문제를 FAIL 로 띄운다.
+           **재는 자리를 옮긴다** — 반대로 한 번 밀어 여유를 만든 뒤 그 자리에서 잰다.
+           그러면 가둠과 무관하게 '막는 코드가 있나' 만 재게 된다. */
+        function probe(dx,dy,name,n){ pull(-dx,-dy,'_pre_'+name,n); pull(dx,dy,name,n) }
+        probe(0,8,'down',40); probe(0,-8,'up',40); probe(8,0,'right',40); probe(-8,0,'left',40);
+        /* 아주 멀리 — 지도를 잃어버리나 */
+        pull(0,26,'far',300);
+        var pool=A.length?A:N, mnx=1e9,mxx=-1e9,mny=1e9,mxy=-1e9;
+        pool.forEach(function(n){mnx=Math.min(mnx,n.x-n.r);mxx=Math.max(mxx,n.x+n.r);
+          mny=Math.min(mny,n.y-n.r);mxy=Math.max(mxy,n.y+n.r)});
+        var box=[mnx*cam.s+cam.x, mny*cam.s+cam.y, mxx*cam.s+cam.x, mxy*cam.s+cam.y];
+        var ov=Math.max(0,Math.min(box[2],W)-Math.max(box[0],0))*
+               Math.max(0,Math.min(box[3],H)-Math.max(box[1],0));
+        return {out:out, box:box.map(Math.round), overlap:Math.round(ov), WH:[W,H]};
+      })()`);
+      dm.window.close();
+      if (!r || r.no) { F(`56. ${nm} — ${(r && r.no) || '못 쟀다'}`); continue }
+      const o = r.out;
+      const dirs = [['down','아래'],['up','위'],['right','오른쪽'],['left','왼쪽']];
+      console.log(`56. 화면 끌기  ${nm} ${w}×${h} · 빈 곳 ${JSON.stringify(o.ex)} → ` +
+        dirs.map(([k, ko]) => `${ko} ${o[k].got}/${o[k].want}px(${o[k].pct}%)`).join(' · ') +
+        ` · 아주 멀리 끈 뒤 지도가 화면과 겹치는 넓이 ${r.overlap}px²`);
+      for (const [k, ko] of dirs)
+        if (o[k].pct < 90)
+          F(`56. ${nm} — ${ko}로 끌면 막힌다 (손가락 ${o[k].want}px · 카메라 ${o[k].got}px = ${o[k].pct}%). ` +
+            `빈 곳을 잡고 끄는 것은 네 방향 다 자유로워야 한다`);
+      if (!r.overlap)
+        F(`56. ${nm} — 아주 멀리 끌었더니 지도가 화면에서 완전히 사라졌다 ` +
+          `(지도 상자 ${JSON.stringify(r.box)} · 창 ${JSON.stringify(r.WH)}). 되찾을 방법이 없다`);
+    }
+  }
+
   /* ── 요약 ── */
   console.log('\n' + '─'.repeat(50));
   console.log('노드 진영 분포:', JSON.stringify(bySide));

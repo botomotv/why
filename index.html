@@ -13362,13 +13362,47 @@ function syncQPlaceholder(){if(qEl)qEl.placeholder=(innerWidth<=620?Q_NARROW:Q_W
 syncQPlaceholder();
 window.addEventListener('resize',syncQPlaceholder);
 function qClose(){srEl.classList.remove('on');qIdx=-1}
+/* 검색 결과에 붙일 종류 이름. TK 는 `event` 를 '이력' 이라고만 하는데
+   판례·헌재를 그렇게 부르면 무엇인지 알 수 없다. 판정에 id 접두사를 쓴다 —
+   화면 글자(ekind)는 문구가 바뀌면 조용히 깨진다. nodeCol 과 같은 방식이다. */
+function qKind(n){
+  if(n.id&&n.id.lastIndexOf('case_prec_',0)===0)return '판례';
+  if(n.id&&n.id.lastIndexOf('case_detc_',0)===0)return '헌재 결정';
+  return TK[n.t]||''}
+/* 검색용 건초더미. 매 글자마다 4천 개를 이어 붙이고 있었다 — 노드가 늘면 그만큼 커진다.
+   노드마다 한 번만 만들어 둔다. (mountMYN 이 나중에 노드를 더 넣으므로 그때 만든다.) */
+function qHay(n){
+  return n.__hay||(n.__hay=(n.lab+' '+(n.title||'')+' '+(n.sub||'')+' '+
+    (n.pres||'')+' '+(n.off||'')).toLowerCase())}
+var qMore=0;
+/* 종류 우선순위 — 작을수록 앞. **판단이 아니라 자리다.**
+   판례·헌재는 3,851개라 그냥 두면 목록 여덟 칸을 그것들이 다 먹는다.
+   「살인」을 쳤을 때 관련 법과 결과가 먼저 보여야 그다음 판례가 뜻을 갖는다. */
+var Q_ORD={result:0,bill:1,person:2,party:2,org:2,post:2,event:3};
 function qSearch(v){
   v=(v||'').trim().toLowerCase();
-  if(!v){qHits=[];qClose();return}
-  qHits=N.filter(function(n){
-    if(n.t==='event')return false;
-    var hay=(n.lab+' '+(n.title||'')+' '+(n.sub||'')+' '+(n.pres||'')+' '+(n.off||'')).toLowerCase();
-    return hay.indexOf(v)>=0}).slice(0,8);
+  if(!v){qHits=[];qMore=0;qClose();return}
+  /* ── **판례·헌재를 검색에서 빼고 있었다** ──
+     `if(n.t==='event')return false` 한 줄이었다. 판례·헌재 노드가 전부 t:'event' 라
+     3,851개가 통째로 안 잡혔다. 「살인」 3건 · 「뇌물」 15건 · 「사기」 44건이
+     이름에 그 말을 갖고 있는데도 검색 결과가 0·0·2 였다.
+     지도에 안 그리기로 한 것과 검색에서 빼는 것은 다른 일이다 —
+     **지우는 게 아니라 옮기는 것**이라고 적어 놓고 검색에서도 지우고 있었다. */
+  var all=N.filter(function(n){return qHay(n).indexOf(v)>=0});
+  all.sort(function(a,b){
+    /* ── **이름에 있는 쪽이 종류보다 먼저다** ──
+       처음엔 종류를 1순위로 뒀더니 「이재명」을 쳤을 때 법안 넷이 먼저 나오고
+       정작 사람 '이재명' 이 안 보였다. 법안에는 `pres`(공포 당시 대통령)가 있어
+       건초더미에 이름이 들어 있기 때문이다.
+       **친 말이 이름에 있는 것**이 사람이 찾는 것이다. 종류는 그다음에 쓴다. */
+    var ia=(a.lab||'').toLowerCase().indexOf(v), ib=(b.lab||'').toLowerCase().indexOf(v);
+    if((ia<0)!==(ib<0))return ia<0?1:-1;
+    var oa=Q_ORD[a.t]===undefined?3:Q_ORD[a.t], ob=Q_ORD[b.t]===undefined?3:Q_ORD[b.t];
+    if(oa!==ob)return oa-ob;
+    if(ia!==ib)return ia-ib;
+    return String(a.id).localeCompare(String(b.id))});
+  qMore=Math.max(0,all.length-8);
+  qHits=all.slice(0,8);
   if(!qHits.length&&v.length>=5){
     qHits=matchNodes(v).map(function(id){return map[id]}).filter(Boolean).slice(0,8)}
   if(/^https?:\/\//.test(v)||/\.(com|co\.kr|kr|net|org)\//.test(v)){
@@ -13393,7 +13427,9 @@ function qSearch(v){
   srEl.innerHTML=qHits.map(function(n,i){
     return '<button class="sr'+(i===qIdx?' sel':'')+'" data-go="'+n.id+'">'+
       (n.t==='bill'?(n.title||n.lab):n.lab)+
-      '<small>'+TK[n.t]+(n.yr?' · '+n.yr:'')+(n.sub?' · '+n.sub:'')+'</small></button>'}).join('');
+      '<small>'+qKind(n)+(n.yr?' · '+n.yr:'')+(n.sub?' · '+n.sub:'')+'</small></button>'}).join('');
+  /* **잘린 개수를 밝힌다.** 말없이 여덟 개만 보여주면 "이게 전부" 라는 거짓말이 된다. */
+  if(qMore)srEl.innerHTML+='<button class="sr" disabled>그 밖에 '+qMore+'건 더 있습니다<small>더 좁혀서 쳐 보세요</small></button>';
   if(EDIT)srEl.innerHTML+='<button class="sr srnew" id="srNew">＋ <b>\''+v+'\'</b> 새 사건으로 만들기<small>목록에 없으면 직접 넣을 수 있습니다</small></button>';
   srEl.classList.add('on');
   srEl.querySelectorAll('[data-go]').forEach(function(b){

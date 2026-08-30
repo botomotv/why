@@ -3040,6 +3040,66 @@ const TKN = { result:'결과', bill:'법·정책', person:'인물', party:'정�
     }
   }
 
+  /* ── 57. 검색이 판례·헌재를 찾나 ──
+     「살인」을 쳐도 아무것도 안 나왔다. 원인은 한 줄이었다 —
+     `qSearch` 안의 `if(n.t==='event')return false`.
+     판례 1,775 · 헌재 2,076 이 전부 t:'event' 라 3,851개가 통째로 빠졌다.
+
+     실측(고치기 전): 이름에 그 말이 있는 노드 / 검색 결과
+       살인 3/0 · 뇌물 15/0 · 절도 2/0 · 사기 46/2
+
+     **지도에 안 그리는 것과 검색에서 빼는 것은 다른 일이다.**
+     '지우는 게 아니라 옮기는 것' 이라고 적어 놓고 검색에서도 지우고 있었다.
+
+     그래서 이 검사는 **이름에 그 말이 있는 노드 수를 분모로 놓고** 잰다.
+     검색 결과 수만 보면 0 이 '없어서' 인지 '안 보고 있어서' 인지 구별이 안 된다. */
+  {
+    const dm = boot(1440, 900);
+    await new Promise(r => setTimeout(r, 1400));
+    const r = dm.window.eval(`(function(){
+      if(typeof qSearch!=='function')return {no:'qSearch 가 없다'};
+      var words=['살인','뇌물','사기','절도','최저임금','간첩'];
+      var out=[], kinds={};
+      N.forEach(function(n){
+        var k=(typeof qKind==='function')?qKind(n):n.t;
+        kinds[k]=(kinds[k]||0)+1});
+      for(var i=0;i<words.length;i++){
+        var w=words[i], lw=w.toLowerCase();
+        var inLab=N.filter(function(n){return (n.lab||'').toLowerCase().indexOf(lw)>=0}).length;
+        qSearch(w);
+        out.push({w:w, inLab:inLab, hit:qHits.length, more:(typeof qMore==='number')?qMore:0,
+          kinds:qHits.map(function(n){return (typeof qKind==='function')?qKind(n):n.t})});
+      }
+      qSearch('');
+      /* 판례·헌재가 검색에 **하나라도** 걸리나 — 종류별로 따로 본다 */
+      var prec=N.filter(function(n){return n.id.lastIndexOf('case_prec_',0)===0}).length;
+      var detc=N.filter(function(n){return n.id.lastIndexOf('case_detc_',0)===0}).length;
+      var precHit=0, detcHit=0;
+      out.forEach(function(o){ o.kinds.forEach(function(k){
+        if(k==='판례')precHit++; if(k==='헌재 결정')detcHit++ })});
+      /* 속도 */
+      var t0=Date.now(); for(var j=0;j<50;j++){qSearch('살인');qSearch('')}
+      var ms=(Date.now()-t0)/100;
+      return {out:out, prec:prec, detc:detc, precHit:precHit, detcHit:detcHit,
+              nodes:N.length, ms:+ms.toFixed(2)};
+    })()`);
+    dm.window.close();
+    if (!r || r.no) F(`57. ${(r && r.no) || '못 쟀다'}`);
+    else {
+      console.log(`57. 검색  노드 ${r.nodes}개(판례 ${r.prec} · 헌재 ${r.detc}) · 한 번 ${r.ms}ms · ` +
+        r.out.map(o => `${o.w} ${o.hit}${o.more ? '+' + o.more : ''}/${o.inLab}`).join(' · '));
+      for (const o of r.out)
+        if (o.inLab > 0 && o.hit === 0)
+          F(`57. 「${o.w}」 — 이름에 그 말이 든 노드가 ${o.inLab}개인데 검색 결과가 0이다. ` +
+            `검색이 무언가를 통째로 빼고 있다`);
+      if (r.prec > 0 && r.precHit === 0)
+        F(`57. 판례 ${r.prec}개가 검색에 하나도 안 걸린다. 지도에 안 그리는 것과 검색에서 빼는 것은 다른 일이다`);
+      if (r.detc > 0 && r.detcHit === 0)
+        F(`57. 헌재 결정 ${r.detc}개가 검색에 하나도 안 걸린다`);
+      if (r.ms > 30) F(`57. 검색 한 번에 ${r.ms}ms 걸린다 — 글자를 칠 때마다 도는 일이라 30ms 를 넘으면 안 된다`);
+    }
+  }
+
   /* ── 요약 ── */
   console.log('\n' + '─'.repeat(50));
   console.log('노드 진영 분포:', JSON.stringify(bySide));

@@ -195,16 +195,114 @@ for (const c of cases) {
      결과 카드에는 법 3~5개가 남고, 그 법을 누르면 판례가 보인다. */
   if (!hit) none++;
 }
+/* ── 같은 사건 이름을 하나로 묶는다 ──
+   「출입국관리법」 카드에 판례 48 + 헌재 33 = 81개가 붙었고,
+   그중 「국적법 제10조 제3항 위헌확인」 같은 것이 5건씩 있었다.
+   법을 **법률 단위**로 묶은 것(link.mjs)과 같은 방식이다.
+
+   ── 무엇을 같다고 보나 ──
+   사건 이름을 정규화해서 같으면 묶는다. 종류(판례/헌재)가 다르면 안 묶는다.
+   **조문만 같고 심판 종류가 다르면 안 묶는다** — 「제10조 제3항 위헌확인」과
+   「위헌소원」은 헌마와 헌바로 절차가 다르다. 그래서 정규화는 공백·괄호·'구 ' 만 건드린다.
+
+   ── 헌재와 판례는 뜻이 다르다. 그래서 화면 글자도 다르게 적는다 ──
+   · 헌재 사건명은 **심판대상 조문**이다 — 이름이 같으면 같은 쟁점이다
+   · 판례 사건명은 **죄명**이다 — 「공직선거법위반」 290건은 서로 다른 사건이다.
+     그래서 '같은 쟁점' 이라고 쓰지 않고 **'사건 이름이 같은 판례 N건'** 이라고 쓴다.
+     묶는 이유는 쟁점이 같아서가 아니라, 290줄을 늘어놓으면 아무도 못 읽기 때문이다.
+
+   ── 안 담는 것 ──
+   · 판시사항(gist) — 여러 건의 요약을 하나로 합치면 **우리가 만든 요약**이 된다
+   · 헌재 결론(verdict) — 건마다 다르다. 대신 **분포를 사실로 적는다** (위헌 2 · 합헌 1)
+   · 1건짜리는 묶지 않는다. 그건 지금까지처럼 판시사항·결론을 그대로 갖는다 */
+const GROUP_MAX = 20;      /* 카드에 사건번호를 몇 개까지 적나. 나머지는 개수로 밝힌다 */
+const normCase = t => String(t || '').replace(/^구\s+/, '')
+  .replace(/[（(][^）)]*[）)]/g, '').replace(/\s+/g, '');
+let groupedAway = 0, groupN = 0;
+{
+  const byKey = new Map();
+  for (const n of new Set(nodes.values())) {
+    const kind = n.id.split('_')[1];
+    const k = kind + '|' + normCase(n.title);
+    (byKey.get(k) || byKey.set(k, []).get(k)).push(n);
+  }
+  const rep = new Map();           /* 옛 노드 id → 묶은 노드 */
+  const merged = [];
+  for (const [k, arr] of byKey) {
+    if (arr.length < 2) continue;
+    const kind = k.split('|')[0];
+    /* 대표는 **가장 짧은 이름**을 쓴다. 같은 사건을 길게 적은 것에는 부가 설명이 붙어 있다.
+       같으면 사건번호 순 — 실행마다 달라지면 그 흔들림도 우리가 고른 것이 된다. */
+    const sorted = [...arr].sort((a, b) =>
+      (a.title.length - b.title.length) || String(a.id).localeCompare(String(b.id)));
+    const head = sorted[0];
+    const yrs = arr.map(x => +x.yr).filter(Boolean).sort((a, b) => a - b);
+    const from = yrs[0], to = yrs[yrs.length - 1];
+    const span = from === to ? `${from}년` : `${from}~${to}년`;
+    const kn = KIND[kind] || kind;
+    const list = arr.map(x => ({ no: String(x.off || '').split(' · ').pop(), yr: x.yr, url: x.url }))
+      .sort((a, b) => (b.yr - a.yr) || String(a.no).localeCompare(String(b.no)));
+    /* 헌재 결론 분포 — **우리 판단이 아니라 센 것이다** */
+    const vd = {};
+    for (const x of arr) if (x.verdict) vd[x.verdict] = (vd[x.verdict] || 0) + 1;
+    const vdTxt = Object.keys(vd).length
+      ? ' 결론은 ' + Object.entries(vd).map(([v, c]) => `${v} ${c}건`).join(' · ') +
+        (Object.values(vd).reduce((a, b) => a + b, 0) < arr.length
+          ? ` (나머지 ${arr.length - Object.values(vd).reduce((a, b) => a + b, 0)}건은 결론을 못 읽었습니다)` : '') + '.'
+      : '';
+    const same = kind === 'detc' ? '같은 조문을 다툰' : '사건 이름이 같은';
+    const g = {
+      id: 'case_' + kind + '_g' + (++groupN), t: 'event', auto: 1, side: 'gov',
+      lab: (head.title.length > 28 ? head.title.slice(0, 27) + '…' : head.title) + ` · ${arr.length}건`,
+      title: head.title, yr: String(to),
+      ekind: `${span} · ${kn} ${arr.length}건`,
+      off: `${kn} · ${arr.length}건 · ${span}`,
+      tip: `${same} ${kn} ${arr.length}건입니다.`,
+      body: `${same} ${kn} ${arr.length}건을 하나로 묶었습니다 (${span}).` +
+        (kind === 'prec' ? ' 사건 이름이 죄명이라 같은 이름이라도 서로 다른 사건입니다.' : '') +
+        vdTxt + ' 사건번호는 아래와 같고, 각각의 원문은 링크에서 볼 수 있습니다.',
+      src: `출처 · 법제처 국가법령정보 공동활용 (${kn})`,
+      url: head.url, cats: [],
+      cases: list.slice(0, GROUP_MAX), casesMore: Math.max(0, list.length - GROUP_MAX),
+      grouped: arr.length
+    };
+    merged.push(g);
+    for (const x of arr) rep.set(x.id, g);
+    groupedAway += arr.length - 1;
+  }
+  /* 노드 목록을 새로 만든다 — 묶인 것은 빼고 묶음을 넣는다 */
+  const keep = [...new Set(nodes.values())].filter(n => !rep.has(n.id));
+  nodes.clear();
+  let seq2 = 0;
+  for (const n of keep.concat(merged)) nodes.set('k' + (++seq2), n);
+  /* ── 선도 묶음 쪽으로 옮긴다 ──
+     **여기서는 규칙을 빼고 (사건 → 법) 으로만 겹침을 본다.** 묶기 전에는 서로 다른
+     사건이 규칙 A 와 C 로 같은 법에 붙는 것이 자연스러웠는데, 묶고 나면
+     **같은 묶음에서 같은 법으로 가는 선이 둘**이 된다 — 카드에 같은 법이 두 번 뜬다.
+     남기는 것은 **더 센 근거**다: C(재판부가 적은 조문) > A(이름이 맞음). */
+  const strength = { [RULE_C]: 2, [RULE_A]: 1, [RULE_B]: 0 };
+  const best = new Map();
+  for (const l of links) {
+    const g = rep.get(l.from);
+    if (g) { l.from = g.id; l.why = l.why + ` (묶음 ${g.grouped}건 중 한 건)` }
+    const k = l.from + '|' + l.to;
+    const prev = best.get(k);
+    if (!prev || (strength[l.rule] || 0) > (strength[prev.rule] || 0)) best.set(k, l);
+  }
+  links.length = 0; links.push(...best.values());
+}
+
 const nl = n => n.toLocaleString();
 console.log(`  C 조문이 가리키는 법        ${nl(cc).padStart(8)}건   ← 가장 센 근거`);
 console.log(`  A 사건명에 법 이름          ${nl(a).padStart(8)}건`);
 console.log(`  B 핵심어 + 시기 ±${YEARS}년      ${nl(b).padStart(8)}건   ← 없앴다 (결과에 직접 잇지 않는다)`);
 console.log(`  ────────────────────────────────────`);
-console.log(`  올라간 사건 ${nl(nodes.size)} / ${nl(cases.length)}  ·  선 ${nl(links.length)}개`);
+console.log(`  올라간 사건 ${nl(new Set(nodes.values()).size)} / ${nl(cases.length)}  ·  선 ${nl(links.length)}개`);
 console.log(`  어느 관문도 못 지난 사건 ${nl(none)} (${(none / cases.length * 100).toFixed(1)}%) — 안 올린다`);
-const byKind = {}; for (const n of nodes.values()) { const k = n.id.split('_')[1]; byKind[k] = (byKind[k] || 0) + 1 }
+const byKind = {}; for (const n of new Set(nodes.values())) { const k = n.id.split('_')[1]; byKind[k] = (byKind[k] || 0) + 1 }
 console.log(`  종류별 ${JSON.stringify(byKind)}`);
 console.log(`  판시사항을 버린 것 ${nl(gistDropped)}개 — 당사자·대리인 이름이 섞일 수 있다 (규칙 8)`);
+console.log(`  같은 이름을 묶은 것 ${nl(groupN)}묶음 · 노드 ${nl(groupedAway)}개 줄었다`);
 /* 같은 (사건 → 대상 → 규칙) 이 두 번 나오면 같은 사실을 두 번 적는 것이다.
    창고의 UNIQUE 가 먼저 잡아 줬다 — 몇 개였는지 밝히고 하나로 줄인다. */
 {
@@ -227,11 +325,13 @@ try {
 
 const q = s => "'" + String(s).replace(/\\/g, '\\\\').replace(/'/g, "\\'")
   .replace(/\r/g, '').replace(/\n/g, '\\n').replace(/\u2028|\u2029/g, ' ') + "'";
-const nodeJs = [...nodes.values()].map(n =>
+const nodeJs = [...new Set(nodes.values())].map(n =>
   `{id:${q(n.id)},t:'event',auto:1,side:'gov',lab:${q(n.lab)},title:${q(n.title)},yr:${q(n.yr)},` +
   `ekind:${q(n.ekind)},off:${q(n.off)},tip:${q(n.tip)},body:${q(n.body)},` +
   (n.verdict ? `verdict:${q(n.verdict)},` : '') +
   (n.gist ? `gist:${q(n.gist)},raw:1,` : '') +
+  (n.grouped ? `grouped:${n.grouped},casesMore:${n.casesMore},cases:[` +
+    n.cases.map(c => `[${q(c.no)},${q(c.yr)},${q(c.url)}]`).join(',') + '],' : '') +
   `src:${q(n.src)},url:${q(n.url)},cats:[]}`).join('\n,');
 const linkJs = links.map(l =>
   `[${q(l.from)},${q(l.to)},'같은 주제','topic',${q(l.why)},${q(l.ev)},'','auto']`).join('\n,');
@@ -245,5 +345,5 @@ const put = (tag, body) => {
 };
 put('CASE-N', nodeJs); put('CASE-L', linkJs);
 fs.writeFileSync(path.join(ROOT, 'index.html'), out);
-console.log(`\nindex.html 에 사건 ${nl(nodes.size)}개 · 선 ${nl(links.length)}개 내보냄`);
+console.log(`\nindex.html 에 사건 ${nl(new Set(nodes.values()).size)}개 · 선 ${nl(links.length)}개 내보냄`);
 db.close();

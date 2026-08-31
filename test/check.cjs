@@ -2543,10 +2543,28 @@ const TKN = { result:'결과', bill:'법·정책', person:'인물', party:'정�
             if(d>worst){worst=d;worstWho=n.lab}
           }
           p0[n.id]=[n.x,n.y];
+          /* ── **둘레로 모으는 노드는 여기서 빼고 본다** ──
+             약속이 바뀌었다. 원으로 모으면 반지름(=연도)이 깨지므로,
+             그동안은 **각도가 시간을 맡는다** — 12시부터 시계 방향으로 시간순이다.
+             그게 실제로 시간순인지는 검사 62 가 잰다.
+             49 가 계속 지키는 것은 **모으지 않는 노드의 반지름**과,
+             **닫으면 반지름이 돌아오는지**다. 낡은 검사를 지우지 않고 할 수 있는 것을 남긴다. */
+          if(n.orb)return;
           if(r0[n.id]!==undefined){
             var rr=Math.abs(Math.hypot(n.x,n.y/0.86)-r0[n.id]);
             if(rr>dR){dR=rr;dRwho=n.lab}
           }
+        });
+      }
+      /* 닫으면 반지름이 돌아오나 — 모으기가 켜져 있을 때 이것이 마지막 보증이다 */
+      var back=0, backWho=null;
+      if(typeof closePop==='function'){
+        closePop();
+        for(var f2=0;f2<300;f2++){ tick(); if(typeof fade==='function')fade() }
+        A.forEach(function(n){
+          if(r0[n.id]===undefined)return;
+          var rr=Math.abs(Math.hypot(n.x,n.y/0.86)-r0[n.id]);
+          if(rr>back){back=rr;backWho=n.lab}
         });
       }
       /* ── 무엇을 FAIL 로 볼지 ──
@@ -2566,15 +2584,23 @@ const TKN = { result:'결과', bill:'법·정책', person:'인물', party:'정�
       }).length;
       return {selfHid:selfHid, top:Math.round(top), hidden:hidden, hidden2:hidden2,
               worst:Math.round(worst), worstWho:worstWho,
-              dR:Math.round(dR), dRwho:dRwho, lim:Math.round(Math.min(W,H)/6), n:A.length};
+              dR:Math.round(dR), dRwho:dRwho, back:Math.round(back), backWho:backWho,
+              orbit:(typeof ORBIT!=='undefined'&&ORBIT)?1:0,
+              lim:Math.round(Math.min(W,H)/6), n:A.length};
     })()`);
     d49.window.close();
     if (!r || r.no) F(`49. 못 쟀다 (${r && r.no || '실패'})`);
     else {
-      console.log(`49. 가려짐·모으기   상단 UI ${r.top}px · 그 뒤 노드 첫화면 ${r.hidden} · 초점 뒤 누른 것 ${r.selfHid?'가려짐':'안 가려짐'} · 한 프레임 최대 ${r.worst}px(${r.worstWho}) · 반지름 흔들림 ${r.dR}px(${r.dRwho})` + (r.hidden2?` · 이웃 ${r.hidden2}개는 UI 뒤(카드 목록에 있다 — 검사 20)`:''));
+      console.log(`49. 가려짐·모으기   상단 UI ${r.top}px · 그 뒤 노드 첫화면 ${r.hidden} · 초점 뒤 누른 것 ${r.selfHid?'가려짐':'안 가려짐'} · 한 프레임 최대 ${r.worst}px(${r.worstWho}) · 반지름 흔들림 ${r.dR}px(${r.dRwho})` +
+        ` · 닫은 뒤 반지름 ${r.back}px(${r.backWho})` + (r.orbit ? ' · 둘레로 모으는 노드는 빼고 잼(검사 62)' : '') +
+        (r.hidden2?` · 이웃 ${r.hidden2}개는 UI 뒤(카드 목록에 있다 — 검사 20)`:''));
       if (r.hidden) F(`49. 첫 화면에서 ${r.hidden}개가 상단 UI 뒤에 있다 — 보이는데 누를 수 없다`);
       if (r.selfHid) F(`49. 누른 노드 자신이 상단 UI 뒤에 있다 — 눌렀는데 그게 안 눌린다`);
-      if (r.dR > 3) F(`49. 모으는 동안 반지름이 ${r.dR}px 바뀌었다 — ${r.dRwho}. 반지름은 연도다, 흔들면 시간이 거짓말이 된다`);
+      if (r.dR > 3) F(`49. 모으지 않는 노드의 반지름이 ${r.dR}px 바뀌었다 — ${r.dRwho}. 반지름은 연도다, 흔들면 시간이 거짓말이 된다`);
+      /* **닫으면 돌아와야 한다.** 모으는 동안 연도를 잠시 접어 두는 것은 약속이지만,
+         돌아오지 않으면 그건 접은 게 아니라 잃은 것이다. */
+      if (r.back > 30) F(`49. 닫은 뒤에도 반지름이 ${r.back}px 어긋나 있다 — ${r.backWho}. ` +
+        `모으는 동안 연도를 접어 두는 것은 약속이지만, 돌아오지 않으면 잃은 것이다`);
       if (r.worst > r.lim) F(`49. 한 프레임에 ${r.worst}px 튄다 — ${r.worstWho} (한도 ${r.lim}px)`);
       if (!r.top) W('49. 상단 UI 높이가 0 이다 — --topsafe 를 못 읽었을 수 있다');
     }
@@ -2755,6 +2781,12 @@ const TKN = { result:'결과', bill:'법·정책', person:'인물', party:'정�
       const dm = boot(w, h);
       await new Promise(r => setTimeout(r, 1400));
       const r = dm.window.eval(`(function(){
+        /* ── **되돌린 상태(ORBIT=false)를 잰다** ──
+           둘레로 모으기가 들어오면서 '누르면 아무것도 안 움직인다' 는 약속이
+           **그 방식일 때만** 유지된다. 이 검사는 그 방식이 아직 살아 있는지 지킨다 —
+           스위치를 끄면 예전 화면으로 정확히 돌아가야 한다.
+           모으기가 켜진 상태는 검사 62 가 따로 잰다. */
+        if(typeof ORBIT!=='undefined'){ ORBIT=false; if(typeof orbClear==='function')orbClear() }
         var t=0; while(alpha>LAY_STOP&&t<600){tick();t++}
         if(typeof fade==='function')fade();
         cam.s=cam.ts;cam.x=cam.tx;cam.y=cam.ty;
@@ -3435,6 +3467,123 @@ const TKN = { result:'결과', bill:'법·정책', person:'인물', party:'정�
       /* 명부가 지도보다 훨씬 적으면 옛날 것을 그대로 믿고 있는 것이다 */
       if ((roster.ids || []).length && now.length < (roster.ids || []).length)
         W(`61. 결과가 ${(roster.ids || []).length} → ${now.length}개로 줄었다`);
+    }
+  }
+
+  /* ── 62. 누르면 이어진 것이 둘레로 모인다 (ORBIT) ──
+     "이어진 게 화면 여기저기 흩어져 있어서 한눈에 안 들어온다" 는 지적에서 나왔다.
+
+     **반지름은 연도를 뜻한다.** 원으로 모으면 그 뜻이 깨지므로,
+     원 안에서 **시계 방향으로 시간순**으로 놓는다 — 12시가 가장 오래된 것이다.
+     반지름이 하던 일(시간)을 각도가 대신 맡는다. 그래서 이 검사가 제일 먼저 보는 것은
+     '모이나' 가 아니라 **'시간순인가'** 다.
+
+     지킬 것 다섯:
+       ① 시계 방향 시간순인가 (12시가 가장 오래된 것)
+       ② 이어지지 않은 것은 안 움직이나
+       ③ 한 프레임에 튀지 않나 (순간이동 금지)
+       ④ 닫으면 원래 자리로 돌아오나
+       ⑤ 배율은 그대로인가 ("누르면 화면이 확대된다" 가 예전에 지적받은 그 문제다) */
+  {
+    const dm = boot(1440, 900);
+    await new Promise(r => setTimeout(r, 1400));
+    const r = dm.window.eval(`(function(){
+      if(typeof ORBIT==='undefined')return {no:'ORBIT 스위치가 없다'};
+      if(!ORBIT)return {off:1};
+      var t=0; while(alpha>LAY_STOP&&t<600){tick();t++}
+      if(typeof fade==='function')fade();
+      cam.s=cam.ts;cam.x=cam.tx;cam.y=cam.ty;
+      var c=A.filter(function(n){return n.t==='result'&&adj[n.id]&&adj[n.id].length>4});
+      if(!c.length)return {no:'이웃이 넷 넘는 결과 노드가 없다'};
+      var self=c.reduce(function(a,b){return (adj[b.id]||[]).length>(adj[a.id]||[]).length?b:a});
+      var before={}; A.forEach(function(n){before[n.id]=[n.x,n.y]});
+      var s0=cam.ts;
+      setFocus(self.id);
+      /* 모이는 동안 한 프레임에 얼마나 뛰나 — **화면 기준**으로 잰다 */
+      var prev=A.filter(function(n){return n.orb}).map(function(o){return [o.x,o.y]});
+      var maxStep=0, arrive=-1;
+      for(var f=0;f<200;f++){
+        tick(); if(typeof fade==='function')fade();
+        cam.s+=(cam.ts-cam.s)*0.11; cam.x+=(cam.tx-cam.x)*0.11; cam.y+=(cam.ty-cam.y)*0.11;
+        var nb=A.filter(function(n){return n.orb});
+        for(var i=0;i<nb.length;i++) if(prev[i]){
+          var d=Math.hypot(nb[i].x-prev[i][0],nb[i].y-prev[i][1])*cam.s;
+          if(d>maxStep)maxStep=d }
+        if(arrive<0&&nb.length&&nb.every(function(o){return Math.hypot(o.x-o.orb[0],o.y-o.orb[1])<1}))arrive=f;
+        prev=nb.map(function(o){return [o.x,o.y]});
+      }
+      var nb=A.filter(function(n){return n.orb});
+      var home={}; nb.forEach(function(o){ if(o.orb0)home[o.id]=o.orb0.slice() });
+      /* ① 시계 방향 시간순 — 12시(0°)부터 각도가 커질수록 최근이어야 한다 */
+      var ang=function(o){var a=Math.atan2((o.y-self.y)/0.86,o.x-self.x)+Math.PI/2;
+        while(a<0)a+=Math.PI*2; return a*180/Math.PI};
+      var byAng=nb.slice().sort(function(a,b){return ang(a)-ang(b)});
+      var yr=function(o){var y=parseInt(String(o.yr||''),10);return isFinite(y)?y:9999};
+      var bad=0;
+      for(var i=1;i<byAng.length;i++) if(yr(byAng[i])<yr(byAng[i-1]))bad++;
+      /* ── **지금 값을 지금 적어 둔다** ──
+         전에는 이 줄들을 return 문 안에서 계산했다. 그런데 return 은 closePop() 과
+         260프레임 **뒤에** 평가된다 — 그때 노드는 이미 제자리로 돌아가 있다.
+         그래서 "67° 15° 79°" 처럼 원이 아닌 값이 나왔고, 없는 문제를 FAIL 로 띄웠다.
+         **재는 시점과 적는 시점이 갈리면 검사가 다른 것을 잰다.** */
+      var order=byAng.map(function(o){return Math.round(ang(o))+'°'+o.yr});
+      var ring1=Object.keys(ring).filter(function(k){return ring[k]===1}).length;
+      var nCount=nb.length;
+      /* ② 이어지지 않은 것 */
+      var others=0;
+      A.forEach(function(n){ var b=before[n.id]; if(!b)return;
+        if(n.orb||n===self)return;
+        if(Math.hypot(n.x-b[0],n.y-b[1])>1)others++ });
+      var selfMove=Math.hypot(self.x-before[self.id][0],self.y-before[self.id][1]);
+      /* ⑤ 배율 */
+      var zoom=Math.abs(cam.ts-s0);
+      /* 이름표가 겹치나 — **모여 있는 동안** 재야 한다. 닫은 뒤에 재면 다른 것을 잰다. */
+      var ov=0;
+      if(typeof labelBox==='function'){
+        var bs=nb.concat([self]).map(function(o){return labelBox(o,1)}).filter(Boolean);
+        for(var i=0;i<bs.length;i++)for(var j=i+1;j<bs.length;j++)
+          if(Math.abs(bs[i].x-bs[j].x)<(bs[i].w+bs[j].w)&&Math.abs(bs[i].y-bs[j].y)<(bs[i].h+bs[j].h))ov++;
+      }
+      /* ④ 닫으면 돌아오나 */
+      closePop();
+      for(var f=0;f<260;f++){ tick(); if(typeof fade==='function')fade() }
+      var backMax=0;
+      Object.keys(home).forEach(function(k){ var o=map[k]; if(!o)return;
+        var d=Math.hypot(o.x-home[k][0],o.y-home[k][1]); if(d>backMax)backMax=d });
+      var left=A.filter(function(n){return n.orb}).length;
+      return {n:nCount, ring1:ring1, order:order, bad:bad,
+        others:others, selfMove:Math.round(selfMove), maxStep:+maxStep.toFixed(1),
+        arrive:arrive, zoom:+zoom.toFixed(4), backMax:Math.round(backMax), left:left, ov:ov,
+        lab:self.lab};
+    })()`);
+    dm.window.close();
+    if (!r) F('62. 못 쟀다');
+    else if (r.off) console.log('62. 둘레로 모으기  꺼져 있다 (ORBIT=false) — 예전 방식이다');
+    else if (r.no) F(`62. ${r.no}`);
+    else {
+      console.log(`62. 둘레로 모으기  「${r.lab}」 · 원에 ${r.n}개(선 ${r.ring1}개) · ` +
+        `${r.order.join(' ')} · 모이는 데 ${r.arrive}프레임 · 프레임당 최대 ${r.maxStep}px · ` +
+        `이어지지 않았는데 움직인 것 ${r.others}개 · 누른 것 ${r.selfMove}px · 배율 ${r.zoom} · ` +
+        `닫은 뒤 원래 자리와 ${r.backMax}px · 이름표겹침 ${r.ov}쌍`);
+      if (r.bad)
+        F(`62. 시계 방향 시간순이 아니다 — ${r.bad}곳에서 뒤집힌다 (${r.order.join(' ')}). ` +
+          `반지름이 연도를 뜻하는데 원으로 모으면 그 뜻이 깨진다. 각도가 그 일을 대신 맡아야 한다`);
+      if (r.others)
+        F(`62. 이어지지 않은 노드 ${r.others}개가 움직였다. 모으는 것은 이어진 것만이다`);
+      if (r.selfMove > 1)
+        F(`62. 누른 노드가 ${r.selfMove}px 움직였다. 그것은 원의 중심이라 제자리에 있어야 한다`);
+      if (r.maxStep > 40)
+        F(`62. 한 프레임에 ${r.maxStep}px 뛴다 (상한 ${34}px). 순간이동으로 보인다`);
+      if (r.zoom > 0.001)
+        F(`62. 누르자 배율이 ${r.zoom} 바뀌었다. "누르면 화면이 확대된다" 가 예전에 지적받은 그 문제다`);
+      if (r.left)
+        F(`62. 닫았는데 아직 모으는 중인 노드가 ${r.left}개 남았다`);
+      if (r.backMax > 30)
+        F(`62. 닫은 뒤 원래 자리에서 ${r.backMax}px 어긋났다. 닫으면 있던 자리로 돌아가야 한다`);
+      if (r.ov)
+        W(`62. 원 안에서 이름표가 ${r.ov}쌍 겹친다 — 모아 놓고도 못 읽는다`);
+      if (r.arrive < 0)
+        W('62. 200프레임 안에 다 못 모였다');
     }
   }
 

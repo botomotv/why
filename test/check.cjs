@@ -3498,21 +3498,32 @@ const TKN = { result:'결과', bill:'법·정책', person:'인물', party:'정�
       var self=c.reduce(function(a,b){return (adj[b.id]||[]).length>(adj[a.id]||[]).length?b:a});
       var before={}; A.forEach(function(n){before[n.id]=[n.x,n.y]});
       var s0=cam.ts;
+      /* ── **새로 올라온 노드의 상황을 만든다** ──
+         누르면 이웃이 지도에 새로 올라오는데, 그 노드는 __hw(그리는 상자)가 없다.
+         __hw 는 tick() 안에서 채우는데 **초점 중에는 tick 이 그 줄 전에 돌아간다.**
+         그러면 planLabels 의 첫 거름망에서 빠져 이름표가 안 그려진다 —
+         브라우저에서 이웃 6개 중 4개가 이름 없는 점으로 떴다.
+
+         jsdom 에서는 이웃이 이미 지도에 다 있어서 **저절로는 이 상황이 안 난다.**
+         실제로 그 줄을 빼고 돌려 봤더니 검사가 5/5 로 통과했다 —
+         **실패를 주입해도 통과하는 검사는 아무것도 보증하지 않는다.**
+         그래서 값을 지워 상황을 그대로 재현한다. setFocus 가 다시 채우면 통과다. */
+      A.forEach(function(n){ delete n.__hw; delete n.__hh });
       setFocus(self.id);
       /* 모이는 동안 한 프레임에 얼마나 뛰나 — **화면 기준**으로 잰다 */
-      var prev=A.filter(function(n){return n.orb}).map(function(o){return [o.x,o.y]});
+      var prev=A.filter(function(n){return n.orb&&!n.__orbOut}).map(function(o){return [o.x,o.y]});
       var maxStep=0, arrive=-1;
       for(var f=0;f<200;f++){
         tick(); if(typeof fade==='function')fade();
         cam.s+=(cam.ts-cam.s)*0.11; cam.x+=(cam.tx-cam.x)*0.11; cam.y+=(cam.ty-cam.y)*0.11;
-        var nb=A.filter(function(n){return n.orb});
+        var nb=A.filter(function(n){return n.orb&&!n.__orbOut});
         for(var i=0;i<nb.length;i++) if(prev[i]){
           var d=Math.hypot(nb[i].x-prev[i][0],nb[i].y-prev[i][1])*cam.s;
           if(d>maxStep)maxStep=d }
         if(arrive<0&&nb.length&&nb.every(function(o){return Math.hypot(o.x-o.orb[0],o.y-o.orb[1])<1}))arrive=f;
         prev=nb.map(function(o){return [o.x,o.y]});
       }
-      var nb=A.filter(function(n){return n.orb});
+      var nb=A.filter(function(n){return n.orb&&!n.__orbOut});
       var home={}; nb.forEach(function(o){ if(o.orb0)home[o.id]=o.orb0.slice() });
       /* ① 시계 방향 시간순 — 12시(0°)부터 각도가 커질수록 최근이어야 한다 */
       var ang=function(o){var a=Math.atan2((o.y-self.y)/0.86,o.x-self.x)+Math.PI/2;
@@ -3532,21 +3543,42 @@ const TKN = { result:'결과', bill:'법·정책', person:'인물', party:'정�
       /* ② 이어지지 않은 것 */
       var others=0;
       A.forEach(function(n){ var b=before[n.id]; if(!b)return;
-        if(n.orb||n===self)return;
+        if((n.orb&&!n.__orbOut)||n===self)return;
         if(Math.hypot(n.x-b[0],n.y-b[1])>1)others++ });
       var selfMove=Math.hypot(self.x-before[self.id][0],self.y-before[self.id][1]);
       /* ⑤ 배율 */
       var zoom=Math.abs(cam.ts-s0);
-      /* 이름표가 겹치나 — **모여 있는 동안** 재야 한다. 닫은 뒤에 재면 다른 것을 잰다. */
-      var ov=0;
-      if(typeof labelBox==='function'){
-        var bs=nb.concat([self]).map(function(o){return labelBox(o,1)}).filter(Boolean);
-        for(var i=0;i<bs.length;i++)for(var j=i+1;j<bs.length;j++)
-          if(Math.abs(bs[i].x-bs[j].x)<(bs[i].w+bs[j].w)&&Math.abs(bs[i].y-bs[j].y)<(bs[i].h+bs[j].h))ov++;
+      /* ── 이름표가 겹치나 — **화면이 쓰는 함수를 그대로 부른다** ──
+         전에는 labelBox(o,1) 로 월드 값을 재고 "0쌍" 이라고 했다. 그런데 화면은
+         labelFontScale()(실측 2.698)을 곱해 그린다 — **검사와 화면이 다른 것을 재고 있었다.**
+         사람 눈에는 겹치는데 검사는 초록불이었다. 공식을 베껴 쓰면 언제나 이렇게 갈라진다.
+         페이지의 orbLabelBox()·orbOverlap() 을 부른다. 화면이 그 함수로 판단해 반지름을 정한다.
+         **모여 있는 동안** 재야 한다 — 닫은 뒤에 재면 다른 것을 잰다. */
+      var ov=0, rows=(typeof orbZig==='number')?(orbZig?2:1):1, rr=(typeof orbR==='number')?Math.round(orbR*cam.s):0;
+      if(typeof orbLabelBox==='function'&&typeof orbOverlap==='function')
+        ov=orbOverlap(nb.concat([self]).map(function(o){return orbLabelBox(o)}));
+      /* ── **겹치지 않는 것과 그려지는 것은 다르다** ──
+         겹침 0 인데 이름표가 6개 중 2개만 그려진 적이 있다.
+         새로 올라온 노드는 __hw(그리는 상자)가 없어서 planLabels 의 첫 거름망에서 빠졌다 —
+         **모아 놓고도 이름을 못 읽으면 모으는 뜻이 없다.** 화면이 쓰는 함수로 직접 센다. */
+      var drew=-1;
+      if(typeof planLabels==='function'){
+        var ls=planLabels();
+        drew=nb.filter(function(o){return ls[o.id]}).length;
       }
+      var cut=(typeof orbCut==='number')?orbCut:0;
+      var room=(typeof orbRoom==='function')?orbRoom():null;
       /* ④ 닫으면 돌아오나 */
       closePop();
-      for(var f=0;f<260;f++){ tick(); if(typeof fade==='function')fade() }
+      /* ── **다 돌아올 때까지 기다렸다가 잰다** ──
+         프레임 수를 고정해 두면 반지름이 커질 때 "덜 돌아온 것" 을 "안 돌아온 것" 으로 읽는다.
+         실제로 반지름이 141→174px 이 되자 53px 어긋난 것으로 나왔다 — 아직 오는 중이었다.
+         **끝난 것을 재야 한다.** 몇 프레임 걸렸는지도 함께 낸다 — 너무 오래 걸리면 그것도 문제다. */
+      var backF=-1;
+      for(var f=0;f<600;f++){
+        tick(); if(typeof fade==='function')fade();
+        if(!A.some(function(n){return n.orb})){ backF=f; break }
+      }
       var backMax=0;
       Object.keys(home).forEach(function(k){ var o=map[k]; if(!o)return;
         var d=Math.hypot(o.x-home[k][0],o.y-home[k][1]); if(d>backMax)backMax=d });
@@ -3554,7 +3586,7 @@ const TKN = { result:'결과', bill:'법·정책', person:'인물', party:'정�
       return {n:nCount, ring1:ring1, order:order, bad:bad,
         others:others, selfMove:Math.round(selfMove), maxStep:+maxStep.toFixed(1),
         arrive:arrive, zoom:+zoom.toFixed(4), backMax:Math.round(backMax), left:left, ov:ov,
-        lab:self.lab};
+        rows:rows, rr:rr, backF:backF, drew:drew, cut:cut, room:room, lab:self.lab};
     })()`);
     dm.window.close();
     if (!r) F('62. 못 쟀다');
@@ -3562,9 +3594,15 @@ const TKN = { result:'결과', bill:'법·정책', person:'인물', party:'정�
     else if (r.no) F(`62. ${r.no}`);
     else {
       console.log(`62. 둘레로 모으기  「${r.lab}」 · 원에 ${r.n}개(선 ${r.ring1}개) · ` +
-        `${r.order.join(' ')} · 모이는 데 ${r.arrive}프레임 · 프레임당 최대 ${r.maxStep}px · ` +
+        `${r.order.join(' ')} · ${r.rows}겹 반지름 ${r.rr}px · 모이는 데 ${r.arrive}프레임 · 프레임당 최대 ${r.maxStep}px · ` +
         `이어지지 않았는데 움직인 것 ${r.others}개 · 누른 것 ${r.selfMove}px · 배율 ${r.zoom} · ` +
-        `닫은 뒤 원래 자리와 ${r.backMax}px · 이름표겹침 ${r.ov}쌍`);
+        `닫은 뒤 원래 자리와 ${r.backMax}px(${r.backF}프레임) · 이름표겹침 ${r.ov}쌍 · ` +
+        `이름표 ${r.drew}/${r.n}개 그려짐` + (r.cut ? ` · 자리가 좁아 ${r.cut}개는 제자리` : ''));
+      /* **겹침 0 만으로는 모자란다.** 안 그려진 이름표는 겹칠 일도 없다 —
+         "아무것도 안 잡는 검사는 언제나 PASS" 가 이 자리에서도 성립한다. */
+      if (r.drew >= 0 && r.drew < r.n)
+        F(`62. 원에 ${r.n}개를 모았는데 이름표는 ${r.drew}개만 그려진다. ` +
+          `모아 놓고도 못 읽으면 모으는 뜻이 없다 (새로 올라온 노드에 __hw 가 없는지 본다)`);
       if (r.bad)
         F(`62. 시계 방향 시간순이 아니다 — ${r.bad}곳에서 뒤집힌다 (${r.order.join(' ')}). ` +
           `반지름이 연도를 뜻하는데 원으로 모으면 그 뜻이 깨진다. 각도가 그 일을 대신 맡아야 한다`);
@@ -3578,12 +3616,79 @@ const TKN = { result:'결과', bill:'법·정책', person:'인물', party:'정�
         F(`62. 누르자 배율이 ${r.zoom} 바뀌었다. "누르면 화면이 확대된다" 가 예전에 지적받은 그 문제다`);
       if (r.left)
         F(`62. 닫았는데 아직 모으는 중인 노드가 ${r.left}개 남았다`);
+      if (r.backF < 0)
+        F('62. 닫았는데 600프레임 안에 다 안 돌아왔다');
+      else if (r.backF > 200)
+        W(`62. 돌아오는 데 ${r.backF}프레임 걸린다 — 3초가 넘으면 되돌아가는 게 안 보인다`);
       if (r.backMax > 30)
         F(`62. 닫은 뒤 원래 자리에서 ${r.backMax}px 어긋났다. 닫으면 있던 자리로 돌아가야 한다`);
+      /* **겹치면 FAIL 이다.** 모으는 목적이 '한눈에 읽히게' 인데 겹치면 그 목적이 사라진다.
+         화면이 반지름을 넓히고 두 겹으로 나눠서라도 0 을 만들어야 한다. */
       if (r.ov)
-        W(`62. 원 안에서 이름표가 ${r.ov}쌍 겹친다 — 모아 놓고도 못 읽는다`);
+        F(`62. 원 안에서 이름표가 ${r.ov}쌍 겹친다 — 모아 놓고도 못 읽는다. ` +
+          `반지름을 넓히거나 겹을 나눠야 한다 (지금 ${r.rows}겹 ${r.rr}px)`);
       if (r.arrive < 0)
         W('62. 200프레임 안에 다 못 모였다');
+    }
+  }
+
+  /* ── 63. '처음으로' 는 **자리도** 되돌린다 ──
+     전에는 초점만 풀고 끌어서 옮긴 노드는 그대로 있었다. '전부 초기화' 라는 말과 어긋난다.
+
+     **무엇과 견주느냐가 이 검사의 핵심이다.**
+     처음에 '누르기 직전 자리' 와 견줬더니 하나가 1149px 어긋난 것으로 나왔다.
+     그런데 그 노드는 데이터가 정한 자리(반지름=연도, 각도=흩뿌린 값)에 **정확히** 있었다 —
+     '누르기 직전 자리' 쪽이 충돌 해소로 밀려 있던 자리였다.
+     **검사가 틀린 것을 재고 있었다.** 약속은 "데이터가 정한 자리로 돌아간다" 이지
+     "직전 자리로 돌아간다" 가 아니다.
+
+     그리고 `resetAllView()` 를 직접 부르지 않고 **버튼을 실제로 누른다** —
+     직접 부르면 버튼이 안 걸려 있어도 통과한다 (54번과 같은 이유). */
+  {
+    const dm = boot(1440, 900);
+    await new Promise(r => setTimeout(r, 1400));
+    const r = dm.window.eval(`(function(){
+      var t=0; while(alpha>LAY_STOP&&t<600){tick();t++}
+      if(typeof fade==='function')fade();
+      var T=A.filter(function(n){return n.t==='result'}).slice(0,6);
+      if(T.length<3)return {no:'결과 노드가 셋도 안 된다'};
+      var home=function(n){var R=ringR(n);
+        return [Math.cos(n.ang)*R, Math.sin(n.ang)*R*0.86]};
+      var off=function(n){var h=home(n);return Math.hypot(n.x-h[0],n.y-h[1])};
+      /* 사람이 하는 짓 — 끌어다 옮기고, 초점도 켜고, 필터도 건드린다 */
+      T.forEach(function(n,i){ n.fixed=1;
+        n.x+=(i%2?1:-1)*900; n.y+=(i<3?-1:1)*700; n.vx=0; n.vy=0 });
+      setFocus(T[0].id);
+      for(var f=0;f<120;f++){ tick(); if(typeof fade==='function')fade() }
+      var pulled=T.map(off).map(Math.round);
+      var btn=null;
+      var all=document.querySelectorAll('button,.ub');
+      for(var i=0;i<all.length;i++) if(/처음으로/.test(all[i].textContent||'')){btn=all[i];break}
+      if(!btn)return {no:'처음으로 버튼을 못 찾았다'};
+      btn.click();
+      for(var f2=0;f2<900;f2++){ tick(); if(typeof fade==='function')fade() }
+      var back=T.map(off).map(Math.round);
+      return {pulled:pulled, back:back, worst:Math.max.apply(null,back),
+        fixed:T.filter(function(n){return n.fixed}).length,
+        focus:focus, cat:cat, hist:(typeof navHist!=='undefined')?navHist.length:0,
+        orb:A.filter(function(n){return n.orb}).length,
+        labs:T.map(function(n){return (n.lab||'').slice(0,10)})};
+    })()`);
+    dm.window.close();
+    if (!r) F('63. 못 쟀다');
+    else if (r.no) F(`63. ${r.no}`);
+    else {
+      console.log(`63. '처음으로' 가 자리도 되돌리나  ${r.pulled.length}개를 평균 ` +
+        `${Math.round(r.pulled.reduce((a,b)=>a+b,0)/r.pulled.length)}px 끌어다 놓고 눌렀다 → ` +
+        `데이터가 정한 자리와 최대 ${r.worst}px (${r.back.join('/')})`);
+      if (r.worst > 30)
+        F(`63. '처음으로' 를 눌렀는데 노드가 데이터가 정한 자리에서 ${r.worst}px 어긋나 있다 ` +
+          `(${r.labs.join(' ')} → ${r.back.join('/')}). '처음으로' 는 전부 초기화다`);
+      if (r.fixed) F(`63. '처음으로' 뒤에도 고정(fixed)된 노드가 ${r.fixed}개 남았다`);
+      if (r.focus) F(`63. '처음으로' 뒤에도 초점이 「${r.focus}」 에 남았다`);
+      if (r.cat !== 'all') F(`63. '처음으로' 뒤에도 분야가 「${r.cat}」 이다`);
+      if (r.hist) F(`63. '처음으로' 뒤에도 되돌리기 이력이 ${r.hist}칸 남았다`);
+      if (r.orb) F(`63. '처음으로' 뒤에도 둘레로 모으는 노드가 ${r.orb}개 남았다`);
     }
   }
 

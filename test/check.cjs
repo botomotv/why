@@ -3104,6 +3104,148 @@ const TKN = { result:'결과', bill:'법·정책', person:'인물', party:'정�
     }
   }
 
+  /* ── 58. 결과 카드에 '이게 무슨 숫자인가' 가 있나 ──
+     결과는 지도의 **입구**다. 눌렀는데 숫자만 있으면 들어올 이유가 없다.
+     법에 '무슨 법인지'(tip)를 넣은 것과 같은 자리다.
+
+     세 가지를 본다:
+       ① 결과 노드 전부에 w(한 줄 뜻)가 있나 — 분모와 함께 낸다
+       ② 그 말이 **화면에 실제로 그려지나** — 데이터에만 있고 안 그리면 없는 것과 같다
+       ③ 같은 말을 두 번 하지 않나 — w 와 tip 이 겹치면 카드가 같은 말을 반복한다 */
+  {
+    const dm = boot(1440, 900);
+    await new Promise(r => setTimeout(r, 1400));
+    const r = dm.window.eval(`(function(){
+      if(typeof REZ==='undefined')return {no:'REZ(결과 쉬운 설명)가 없다'};
+      var res=N.filter(function(n){return n.t==='result'});
+      var miss=res.filter(function(n){return !(REZ[n.id]&&REZ[n.id].w)}).map(function(n){return n.id});
+      var noMean=res.filter(function(n){return !(REZ[n.id]&&REZ[n.id].m)}).map(function(n){return n.id});
+      /* 시계열이 있는데 c(예전엔 이랬는데)가 없으면 반쪽이다 */
+      var noChg=res.filter(function(n){return n.series&&n.series.length>1&&!(REZ[n.id]&&REZ[n.id].c)})
+        .map(function(n){return n.id});
+      /* 화면에 실제로 그려지나 — 한 장 열어 본다 */
+      var drawn=0, dup=0, sample=null;
+      for(var i=0;i<res.length;i++){
+        setFocus(res[i].id);
+        var p=document.getElementById('pop');
+        var el=p?p.querySelector('.rez-what'):null;
+        var e=REZ[res[i].id]||{};
+        if(el&&el.textContent.trim()===String(e.w||'').trim())drawn++;
+        else if(!sample)sample={id:res[i].id,got:el?el.textContent.trim().slice(0,30):'(없음)'};
+        /* 같은 말이 두 번 — 한 줄 설명(oneline)이 w 와 함께 그려지면 안 된다 */
+        if(el&&p.querySelector('.oneline'))dup++;
+      }
+      closePop();
+      /* 한자어 그물 — 쉬운 말로 옮긴 자리에 이런 말이 남아 있으면 옮긴 것이 아니다 */
+      var JARGON=['상대적 빈곤율','합계출산율','실업률','소진 시점','누적 상승률',
+        '보험료율','고령화율','조혼인율','경제활동참가율','증가율','감소율'];
+      var hard=[];
+      res.forEach(function(n){ var e=REZ[n.id]; if(!e)return;
+        var t=[e.w||'',e.m||'',e.c||''].join(' ');
+        JARGON.forEach(function(w){ if(t.indexOf(w)>=0)hard.push(n.id+':'+w) }) });
+      return {total:res.length, miss:miss, noMean:noMean, noChg:noChg,
+              drawn:drawn, dup:dup, sample:sample, hard:hard};
+    })()`);
+    dm.window.close();
+    if (!r || r.no) F(`58. ${(r && r.no) || '못 쟀다'}`);
+    else {
+      console.log(`58. 결과 카드 뜻   한 줄 뜻 ${r.total - r.miss.length}/${r.total} · ` +
+        `무엇을 센 숫자인가 ${r.total - r.noMean.length}/${r.total} · ` +
+        `시계열 있는데 변화 설명 없음 ${r.noChg.length}개 · 화면에 그려진 것 ${r.drawn}/${r.total}`);
+      if (r.miss.length)
+        F(`58. 쉬운 설명이 없는 결과 ${r.miss.length}/${r.total}개: ${r.miss.slice(0,6).join(', ')}. ` +
+          `db/result_easy.json 에 넣고 node tools/result-easy.mjs 를 돌려라`);
+      if (r.noMean.length)
+        W(`58. '무엇을 센 숫자인가'(m)가 없는 결과 ${r.noMean.length}개: ${r.noMean.slice(0,5).join(', ')}`);
+      if (r.noChg.length)
+        W(`58. 시계열이 있는데 '예전엔 이랬는데'(c)가 없는 결과 ${r.noChg.length}개: ${r.noChg.slice(0,5).join(', ')}`);
+      if (r.drawn < r.total)
+        F(`58. 한 줄 뜻이 화면에 안 그려지는 결과 ${r.total - r.drawn}개 ` +
+          `(예: ${r.sample ? r.sample.id + ' → ' + r.sample.got : '?'}). 데이터에만 있으면 없는 것과 같다`);
+      if (r.dup)
+        F(`58. 결과 카드 ${r.dup}개에서 한 줄 뜻과 한 줄 설명(tip)이 함께 그려진다. 같은 말이 두 번 나온다`);
+      if (r.hard.length)
+        W(`58. 쉬운 말 자리에 한자어가 남아 있다 ${r.hard.length}개: ${r.hard.slice(0,4).join(', ')}`);
+    }
+  }
+
+  /* ── 59. 검색이 지도에 있는 것을 다 찾나 · 창고와의 격차를 밝히나 ──
+     "「살인」을 치면 3개만 나온다. 판례가 2,116개인데 살인이 3건일 리가 없다."
+     세 숫자를 나란히 놓으면 어디서 빠지는지 보인다:
+
+       낱말    창고 사건명   지도 노드   검색
+       살인        504         2        3
+       사기      2,849        57       59
+       절도      1,067         3        3
+
+     **검색은 지도에 있는 것을 다 찾고 있었다.** 빠지는 곳은 창고 → 지도다.
+     판례는 법을 통해서만 올라오는데(결과 → 법 → 판례) 살인 판례가 붙을 「형법」이
+     지도에 없다. 형법을 억지로 올리면 어느 결과에도 안 이어져 고립되고,
+     r11(검찰청 폐지)의 keys 에 '형법' 을 넣는 것은
+     **글자가 같은 것과 주제가 같은 것을 섞는 일**이다. 그래서 안 올린다.
+
+     그러면 이 검사가 지킬 수 있는 약속은 둘이다:
+       ① **지도에 있는 것이 검색에서 빠지면 FAIL** — 이건 우리가 고칠 수 있다
+       ② **격차를 화면에 밝히는가** — 말없이 두면 '우리 지도에 2건' 이
+          '세상에 2건' 으로 읽힌다
+
+     창고 건수는 여기서 실제로 세어 함께 출력한다. 못 고치더라도 크기는 알고 있어야 한다. */
+  {
+    let wc = null;
+    try {
+      const { DatabaseSync } = require('node:sqlite');
+      const wdb = new DatabaseSync(path.join(ROOT, 'db', 'warehouse.db'), { readOnly: true });
+      wc = {};
+      for (const q of ['살인', '음주운전', '사기', '절도', '뇌물'])
+        wc[q] = wdb.prepare('SELECT COUNT(*) c FROM court_case WHERE case_nm LIKE ?').get('%' + q + '%').c;
+      wdb.close();
+    } catch { wc = null }
+
+    const dm = boot(1440, 900);
+    await new Promise(r => setTimeout(r, 1400));
+    const r = dm.window.eval(`(function(){
+      if(typeof qSearch!=='function')return {no:'qSearch 가 없다'};
+      var words=['살인','음주운전','사기','절도','뇌물'];
+      var out=[];
+      for(var i=0;i<words.length;i++){
+        var q=words[i], lq=q.toLowerCase();
+        /* 지도에 있는 것 — 이름·판시사항 어디든 그 말이 있으면 찾혀야 한다 */
+        var inMap=N.filter(function(n){
+          return ((n.lab||'')+' '+(n.title||'')+' '+(n.gist||'')).toLowerCase().indexOf(lq)>=0}).length;
+        qSearch(q);
+        var found=qHits.length+(typeof qMore==='number'?qMore:0);
+        /* 지도 밖이 더 있다는 것을 화면에 밝히나 */
+        var outLink=!!document.querySelector('#sres .srout');
+        out.push({q:q, inMap:inMap, found:found, outLink:outLink,
+          grouped:N.filter(function(n){return n.grouped&&((n.title||'')+(n.lab||'')).indexOf(q)>=0})
+            .reduce(function(a,n){return a+n.grouped},0)});
+      }
+      qSearch('');
+      return {out:out, cases:N.filter(function(n){return n.id.lastIndexOf('case_',0)===0}).length};
+    })()`);
+    dm.window.close();
+    if (!r || r.no) F(`59. ${(r && r.no) || '못 쟀다'}`);
+    else {
+      console.log(`59. 검색 vs 창고  사건 노드 ${r.cases}개 · ` +
+        r.out.map(o => `${o.q} ${wc ? wc[o.q] + '창고/' : ''}${o.inMap}지도/${o.found}검색`).join(' · '));
+      for (const o of r.out) {
+        if (o.found < o.inMap)
+          F(`59. 「${o.q}」 — 지도에 ${o.inMap}개가 있는데 검색은 ${o.found}개만 찾는다. ` +
+            `검색이 지도에 있는 것을 못 찾고 있다`);
+        if (o.inMap && !o.outLink)
+          F(`59. 「${o.q}」 — 검색 결과에 지도 밖으로 가는 길이 없다. ` +
+            `창고에는 ${wc ? wc[o.q] + '건' : '더 많이'} 있는데 말없이 두면 "이게 전부" 로 읽힌다`);
+      }
+      if (wc) {
+        const gap = r.out.filter(o => wc[o.q] > o.inMap * 3);
+        if (gap.length)
+          W(`59. 창고와 지도의 격차가 큰 낱말 ${gap.length}개: ` +
+            gap.map(o => `${o.q} ${wc[o.q]}→${o.inMap}`).join(', ') +
+            `. 판례는 법을 통해서만 올라온다 — 그 법이 지도에 없으면 판례도 없다`);
+      } else notes.push('59. 창고를 못 열어 창고 건수는 못 쟀다 (db/warehouse.db)');
+    }
+  }
+
   /* ── 요약 ── */
   console.log('\n' + '─'.repeat(50));
   console.log('노드 진영 분포:', JSON.stringify(bySide));

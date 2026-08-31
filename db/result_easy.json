@@ -233,5 +233,40 @@
     "chg": "2015년 736만 원에서 조금씩 올라 771만 원이 됐습니다.",
     "src": "교육부 대학알리미",
     "url": "https://www.academyinfo.go.kr/"
+  },
+  "hs_youthhome": {
+    "what": "청년 다섯 중 한 명이 최소 기준에 못 미치는 집에 삽니다.",
+    "mean": "19~34세 가운데 최저주거기준에 못 미치는 집에 사는 사람의 몫",
+    "chg": "2015년에는 일곱 중 한 명이었는데 지금은 다섯 중 한 명입니다.",
+    "src": "국토교통부 주거실태조사",
+    "url": "https://stat.molit.go.kr/portal/main/portalMain.do"
+  },
+  "hs_permit": {
+    "what": "앞으로 지을 집이 10년 전의 절반입니다.",
+    "mean": "한 해에 짓겠다고 허가를 받은 집의 수",
+    "chg": "2015년 76.5만호에서 절반 가까이 줄었습니다. 몇 년 뒤 공급이 줄어듭니다.",
+    "src": "국토교통부 주택건설실적통계",
+    "url": "https://stat.molit.go.kr/portal/main/portalMain.do"
+  },
+  "hs_selfemp": {
+    "what": "일하는 사람 넷 중 하나가 자기 가게를 합니다.",
+    "mean": "자기 가게나 사업을 하는 사람의 수",
+    "chg": "10년 동안 550만~570만 명 사이에서 크게 달라지지 않았습니다.",
+    "src": "통계청 경제활동인구조사",
+    "url": "https://www.index.go.kr/unity/potal/main/EachDtlPageDetail.do?idx_cd=2779"
+  },
+  "hs_natdebt": {
+    "what": "나라가 한 해 버는 돈의 절반만큼 빚이 있습니다.",
+    "mean": "한 해 나라가 버는 돈과 견준 나라 빚의 크기",
+    "chg": "10년 전에는 3분의 1이었는데 지금은 절반입니다.",
+    "src": "기획재정부",
+    "url": "https://www.index.go.kr/unity/potal/main/EachDtlPageDetail.do?idx_cd=4209"
+  },
+  "hs_lonely": {
+    "what": "혼자 살다 아무도 모르게 숨진 사람이 해마다 늘고 있습니다.",
+    "mean": "한 해 동안 고독사로 확인된 사람의 수",
+    "chg": "2019년 2,949명에서 5년 내리 늘어 3,661명이 됐습니다.",
+    "src": "보건복지부 고독사 실태조사",
+    "url": "https://www.mohw.go.kr/board.es?mid=a10503010100&bid=0027&tag=%EA%B3%A0%EB%8F%85%EC%82%AC"
   }
 }

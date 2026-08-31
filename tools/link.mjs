@@ -124,6 +124,9 @@ try {
 
 let easy = {};
 try { easy = JSON.parse(fs.readFileSync(path.join(ROOT, 'db', 'law_easy.json'), 'utf8')); delete easy._ } catch {}
+/* 법제처에 없는 법률명 — 폐지됐거나 이름이 바뀐 것. 링크를 만들지 않고 이유를 남긴다. */
+let deadLaws = {};
+try { deadLaws = (JSON.parse(fs.readFileSync(path.join(ROOT, 'db', 'hand_law_url.json'), 'utf8')).deadLaws) || {}; delete deadLaws._ } catch {}
 /* ── 이름을 풀어 쓴 한 줄 설명 (tools/name-explain.mjs) ──
    목적 조문도 조문 제목도 못 받은 법이 32개 있었고 화면에 "확인 중" 이 떴다.
    **미완성을 보여주는 것**이라 안 된다. 「개별소비세법」처럼 이름 안에 답이 있는 것은
@@ -346,7 +349,11 @@ for (const g of [...groups.values()].sort((a, b) => a.law.localeCompare(b.law)))
          법제처 국가법령정보는 `/법령/{법령명}` 으로 원문을 연다 — 실측으로 확인했다.
          이름이 틀리면 오류 페이지가 나오므로 **검사가 실제로 열어 본다**(검사 60).
          법률명은 우리가 지은 것이 아니라 의안 이름에서 잘라낸 것이라 그대로 쓴다. */
-      url: 'https://www.law.go.kr/%EB%B2%95%EB%A0%B9/' + encodeURIComponent(g.law),
+      /* **폐지된 법은 그 주소가 없다.** 「임대주택법」은 2015년에 둘로 나뉘며 없어졌고
+         법제처는 200 과 함께 오류 페이지를 준다 — status 만 보면 못 잡는다.
+         tools/link-check.mjs 가 잡아낸 것을 db/hand_law_url.json 의 deadLaws 에 적어 둔다. */
+      url: deadLaws[g.law] ? '' : 'https://www.law.go.kr/%EB%B2%95%EB%A0%B9/' + encodeURIComponent(g.law),
+      noUrl: deadLaws[g.law] || '',
       bills: g.items.map(x => ({ id: x.id, dt: x.dt })).sort((a, b) => a.dt.localeCompare(b.dt))
     });
   }
@@ -448,6 +455,7 @@ const nodeJs = [...lawNodes.values()].map(n =>
   /* **내보내지 않으면 없는 것과 같다.** url 을 노드에 넣고도 여기서 안 써서
      법 108개 중 1개만 근거를 갖고 있었다. 만드는 곳과 내보내는 곳이 둘이면 갈라진다. */
   (n.url ? `url:${q(n.url)},` : '') +
+  (!n.url && n.noUrl ? `noUrl:${q(n.noUrl)},` : '') +
   (n.plain ? `plain:${q(n.plain)},` : '') +
   (n.presCount && n.presCount.length
     ? `presN:[${n.presCount.map(([p, c]) => `[${q(p)},${c}]`).join(',')}],presUnknown:${n.presUnknown},` : '') +

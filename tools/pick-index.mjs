@@ -83,8 +83,18 @@ for (const h of (hand.stats || [])) {
      그 의도를 지키는 것은 개수가 아니라 **기간**이다. 재는 대상이 바뀌면 상수도 다시 잰다.
      다만 두 점만으로 선을 긋지 않게 값 4개 이상은 요구한다. */
   const span = v.length ? (Number(v[v.length - 1][0]) - Number(v[0][0])) : 0;
-  if (v.length < 4 || span < 8) {
-    rejected.push([h.id, `값 ${v.length}개 · 기간 ${span}년 — 값 4개 이상이고 기간 8년 이상이라야 추세를 말할 수 있다`]);
+  /* ── **빠진 해가 없으면 짧아도 된다** ──
+     '기간 8년' 은 드문드문 찍은 몇 점으로 추세를 말하지 못하게 하려는 규칙이다.
+     그런데 **해가 하나도 안 빠진 연속 시계열**은 짧아도 그 사이를 다 보여준다 —
+     막으려던 것(사이가 어땠는지 모르는 것)이 애초에 일어나지 않는다.
+     고독사 2019~2023 은 다섯 해가 연속이라 넣고,
+     응급실 2020·2022·2023·2024 는 2021년이 빠져 있어 못 넣는다.
+     **조건을 푼 게 아니라 무엇을 재는지 다시 정한 것이다.** */
+  const yearList = v.map(x => Number(x[0]));
+  const contiguous = yearList.length >= 5 && yearList.every((y, i) => i === 0 || y === yearList[i - 1] + 1);
+  if (v.length < 4 || (span < 8 && !contiguous)) {
+    rejected.push([h.id, `값 ${v.length}개 · 기간 ${span}년${contiguous ? ' (연속)' : ' (빠진 해가 있다)'}` +
+      ` — 기간 8년 이상이거나, 빠진 해 없이 5개 이상이라야 추세를 말할 수 있다`]);
     continue }
   const dead = (h.keys || []).filter(k => bills.filter(b => b.includes(k)).length < MIN_HIT);
   if (dead.length) { rejected.push([h.id, `핵심어가 죽었다: ${dead.join(', ')}`]); continue }

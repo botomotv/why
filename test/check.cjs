@@ -3400,6 +3400,44 @@ const TKN = { result:'결과', bill:'법·정책', person:'인물', party:'정�
     }
   }
 
+  /* ── 61. 결과 노드가 조용히 사라지지 않았나 ──
+     결과는 지도의 **입구**다. 하나가 없어지면 그 입구가 통째로 사라진다.
+     실제로 사교육비가 조용히 사라진 적이 있다 — 그때는 아무 검사도 울지 않았다.
+
+     **개수가 아니라 목록으로 잰다.** 하나가 빠지고 하나가 늘면 개수는 같은데
+     사라진 것이다. 개수만 보면 그걸 못 잡는다.
+
+     일부러 뺀 것은 `db/result_roster.json` 의 `removed` 에 이유를 적으면 통과다 —
+     빈 것 자체는 잘못이 아니고, **말없이 비우는 것**이 잘못이다. */
+  {
+    let roster = null;
+    try { roster = JSON.parse(fs.readFileSync(path.join(ROOT, 'db', 'result_roster.json'), 'utf8')) } catch {}
+    if (!roster) F('61. db/result_roster.json 이 없다 — node tools/result-roster.mjs 로 결과 명부를 만들어야 한다');
+    else {
+      const html61 = fs.readFileSync(path.join(ROOT, 'index.html'), 'utf8');
+      const now = [...new Set([...html61.matchAll(/\{id:'([^']+)',t:'result'/g)].map(m => m[1]))];
+      const removed = roster.removed || {};
+      const gone = (roster.ids || []).filter(id => !now.includes(id) && !removed[id]);
+      const added = now.filter(id => !(roster.ids || []).includes(id));
+      const silent = Object.keys(removed).filter(id => !removed[id]);
+      console.log(`61. 결과 명부   지금 ${now.length}개 · 명부 ${(roster.ids || []).length}개 (적은 날 ${roster.at})` +
+        (added.length ? ` · 새로 들어온 것 ${added.length}개` : '') +
+        (gone.length ? ` · **사라진 것 ${gone.length}개**` : '') +
+        (Object.keys(removed).length ? ` · 일부러 뺀 것 ${Object.keys(removed).length}개` : ''));
+      for (const id of gone)
+        F(`61. 결과 「${(roster.labs || {})[id] || id}」(${id})가 사라졌다. ` +
+          `결과는 지도의 입구다 — 일부러 뺀 것이면 db/result_roster.json 의 removed 에 이유를 적어라`);
+      if (silent.length)
+        F(`61. removed 에 이유가 안 적힌 것 ${silent.length}개: ${silent.join(', ')}`);
+      if (added.length)
+        W(`61. 결과 ${added.length}개가 명부에 없다 (${added.slice(0, 4).join(', ')}) — ` +
+          `node tools/result-roster.mjs 로 명부를 갱신할 것`);
+      /* 명부가 지도보다 훨씬 적으면 옛날 것을 그대로 믿고 있는 것이다 */
+      if ((roster.ids || []).length && now.length < (roster.ids || []).length)
+        W(`61. 결과가 ${(roster.ids || []).length} → ${now.length}개로 줄었다`);
+    }
+  }
+
   /* ── 요약 ── */
   console.log('\n' + '─'.repeat(50));
   console.log('노드 진영 분포:', JSON.stringify(bySide));

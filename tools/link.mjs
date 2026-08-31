@@ -446,6 +446,22 @@ if (dropped.length) {
       laws: dropped.map(n => n.lab) }, null, 2), 'utf8');
 }
 
+/* ── **노드를 뺐으면 그 선도 뺀다** ──
+   전에는 선을 그대로 뒀다. 그러면 선은 있는데 한쪽 끝이 없다 —
+   그 결과 노드는 **연결이 0개인 채로 지도에 떠서 고립**된다.
+   실측: 결과 노드 24개가 그렇게 고립됐고, 그중 8개는 붙은 법이 그것뿐이었다.
+   **한쪽 끝이 없는 선은 관계가 아니다.** 몇 개를 뺐는지 밝힌다. */
+const gone = new Set(dropped.map(n => n.id));
+const before = links.length;
+const kept = links.filter(l => !gone.has(l.from) && !gone.has(l.to));
+if (kept.length !== before) {
+  const lost = links.filter(l => gone.has(l.from) || gone.has(l.to));
+  const orphan = [...new Set(lost.map(l => (gone.has(l.from) ? l.to : l.from)))];
+  console.log(`  그 법을 가리키던 선 ${before - kept.length}개도 함께 뺐다 — 한쪽 끝이 없는 선은 관계가 아니다`);
+  console.log(`    영향받은 결과: ${orphan.join(', ')}`);
+  links.length = 0; kept.forEach(l => links.push(l));
+}
+
 const nodeJs = [...lawNodes.values()].map(n =>
   `{id:${q(n.id)},t:'bill',auto:1,side:${q(n.side)},kind:${q(n.kind)},st:${q(n.st)},` +
   `lab:${q(n.lab)},title:${q(n.title)},yr:${q(n.yr)},off:${q(n.off)},tip:${q(n.tip)},` +

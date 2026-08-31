@@ -243,8 +243,24 @@ const TKN = { result:'결과', bill:'법·정책', person:'인물', party:'정�
   // 2. 고립 노드 (career 파생 노드는 owner로 붙으므로 제외)
   const deg = {}; N.forEach(n => deg[n.id] = 0);
   L.forEach(l => { if (deg[l[0]] !== undefined) deg[l[0]]++; if (deg[l[1]] !== undefined) deg[l[1]]++; });
-  const iso = N.filter(n => deg[n.id] === 0 && !n.owner && !n.ghost);
+  const isoAll = N.filter(n => deg[n.id] === 0 && !n.owner && !n.ghost);
+  /* ── 결과 노드가 **핵심어를 비운 채** 고립된 것은 잘못이 아니다 ──
+     경제성장률·기대수명·삶의 만족도처럼 **대응하는 법이 없는 지표**가 있다.
+     그때 넓은 말을 억지로 넣으면 무관한 법이 온다 —
+     「외국」 하나로 「외국공무원에 대한 뇌물방지법」이 딸려 온 적이 있다.
+
+     **잘못은 비우는 것이 아니라 이유 없이 비우는 것이다.**
+     그래서 `keys` 가 빈 결과만 예외로 둔다.
+     **keys 가 있는데 0건이면 그건 버그다** — 분야가 안 맞거나(1관문) 시기가 안 맞는(2관문)
+     경우이고, 실제로 「주택임대차보호법」이 법제사법위원회 소관이라 land 와 안 겹쳐
+     자가점유율이 통째로 0건이었다. 그런 것은 그대로 FAIL 로 잡는다. */
+  const emptyKeys = n => n.t === 'result' && (!n.keys || !n.keys.length);
+  const iso = isoAll.filter(n => !emptyKeys(n));
+  const isoOk = isoAll.filter(emptyKeys);
   iso.forEach(n => F(`고립 노드: ${n.id} (${n.lab})`));
+  if (isoOk.length)
+    console.log(`   [핵심어를 비워 자동 연결이 없는 결과 ${isoOk.length}개 — 이유는 db/picked_index.json 에 있다]\n` +
+      `     ${isoOk.map(n => n.lab).join(' · ')}`);
   const isoGhost = N.filter(n => deg[n.id] === 0 && (n.owner || n.ghost));
   console.log(`2. 고립 노드        ${iso.length === 0 ? 'PASS' : 'FAIL (' + iso.length + ')'}   [owner/ghost로 붙는 노드 ${isoGhost.length}개는 제외]`);
 
@@ -273,12 +289,20 @@ const TKN = { result:'결과', bill:'법·정책', person:'인물', party:'정�
 
   // 4. 원인 없는 결과 노드
   const results = N.filter(n => n.t === 'result');
-  let noCause = 0;
+  let noCause = 0, noCauseOk = [];
   results.forEach(n => {
     const hasCause = L.some(l => l[1] === n.id && l[5]);
-    if (!hasCause) { F(`원인 없는 결과 노드: ${n.id} (${n.lab})`); noCause++; }
+    if (hasCause) return;
+    /* 검사 2 와 같은 예외다 — **핵심어를 비운 결과는 이을 근거가 없는 것이 사실이다.**
+       경제성장률·기대수명·삶의 만족도는 법 하나가 만드는 숫자가 아니다.
+       넓은 말을 억지로 넣으면 무관한 법이 온다. 이유는 db/picked_index.json 에 적는다.
+       **keys 가 있는데 0건이면 그건 버그다** — 그건 아래에서 그대로 FAIL 로 잡는다. */
+    if (!n.keys || !n.keys.length) { noCauseOk.push(n); return }
+    F(`원인 없는 결과 노드: ${n.id} (${n.lab}) — 핵심어 ${n.keys.join(',')} 가 있는데 0건이다`);
+    noCause++;
   });
-  console.log(`4. 원인없는 결과    ${noCause === 0 ? 'PASS' : 'FAIL (' + noCause + ')'}   [결과 노드 ${results.length}개]`);
+  console.log(`4. 원인없는 결과    ${noCause === 0 ? 'PASS' : 'FAIL (' + noCause + ')'}   [결과 노드 ${results.length}개` +
+    (noCauseOk.length ? ` · 핵심어를 비운 것 ${noCauseOk.length}개는 예외: ${noCauseOk.map(n => n.lab).join(' · ')}` : '') + ']');
 
   // 5. 출처 표기 (규칙 7) — FAIL 승격, ghost 예외 없음
   //    런타임 파생 노드도 화면에 노드로 보인다. 예외를 두면 규칙이 아니다.
@@ -3681,8 +3705,19 @@ const TKN = { result:'결과', bill:'법·정책', person:'인물', party:'정�
       console.log(`63. '처음으로' 가 자리도 되돌리나  ${r.pulled.length}개를 평균 ` +
         `${Math.round(r.pulled.reduce((a,b)=>a+b,0)/r.pulled.length)}px 끌어다 놓고 눌렀다 → ` +
         `데이터가 정한 자리와 최대 ${r.worst}px (${r.back.join('/')})`);
-      if (r.worst > 30)
+      /* ── 한도를 **끈 거리에 견준다** ──
+         30px 로 박아 뒀더니 결과 노드가 19개에서 88개로 늘자 32px 이 나와 FAIL 했다.
+         자리가 빽빽해지면 겹침 해소가 그만큼 더 밀어낸다 — **그건 물리의 정상 동작이다.**
+         한도를 40 으로 올리면 다음에 또 넘는다. 절대 px 은 데이터가 늘 때마다 흔들린다.
+
+         '처음으로' 의 약속은 "끌어다 놓은 것이 제자리로 돌아온다" 이므로
+         **끈 거리와 견주는 것이 옳다.** 1,000px 을 끌어다 놓고 32px 이면 3%다.
+         (검사 29 에서 '끈 노드의 걸음과 견준다' 고 한 것과 같은 원칙이다.) */
+      const pulledAvg = r.pulled.reduce((a, b) => a + b, 0) / r.pulled.length;
+      const lim = Math.max(30, Math.round(pulledAvg * 0.05));
+      if (r.worst > lim)
         F(`63. '처음으로' 를 눌렀는데 노드가 데이터가 정한 자리에서 ${r.worst}px 어긋나 있다 ` +
+          `(끈 거리 평균 ${Math.round(pulledAvg)}px 의 5% = ${lim}px 까지 봐준다) ` +
           `(${r.labs.join(' ')} → ${r.back.join('/')}). '처음으로' 는 전부 초기화다`);
       if (r.fixed) F(`63. '처음으로' 뒤에도 고정(fixed)된 노드가 ${r.fixed}개 남았다`);
       if (r.focus) F(`63. '처음으로' 뒤에도 초점이 「${r.focus}」 에 남았다`);

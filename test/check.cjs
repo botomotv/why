@@ -431,6 +431,18 @@ const TKN = { result:'결과', bill:'법·정책', person:'인물', party:'정�
      지표누리에서 810개 중 334개가 폐지된 통계표였던 것과 같은 종류의 사고다. */
   const linkTargets = [];
   N.forEach(n => { if (n.hand && n.url) linkTargets.push({ id: n.id, lab: n.lab, url: String(n.url), hand: 1 }) });
+  /* ── **결과 카드의 근거 링크도 전부 연다** ──
+     결과는 지도의 입구다. 거기 붙은 근거가 안 열리면 '출처 있는 척' 이 된다.
+     판례·법처럼 형식이 같아 수천 개인 것은 아래 60번이 표본으로 본다 —
+     여기서 다 열면 검사가 몇십 분이 된다. 결과는 33개뿐이라 전부 연다. */
+  try {
+    const RZ = w0.REZ || {};
+    for (const id of Object.keys(RZ)) {
+      const e = RZ[id];
+      if (e && e.u && !linkTargets.some(t => t.url === e.u))
+        linkTargets.push({ id: id, lab: (w0.map[id] || {}).lab || id, title: e.s || '원자료', url: String(e.u) });
+    }
+  } catch {}
   N.forEach(n => (n.official2 || []).forEach((r, k) => {
     const u = String(r[1] || '');
     if (u) linkTargets.push({ id: n.id, lab: n.lab, title: String(r[0] || ''), url: u, k });
@@ -3243,6 +3255,116 @@ const TKN = { result:'결과', bill:'법·정책', person:'인물', party:'정�
             gap.map(o => `${o.q} ${wc[o.q]}→${o.inMap}`).join(', ') +
             `. 판례는 법을 통해서만 올라온다 — 그 법이 지도에 없으면 판례도 없다`);
       } else notes.push('59. 창고를 못 열어 창고 건수는 못 쟀다 (db/warehouse.db)');
+    }
+  }
+
+  /* ── 60. 근거 링크가 없는 노드가 몇 개인가 · 그 링크가 진짜 열리나 ──
+     규칙 7은 "모든 노드에 출처" 인데, **글자로 적은 출처는 출처가 아니다.**
+     눌러서 확인할 수 있어야 한다. 「1인 가구 35.5%」를 눌러도 근거 자료 자리에
+     "확인 중입니다" 가 떴다 — 노드에 `url` 이 있는데 카드가 그걸 안 읽고 있었다.
+
+     ── 왜 종류별로 나누나 ──
+     법·판례·헌재·결과는 우리가 링크를 만들 수 있다 (법제처·통계표).
+     인물·정당·기관·사건은 공식 페이지를 하나씩 찾아야 한다 — 아직 못 했다.
+     **못 한 것을 0 으로 덮지 않는다.** 개수를 늘 출력하고, 채운 종류는 FAIL 로 지킨다.
+
+     ── 그리고 200 이 곧 살아있음은 아니다 ──
+     법제처는 없는 법 이름에도 **200 과 함께 오류 페이지**를 준다.
+     status 만 보면 죽은 링크를 통째로 놓친다. 그래서 표본을 열어 **제목까지** 본다. */
+  {
+    const dm = boot(1440, 900);
+    await new Promise(r => setTimeout(r, 1400));
+    const r = dm.window.eval(`(function(){
+      var RZ=(typeof REZ!=='undefined')?REZ:{};
+      function kindOf(n){
+        return n.id.lastIndexOf('case_prec_',0)===0?'판례':n.id.lastIndexOf('case_detc_',0)===0?'헌재':
+          n.t==='bill'?'법':n.t==='result'?'결과':n.t==='event'?'사건':n.t}
+      function has(n){
+        if(n.url&&/^https?:\\/\\//.test(n.url))return true;
+        if(n.official2&&n.official2.length)return true;
+        if(n.t==='result'&&RZ[n.id]&&RZ[n.id].u)return true;
+        return false}
+      var st={}, lawUrls=[];
+      N.forEach(function(n){ if(n.ghost)return;
+        var k=kindOf(n); st[k]=st[k]||{n:0,ok:0,none:[],silent:[]};
+        st[k].n++;
+        if(has(n))st[k].ok++;
+        else{
+          /* **왜 없는지 적혀 있나.** 빈 것 자체는 잘못이 아니다 —
+             '아직 안 찾았다' 와 '찾아봤지만 없다' 를 구별할 수 없게 두는 것이 잘못이다. */
+          var why=n.noUrl||(n.t==='result'&&RZ[n.id]&&RZ[n.id].n);
+          if(st[k].none.length<8)st[k].none.push(n.lab||n.id);
+          if(!why&&st[k].silent.length<8)st[k].silent.push(n.lab||n.id);
+        }
+        if(k==='법'&&n.url)lawUrls.push(n.url); });
+      /* 카드에 실제로 그려지나 — 결과 하나를 열어 본다 */
+      var res=N.filter(function(n){return n.t==='result'&&has(n)});
+      var drawn=0;
+      for(var i=0;i<res.length;i++){
+        setFocus(res[i].id);
+        var p=document.getElementById('pop');
+        if(p&&p.querySelector('.srcsec .reflist.off a'))drawn++;
+      }
+      closePop();
+      return {st:st, lawUrls:lawUrls, resWithSrc:res.length, drawn:drawn};
+    })()`);
+    dm.window.close();
+    if (!r) F('60. 근거 링크를 못 쟀다');
+    else {
+      const rows = Object.entries(r.st).sort((a, b) => b[1].n - a[1].n);
+      const silentAll = rows.reduce((a, [, v]) => a + (v.silent || []).length, 0);
+      console.log('60. 근거 링크   ' + rows.map(([k, v]) => `${k} ${v.ok}/${v.n}`).join(' · ') +
+        ` · 결과 카드에 실제로 그려진 것 ${r.drawn}/${r.resWithSrc}` +
+        ` · 이유 없이 빈 것 ${silentAll}개`);
+      /* ── **말없이 비운 것만 FAIL 이다** ──
+         근거를 못 찾는 일은 실제로 있다 — 국군방첩사령부령은 법제처 검색 API 로도 0건이고,
+         기자간담회 발언은 원문 페이지가 없다. 그때 가짜 링크를 넣는 것이 더 나쁘다.
+         그래서 **비운 것**이 아니라 **이유 없이 비운 것**을 잡는다.
+         (r3·q5 의 핵심어를 비우고 이유를 적은 것과 같은 처리다 — 창고 검사 F.) */
+      const MUST = ['결과', '법', '판례', '헌재'];
+      for (const [k, v] of rows) {
+        const miss = v.n - v.ok;
+        if (!miss) continue;
+        const silent = (v.silent || []).length;
+        if (MUST.includes(k) && silent)
+          F(`60. ${k} ${silent}개가 근거 링크도 없고 **왜 없는지도 안 적혀 있다** ` +
+            `(${v.silent.slice(0, 4).join(', ')}). 말없이 비우면 '아직 안 찾았다' 와 ` +
+            `'찾아봤지만 없다' 가 구별되지 않는다`);
+        else if (MUST.includes(k))
+          W(`60. ${k} ${miss}개는 근거를 못 찾아 비웠다 (${v.none.slice(0, 4).join(', ')}). ` +
+            `이유는 화면에 밝힌다`);
+        else
+          W(`60. ${k} ${miss}개에 근거 링크가 없다 (${v.none.slice(0, 4).join(', ')}). ` +
+            `공식 페이지를 하나씩 찾아야 하는 종류라 아직 못 채웠다`);
+      }
+      if (r.drawn < r.resWithSrc)
+        F(`60. 근거가 있는 결과 ${r.resWithSrc}개 중 ${r.resWithSrc - r.drawn}개가 카드에 안 그려진다. ` +
+          `데이터에만 있으면 없는 것과 같다`);
+
+      /* 법제처 링크 표본 — **200 이 곧 살아있음은 아니다.** 제목까지 본다. */
+      const sample = r.lawUrls.filter((u, i) => i % Math.max(1, Math.ceil(r.lawUrls.length / 10)) === 0).slice(0, 10);
+      if (!sample.length) console.log('60. 법제처 링크 표본 없음');
+      else if (!(await online(sample.map(u => ({ url: u }))))) {
+        console.log('60.  ★ SKIP — 오프라인이라 법제처 링크를 못 열었다');
+        notes.push('60. 법제처 링크 검증 SKIP (오프라인)');
+      } else {
+        let bad = [];
+        for (const u of sample) {
+          let txt = '';
+          try {
+            const res2 = await fetch(u, { headers: { 'User-Agent': 'why-map/1.0 (+https://why-map.com)' },
+              signal: AbortSignal.timeout(20000), redirect: 'follow' });
+            txt = await res2.text();
+          } catch { bad.push([u, '못 열었다']); continue }
+          const m = /<title[^>]*>([\s\S]*?)<\/title>/.exec(txt);
+          const ti = m ? m[1].trim() : '';
+          if (/오류|error|없습니다/i.test(ti)) bad.push([u, `오류 페이지 (${ti.slice(0, 24)})`]);
+        }
+        console.log(`60. 법제처 링크   표본 ${sample.length}개 열어 봄 · 오류 페이지 ${bad.length}개`);
+        for (const [u, why] of bad)
+          F(`60. 법제처 링크가 오류 페이지다 — ${why}: ${decodeURIComponent(u).slice(0, 70)}. ` +
+            `200 을 돌려주므로 status 만 보면 못 잡는다`);
+      }
     }
   }
 

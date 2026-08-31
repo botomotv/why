@@ -30,8 +30,14 @@ const q = s => "'" + String(s || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'")
   .replace(/\r/g, '').replace(/\n/g, ' ') + "'";
 const js = uniq.filter(id => easy[id]).map(id => {
   const e = easy[id];
+  /* s·u 는 **근거 자료**다. 규칙 7이 요구하는 것은 글자로 적은 출처가 아니라
+     눌러서 확인할 수 있는 링크다. 못 찾은 것은 비운다 — 가짜 링크는 없는 것보다 나쁘다. */
   return `${/^[a-z_][\w]*$/i.test(id) ? id : q(id)}:{w:${q(e.what)}` +
-    (e.mean ? `,m:${q(e.mean)}` : '') + (e.chg ? `,c:${q(e.chg)}` : '') + '}';
+    (e.mean ? `,m:${q(e.mean)}` : '') + (e.chg ? `,c:${q(e.chg)}` : '') +
+    (e.url ? `,s:${q(e.src || '원자료')},u:${q(e.url)}` : '') +
+    /* **비운 이유도 함께 내보낸다.** 빈 것 자체는 잘못이 아니다 — 말없이 비우는 것이 잘못이다.
+       화면이 "왜 없는지" 를 그대로 보여준다. 검사 60 이 이 기록을 요구한다. */
+    (!e.url && e.noUrl ? `,n:${q(e.noUrl)}` : '') + '}';
 }).join(',\n ');
 
 const A = '/*AUTO-REZ-START*/', B = '/*AUTO-REZ-END*/';
@@ -42,4 +48,8 @@ fs.writeFileSync(HTML, html.slice(0, i + A.length) + '\n ' + js + '\n' + html.sl
 console.log(`결과 노드 ${uniq.length}개 · 쉬운 설명 ${uniq.filter(id => easy[id]).length}개 내보냄`);
 if (missing.length) console.log(`  ! 설명이 없는 결과 ${missing.length}개: ${missing.join(', ')}`);
 if (extra.length) console.log(`  ! 지도에 없는 id ${extra.length}개: ${extra.join(', ')} — 노드가 사라졌거나 id 가 바뀌었다`);
+const noU = uniq.filter(id => easy[id] && !easy[id].url);
+console.log(`  근거 링크 ${uniq.filter(id => easy[id] && easy[id].url).length}/${uniq.length}개` +
+  (noU.length ? ` · 비운 것 ${noU.length}개: ${noU.join(', ')}` : ''));
+for (const id of noU) if (easy[id].noUrl) console.log(`     · ${id} — ${easy[id].noUrl}`);
 if (!missing.length && !extra.length) console.log('  빠진 것도 남는 것도 없다');

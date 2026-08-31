@@ -55,6 +55,10 @@ const lawOf = nm => String(nm || '')
      「김건희와 명태균·건진법사…특별검사」와 「…ㆍ건진법사…」가 **다른 법으로 갈렸다.**
      화면에서는 같은 줄이 두 번 뜬다 — 사람에게는 그냥 중복이다. 실측 3가지. */
   .replace(/[ㆍ・]/g, '·')
+  /* **띄어쓰기만 다른 같은 법이 둘로 갈렸다** — 「파견근로자 보호 등에 관한 법률」과
+     「파견근로자보호 등에 관한 법률」이 한 결과에 나란히 붙었다. 사람에게는 그냥 중복이다.
+     가운뎃점을 통일한 것과 같은 이유다. 다만 **비교할 때만** 없애고 이름은 그대로 쓴다 —
+     아래 lawKey 가 그 일을 한다. */
   .replace(/\s*(일부|전부|중)?개정법률안$/, '')
   .replace(/\s*폐지법률안$/, '')
   .replace(/\s*법률안$/, ' 법률')                    /* '…에 관한 법률안' → '…에 관한 법률' */
@@ -337,6 +341,12 @@ for (const g of [...groups.values()].sort((a, b) => a.law.localeCompare(b.law)))
       caseLaw: /진상규명|참사|희생자|피해자.{0,6}(지원|구제|보상)|과거사|의문사|특별검사/.test(g.law) ? 1 : 0,
       cats: [g.cat].filter(Boolean),
       src: '출처 · 국회 의안정보시스템 · 제·개정이유는 법제처 제공',
+      /* ── **근거는 눌러서 확인할 수 있어야 한다** (규칙 7) ──
+         글자로 적은 출처만 있고 열리는 링크가 없으면 '출처 있는 척' 이다.
+         법제처 국가법령정보는 `/법령/{법령명}` 으로 원문을 연다 — 실측으로 확인했다.
+         이름이 틀리면 오류 페이지가 나오므로 **검사가 실제로 열어 본다**(검사 60).
+         법률명은 우리가 지은 것이 아니라 의안 이름에서 잘라낸 것이라 그대로 쓴다. */
+      url: 'https://www.law.go.kr/%EB%B2%95%EB%A0%B9/' + encodeURIComponent(g.law),
       bills: g.items.map(x => ({ id: x.id, dt: x.dt })).sort((a, b) => a.dt.localeCompare(b.dt))
     });
   }
@@ -435,6 +445,9 @@ const nodeJs = [...lawNodes.values()].map(n =>
   (n.nameTip ? 'nameTip:1,' : '') +
   (n.lawTip ? 'lawTip:1,' : '') +
   `body:${q(n.body)},cats:[${n.cats.map(q).join(',')}],src:${q(n.src)},` +
+  /* **내보내지 않으면 없는 것과 같다.** url 을 노드에 넣고도 여기서 안 써서
+     법 108개 중 1개만 근거를 갖고 있었다. 만드는 곳과 내보내는 곳이 둘이면 갈라진다. */
+  (n.url ? `url:${q(n.url)},` : '') +
   (n.plain ? `plain:${q(n.plain)},` : '') +
   (n.presCount && n.presCount.length
     ? `presN:[${n.presCount.map(([p, c]) => `[${q(p)},${c}]`).join(',')}],presUnknown:${n.presUnknown},` : '') +

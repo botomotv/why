@@ -3278,11 +3278,16 @@ const TKN = { result:'결과', bill:'법·정책', person:'인물', party:'정�
       var RZ=(typeof REZ!=='undefined')?REZ:{};
       function kindOf(n){
         return n.id.lastIndexOf('case_prec_',0)===0?'판례':n.id.lastIndexOf('case_detc_',0)===0?'헌재':
-          n.t==='bill'?'법':n.t==='result'?'결과':n.t==='event'?'사건':n.t}
+          n.t==='bill'?'법':n.t==='result'?'결과':
+          n.t==='event'?(n.owner?'인물연표':'사건'):n.t}
       function has(n){
         if(n.url&&/^https?:\\/\\//.test(n.url))return true;
         if(n.official2&&n.official2.length)return true;
         if(n.t==='result'&&RZ[n.id]&&RZ[n.id].u)return true;
+        /* **연표 항목은 그 사람의 기록이다.** 「음주운전 · 벌금 150만원」은 독립된 사건이
+           아니라 인물에 딸린 줄이다. 따로 출처를 찾을 것이 아니라 그 사람의 근거를
+           물려받는 것이 맞다 — 화면도 그렇게 그리고, 물려받은 것이라고 밝힌다. */
+        if(n.owner&&map[n.owner]&&map[n.owner].url)return true;
         return false}
       var st={}, lawUrls=[];
       N.forEach(function(n){ if(n.ghost)return;
@@ -3321,7 +3326,10 @@ const TKN = { result:'결과', bill:'법·정책', person:'인물', party:'정�
          기자간담회 발언은 원문 페이지가 없다. 그때 가짜 링크를 넣는 것이 더 나쁘다.
          그래서 **비운 것**이 아니라 **이유 없이 비운 것**을 잡는다.
          (r3·q5 의 핵심어를 비우고 이유를 적은 것과 같은 처리다 — 창고 검사 F.) */
-      const MUST = ['결과', '법', '판례', '헌재'];
+      /* **예외를 두지 않는다.** 인물·정당·기관·사건도 근거가 있어야 한다 (규칙 7).
+         못 찾는 것은 있을 수 있다 — 그때는 **왜 못 찾았는지 적는다.**
+         적혀 있으면 WARN, 말없이 비었으면 FAIL 이다. */
+      const MUST = Object.keys(r.st);
       for (const [k, v] of rows) {
         const miss = v.n - v.ok;
         if (!miss) continue;
@@ -3340,6 +3348,30 @@ const TKN = { result:'결과', bill:'법·정책', person:'인물', party:'정�
       if (r.drawn < r.resWithSrc)
         F(`60. 근거가 있는 결과 ${r.resWithSrc}개 중 ${r.resWithSrc - r.drawn}개가 카드에 안 그려진다. ` +
           `데이터에만 있으면 없는 것과 같다`);
+
+      /* ── **전수 결과를 읽는다** ──
+         근거 링크가 2,300개다. 매 검사마다 다 열면 40분이 걸려 아무도 안 돌리게 된다.
+         그래서 `node tools/link-check.mjs` 가 전부 열어 db/link_check.json 에 남기고,
+         여기서는 그 결과를 읽는다. **오래된 결과는 결과가 아니다** — 잰 날짜를 함께 본다.
+         그리고 아래에서 표본을 직접 열어 그 파일이 거짓말하고 있지 않은지 확인한다. */
+      try {
+        const lc = JSON.parse(fs.readFileSync(path.join(ROOT, 'db', 'link_check.json'), 'utf8'));
+        const days = Math.round((Date.now() - Date.parse(lc.at)) / 86400000);
+        console.log(`60. 전수 링크   ${lc.ok}/${lc.total}개 열림 · 잰 날 ${lc.at} (${days}일 전)` +
+          (lc.sample ? ` · 표본 ${lc.sample}` : ''));
+        if (lc.bad && lc.bad.length)
+          for (const b of lc.bad.slice(0, 8))
+            F(`60. 근거 링크가 안 열린다 (${b.status} ${b.title}) ${b.kind} ${b.id}: ` +
+              `${decodeURIComponent(b.url).slice(0, 70)}`);
+        if (lc.sample) W(`60. 전수가 아니라 표본 ${lc.sample}개만 열어 본 결과다 — node tools/link-check.mjs 로 전부 확인할 것`);
+        if (days > 30) W(`60. 링크를 전부 열어 본 지 ${days}일 됐다 — 링크는 조용히 죽는다. 다시 돌릴 것`);
+        /* **파일이 지금 지도와 같은 것을 잰 것인가.** 노드가 늘었는데 옛 결과를 그대로 믿으면
+           새로 넣은 링크는 한 번도 안 열어 본 채 통과한다. */
+        const now = Object.values(r.st).reduce((a, v) => a + v.ok, 0);
+        if (!lc.sample && lc.total < now * 0.9)
+          F(`60. 전수 결과가 ${lc.total}개인데 지금 근거가 있는 노드는 ${now}개다. ` +
+            `그 뒤에 링크가 늘었다 — node tools/link-check.mjs 를 다시 돌려야 한다`);
+      } catch { F('60. db/link_check.json 이 없다 — node tools/link-check.mjs 로 근거 링크를 전부 열어 봐야 한다') }
 
       /* 법제처 링크 표본 — **200 이 곧 살아있음은 아니다.** 제목까지 본다. */
       const sample = r.lawUrls.filter((u, i) => i % Math.max(1, Math.ceil(r.lawUrls.length / 10)) === 0).slice(0, 10);

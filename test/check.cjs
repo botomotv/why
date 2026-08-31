@@ -3578,9 +3578,19 @@ const TKN = { result:'결과', bill:'법·정책', person:'인물', party:'정�
          사람 눈에는 겹치는데 검사는 초록불이었다. 공식을 베껴 쓰면 언제나 이렇게 갈라진다.
          페이지의 orbLabelBox()·orbOverlap() 을 부른다. 화면이 그 함수로 판단해 반지름을 정한다.
          **모여 있는 동안** 재야 한다 — 닫은 뒤에 재면 다른 것을 잰다. */
-      var ov=0, rows=(typeof orbZig==='number')?(orbZig?2:1):1, rr=(typeof orbR==='number')?Math.round(orbR*cam.s):0;
-      if(typeof orbLabelBox==='function'&&typeof orbOverlap==='function')
+      var ov=0, ovWho=[], rows=(typeof orbZig==='number')?(orbZig?2:1):1, rr=(typeof orbR==='number')?Math.round(orbR*cam.s):0;
+      /* ── **실제로 그린 글자 전부**를 잰다 ──
+         전에는 노드 이름표(orbLabelBox)만 쟀다. 그런데 화면에는 그것 말고도
+         **선 한가운데의 관계 라벨**(「지지 기반 2025」·「판결·처분 2025.01」),
+         노드 아래 연도 줄, 역할 배지, '+N 모두 보기' 배지가 함께 그려진다.
+         사람 눈에는 그것들이 겹쳐 안 읽히는데 검사는 0쌍이라고 했다.
+         drawnText() 는 fillText 를 가로채 **그린 것 그대로**를 담으므로 빠뜨릴 수가 없다. */
+      if(typeof drawnText==='function'&&typeof textOverlap==='function'){
+        ov=textOverlap(drawnText(), ovWho);
+      } else if(typeof orbLabelBox==='function'&&typeof orbOverlap==='function'){
         ov=orbOverlap(nb.concat([self]).map(function(o){return orbLabelBox(o)}));
+      }
+      var eSkip=(typeof edgeLabSkip==='number')?edgeLabSkip:-1;
       /* ── **겹치지 않는 것과 그려지는 것은 다르다** ──
          겹침 0 인데 이름표가 6개 중 2개만 그려진 적이 있다.
          새로 올라온 노드는 __hw(그리는 상자)가 없어서 planLabels 의 첫 거름망에서 빠졌다 —
@@ -3610,7 +3620,8 @@ const TKN = { result:'결과', bill:'법·정책', person:'인물', party:'정�
       return {n:nCount, ring1:ring1, order:order, bad:bad,
         others:others, selfMove:Math.round(selfMove), maxStep:+maxStep.toFixed(1),
         arrive:arrive, zoom:+zoom.toFixed(4), backMax:Math.round(backMax), left:left, ov:ov,
-        rows:rows, rr:rr, backF:backF, drew:drew, cut:cut, room:room, lab:self.lab};
+        rows:rows, rr:rr, backF:backF, drew:drew, cut:cut, room:room,
+        ovWho:ovWho.slice(0,4), eSkip:eSkip, lab:self.lab};
     })()`);
     dm.window.close();
     if (!r) F('62. 못 쟀다');
@@ -3621,7 +3632,8 @@ const TKN = { result:'결과', bill:'법·정책', person:'인물', party:'정�
         `${r.order.join(' ')} · ${r.rows}겹 반지름 ${r.rr}px · 모이는 데 ${r.arrive}프레임 · 프레임당 최대 ${r.maxStep}px · ` +
         `이어지지 않았는데 움직인 것 ${r.others}개 · 누른 것 ${r.selfMove}px · 배율 ${r.zoom} · ` +
         `닫은 뒤 원래 자리와 ${r.backMax}px(${r.backF}프레임) · 이름표겹침 ${r.ov}쌍 · ` +
-        `이름표 ${r.drew}/${r.n}개 그려짐` + (r.cut ? ` · 자리가 좁아 ${r.cut}개는 제자리` : ''));
+        `이름표 ${r.drew}/${r.n}개 그려짐` + (r.cut ? ` · 자리가 좁아 ${r.cut}개는 제자리` : '') +
+        (r.eSkip > 0 ? ` · 겹쳐서 안 그린 선 라벨 ${r.eSkip}개` : ''));
       /* **겹침 0 만으로는 모자란다.** 안 그려진 이름표는 겹칠 일도 없다 —
          "아무것도 안 잡는 검사는 언제나 PASS" 가 이 자리에서도 성립한다. */
       if (r.drew >= 0 && r.drew < r.n)
@@ -3649,7 +3661,7 @@ const TKN = { result:'결과', bill:'법·정책', person:'인물', party:'정�
       /* **겹치면 FAIL 이다.** 모으는 목적이 '한눈에 읽히게' 인데 겹치면 그 목적이 사라진다.
          화면이 반지름을 넓히고 두 겹으로 나눠서라도 0 을 만들어야 한다. */
       if (r.ov)
-        F(`62. 원 안에서 이름표가 ${r.ov}쌍 겹친다 — 모아 놓고도 못 읽는다. ` +
+        F(`62. 화면에 그린 글자가 ${r.ov}쌍 겹친다 (${r.ovWho.join(' / ')}) — 모아 놓고도 못 읽는다. ` +
           `반지름을 넓히거나 겹을 나눠야 한다 (지금 ${r.rows}겹 ${r.rr}px)`);
       if (r.arrive < 0)
         W('62. 200프레임 안에 다 못 모였다');
@@ -3724,6 +3736,72 @@ const TKN = { result:'결과', bill:'법·정책', person:'인물', party:'정�
       if (r.cat !== 'all') F(`63. '처음으로' 뒤에도 분야가 「${r.cat}」 이다`);
       if (r.hist) F(`63. '처음으로' 뒤에도 되돌리기 이력이 ${r.hist}칸 남았다`);
       if (r.orb) F(`63. '처음으로' 뒤에도 둘레로 모으는 노드가 ${r.orb}개 남았다`);
+    }
+  }
+
+  /* ── 64. '뒤로' 는 **그 시점의 노드 자리**로 돌아간다 ──
+     '처음으로' 는 데이터가 정한 자리로 되돌리면 된다 — 자리를 데이터가 정하기 때문이다.
+     그런데 '뒤로' 는 다르다. **한 칸 전이지 처음이 아니다.**
+     전에는 초점 id 만 되돌려서 끌어다 옮긴 노드는 그대로 남았다.
+
+     **검사가 만들어야 하는 상황이 핵심이다.**
+     처음에 '옮기고 → 다른 노드 누르고 → 뒤로' 로만 재 봤더니 전부 0px 이 나왔는데,
+     그건 되돌린 것이 아니라 **되돌릴 것이 없었던 것**이다 (그 사이 아무것도 안 움직였다).
+     뒤로 가기 **직전에 한 번 더 옮겨야** 되돌리는지 아닌지가 갈린다. */
+  {
+    const dm = boot(1440, 900);
+    await new Promise(r => setTimeout(r, 1400));
+    const r = dm.window.eval(`(function(){
+      var t=0; while(alpha>LAY_STOP&&t<600){tick();t++}
+      if(typeof fade==='function')fade();
+      if(typeof navSnap!=='function')return {no:'이력에 자리를 담지 않는다 (navSnap 이 없다)'};
+      var T=A.filter(function(n){return n.t==='result'}).slice(0,4);
+      if(T.length<3)return {no:'결과 노드가 셋도 안 된다'};
+      var ids=Object.keys(map);
+      var f1=T[0].id, f2=(A.filter(function(n){return n.t==='result'&&n.id!==f1})[1]||{}).id;
+      if(!f2)return {no:'누를 결과가 둘도 안 된다'};
+      closePop(); navHist.length=0; syncBack();
+      for(var f=0;f<300;f++){ tick(); if(typeof fade==='function')fade() }
+
+      setFocus(f1);
+      for(var f=0;f<200;f++){ tick(); if(typeof fade==='function')fade() }
+      T.forEach(function(n,i){ n.fixed=1;
+        n.x+=(i%2?1:-1)*700; n.y+=(i<2?-1:1)*500; n.vx=0; n.vy=0 });
+      for(var f=0;f<120;f++){ tick(); if(typeof fade==='function')fade() }
+      var A1={}; T.forEach(function(n){ A1[n.id]=[n.x,n.y] });   /* 자리 A */
+
+      setFocus(f2);   /* 다른 노드를 누른다 — 이력에 자리 A 가 담겨야 한다 */
+      for(var f=0;f<200;f++){ tick(); if(typeof fade==='function')fade() }
+      /* **여기서 한 번 더 옮긴다.** 안 그러면 되돌릴 것이 없어 검사가 통과해 버린다. */
+      T.forEach(function(n){ n.x+=400; n.y-=300; n.vx=0; n.vy=0 });
+      for(var f=0;f<120;f++){ tick(); if(typeof fade==='function')fade() }
+      var away=T.map(function(n){ return Math.round(Math.hypot(n.x-A1[n.id][0],n.y-A1[n.id][1])) });
+
+      /* goBack() 을 직접 부르지 않고 **버튼을 실제로 누른다** (54·63 과 같은 이유) */
+      var btn=null, all=document.querySelectorAll('button,.ub');
+      for(var i=0;i<all.length;i++) if(/뒤로/.test(all[i].textContent||'')){btn=all[i];break}
+      if(!btn)return {no:'뒤로 버튼을 못 찾았다'};
+      btn.click();
+      for(var f=0;f<300;f++){ tick(); if(typeof fade==='function')fade() }
+      var back=T.map(function(n){ return Math.round(Math.hypot(n.x-A1[n.id][0],n.y-A1[n.id][1])) });
+      return {away:away, back:back, worst:Math.max.apply(null,back),
+        moved:Math.max.apply(null,away), focus:focus, want:f1,
+        labs:T.map(function(n){return (n.lab||'').slice(0,10)})};
+    })()`);
+    dm.window.close();
+    if (!r) F('64. 못 쟀다');
+    else if (r.no) F(`64. ${r.no}`);
+    else {
+      console.log(`64. '뒤로' 가 자리도 되돌리나  뒤로 누르기 직전 ${r.moved}px 옮겨 두고 눌렀다 → ` +
+        `그 시점 자리와 최대 ${r.worst}px (${r.back.join('/')})`);
+      /* **되돌릴 것이 없으면 이 검사는 아무것도 보증하지 않는다.** 먼저 그것부터 본다. */
+      if (r.moved < 50)
+        F(`64. 뒤로 누르기 전에 노드가 ${r.moved}px 밖에 안 움직였다 — 되돌릴 것이 없으면 검사가 성립하지 않는다`);
+      else if (r.worst > 30)
+        F(`64. '뒤로' 를 눌렀는데 노드가 그 시점 자리에서 ${r.worst}px 어긋나 있다 ` +
+          `(${r.labs.join(' ')} → ${r.back.join('/')}). '뒤로' 는 한 칸 전으로 돌아가는 것이다`);
+      if (r.focus !== r.want)
+        F(`64. '뒤로' 뒤 초점이 「${r.focus}」 다 — 「${r.want}」 여야 한다`);
     }
   }
 

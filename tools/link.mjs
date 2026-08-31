@@ -281,6 +281,17 @@ for (const nd of nodes) {
        시계열이 없는 노드는 예전과 똑같이 yr 하나에 ±YEARS 다. */
     const y0 = (typeof nd.yrFrom === 'number' && nd.yrFrom) ? nd.yrFrom : nd.yr;
     const ok2 = (b.y >= y0 - YEARS) && (b.y <= nd.yr + YEARS);
+    /* ── 일괄개정법은 **그 법이 아니다** ──
+       「행정법제 혁신을 위한 물가안정에 관한 법률 **등 3개 법률의 일부개정에 관한 법률**」은
+       이름에 「물가안정」이 들어 있어 3관문을 통과한다. 그런데 그건 물가안정법을 주제로
+       만든 법이 아니라 **여러 법을 한꺼번에 손본 묶음**이다.
+       실제로 물가상승률에 이 법이, 이혼 건수에 「행정법제 혁신을 위한 양육비…」가 붙었다.
+       개정 내용은 각 법에 흡수되고 이 법률 자체는 현행법령으로 남지도 않는다
+       (법제처가 200 과 함께 오류 페이지를 준다 — deadLaws 에 적어 둔 그것들이다). */
+    if (/등\s*\d+개\s*법률의?\s*일부개정/.test(b.nm) || /\d+개\s*법률\s*일부개정을?\s*위한/.test(b.nm)) {
+      gate.bundle = (gate.bundle || 0) + 1;
+      continue;
+    }
     const key = nd.keys.find(k => b.nm.includes(k));
     if (ok1) gate.g1++;
     if (ok2) gate.g2++;
@@ -400,6 +411,7 @@ console.log(`  1관문 분야 겹침           ${nl(gate.g1).padStart(8)}쌍   �
 console.log(`  2관문 시기 ±${YEARS}년          ${nl(gate.g2).padStart(8)}쌍`);
 console.log(`  1+2                       ${nl(gate.g12).padStart(8)}쌍   탈락 ${nl(gate.g1 - gate.g12)}`);
 console.log(`  3관문 이름에 핵심어        ${nl(gate.g123).padStart(8)}쌍   탈락 ${nl(gate.g12 - gate.g123)}`);
+if (gate.bundle) console.log(`  그중 일괄개정법으로 뺀 것  ${nl(gate.bundle).padStart(8)}건   («등 N개 법률의 일부개정»은 그 법이 아니다)`);
 console.log(`  ────────────────────────────────────`);
 console.log(`  법률로 묶은 뒤 선          ${nl(links.length).padStart(8)}개   (개정 ${nl(gate.g123)}건을 법률 ${nl(lawNodes.size)}개로)`);
 console.log('');

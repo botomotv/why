@@ -8298,6 +8298,22 @@ var A=[],AL=[];
 
    결과 19개는 이 수에 안 센다 — 지도의 입구라 언제나 전부 그린다. */
 var MAP_N=Number((location.search.match(/[?&]mn=(\d+)/)||[])[1]||30);
+/* ── 첫 화면에 그리는 **노드 전부**의 상한 ──
+   전에는 결과 상한(RES_N)과 나머지 상한(MAP_N)이 따로였다. 그래서 "결과 40개" 라고
+   해 놓고 실제로는 **69개**를 그리고 있었다 (결과 40 + 법 18 + 인물 6 + 정당 2 + 기관 1 + 사건 2).
+   **지시한 수와 실제가 다르면 그건 안 지킨 것이다.** 이제 전체를 이 수로 맞춘다.
+   `?fn=` 으로 바꿔 눈으로 비교한다. 검사 65 가 이 수를 넘으면 FAIL 한다. */
+var FIRST_N=Number((location.search.match(/[?&]fn=(\d+)/)||[])[1]||20);
+/* ── 첫 화면에서 빼는 결과 (db/result_quiet.json) ──
+   「식중독 환자」·「용지 부족 투표소 50곳」·「1인당 병원 방문」처럼
+   **그 숫자가 바뀌어도 삶이 안 바뀌고 정치적 논쟁도 없는 것**은 첫 화면에서 뺀다.
+   지우는 게 아니라 옮기는 것이다 — 분야를 고르거나 검색하면 그대로 나온다.
+   **애매하면 남긴다.** 빼는 것 자체가 편집이므로 의심스러우면 안 빼는 쪽으로 기운다. */
+var QUIET={'ix_food':1,'q3':1,'ix_hospital':1,'ix_dust':1,'ix_sport':1,'ix_culture':1,'ix_water':1,'ix_sewer':1,'ix_119':1,'ix_internet':1,'ix_car':1,'ix_park':1,'ix_household':1,'ix_binge':1,'ix_health':1,'ix_trust':1};
+var QUIET_ON=!/[?&]quiet=0/.test(location.search);
+/* `?big=1` 이면 첫 화면에도 숫자 줄을 그린다 (비교용) */
+var BIG_LINE_OFF=!/[?&]big=1/.test(location.search);
+function showBigDraw(n){ return n.t==='result'&&n.big&&!BIG_LINE_OFF }
 /* ── 첫 화면에 그리는 결과의 수 ──
    `?rn=` 으로 바꿔서 눈으로 비교할 수 있다. 값은 스크린샷으로 정한다 — 계산이 아니다.
 
@@ -8319,7 +8335,10 @@ var MAP_N=Number((location.search.match(/[?&]mn=(\d+)/)||[])[1]||30);
    107 은 겹침이 0 인데도 나쁘다 — **겹침만으로는 '빽빽함' 을 못 잰다.** 눈으로 봐야 한다. */
 var RES_N=Number((location.search.match(/[?&]rn=(\d+)/)||[])[1]||40);
 var resCut=0;
-function resLimit(){ return (cat&&cat!=='all')?1e9:RES_N }
+/* 결과가 지도의 입구이므로 자리의 **3/4** 를 준다. 나머지는 법·인물·정당 몫이다.
+   숫자를 박지 않고 전체 상한에서 나눈다 — FIRST_N 을 바꾸면 둘 다 따라간다. */
+function resLimit(){ return (cat&&cat!=='all')?1e9:Math.max(4,Math.round(FIRST_N*0.75)) }
+var resQuiet=0;
 var mapSet=null, mapKey='', focusNb=null;
 function byDeg0(a,b){
   var da=(adj[a.id]||[]).length, db=(adj[b.id]||[]).length;
@@ -8329,7 +8348,8 @@ function planMap(){
   var key=[N.length,cat,sideF||'',kindF||'',onlyP||'',focus||'',MAP_N,RES_N,
     focusNb?Object.keys(focusNb).length:0].join('|');
   if(mapSet&&mapKey===key)return mapSet;
-  var out={}, left=MAP_N;
+  /* 남은 자리 = 전체 상한 − 결과 몫. 결과를 먼저 담고 그 나머지를 나눈다 */
+  var out={}, left=(cat&&cat!=='all')?MAP_N:Math.max(2,FIRST_N-Math.round(FIRST_N*0.75));
   var deg=function(n){return (adj[n.id]||[]).length};
   /* ── **결론을 모르는 헌재 결정은 지도에 안 올린다** ──
      삼각형을 눌러도 "헌법재판소 결정입니다. 사건번호는 …" 뿐이면
@@ -8371,7 +8391,10 @@ function planMap(){
        ③ 같은 값이면 id 순 — 실행마다 달라지면 그 흔들림도 우리가 고른 것이 된다
      **연도·진영은 안 쓴다.** 최근 것을 앞세우면 "요즘 일이 더 중요하다" 가 되고,
      진영을 쓰면 균형이 아니라 연출이 된다. */
-  var resAll=pool.filter(function(n){return n.t==='result'});
+  /* 조용한 결과는 첫 화면 후보에서 뺀다 (분야를 고르면 다시 들어온다) */
+  var quietOff=QUIET_ON&&(!cat||cat==='all')&&!focus;
+  var resAll=pool.filter(function(n){return n.t==='result'&&!(quietOff&&QUIET[n.id])});
+  resQuiet=quietOff?pool.filter(function(n){return n.t==='result'&&QUIET[n.id]}).length:0;
   var lim=resLimit();
   if(resAll.length<=lim){
     resAll.forEach(function(n){out[n.id]=1});
@@ -8406,8 +8429,23 @@ function planMap(){
   var byDeg=byDeg0;
   /* **결과는 여기서 안 뽑는다.** 위 라운드로빈이 이미 골랐다 —
      여기 남겨 두면 상한 40 인데 41개가 그려진다(실측). 상한이 상한이 아니게 된다. */
-  var hand=pool.filter(function(n){return n.t!=='result'&&!n.auto&&!out[n.id]}).sort(byDeg);
-  var auto=pool.filter(function(n){return n.t!=='result'&&n.auto&&!out[n.id]}).sort(byDeg);
+  /* ── 남은 자리에는 **지금 담긴 결과와 이어진 것**을 먼저 넣는다 ──
+     연결 수만 보고 뽑으면 담긴 결과와 안 이어져 지도에서 선 없는 점이 되고,
+     뒤의 「이어지지 않으면 뺀다」 에서 통째로 빠진다 —
+     실제로 법 5개를 뽑았는데 **하나도 안 남아** 선이 거의 없는 화면이 됐다.
+     **올리는 집합은 그리는 선에서 나와야 한다.** */
+  var pickedRes=Object.create(null);
+  Object.keys(out).forEach(function(id){ if(map[id]&&map[id].t==='result')pickedRes[id]=1 });
+  var linked=function(n){
+    var e=adj[n.id]||[];
+    for(var i=0;i<e.length;i++) if(pickedRes[other(e[i],n.id)])return 1;
+    return 0;
+  };
+  var rest=pool.filter(function(n){return n.t!=='result'&&!out[n.id]});
+  var hand=rest.filter(function(n){return !n.auto&&linked(n)}).sort(byDeg)
+      .concat(rest.filter(function(n){return !n.auto&&!linked(n)}).sort(byDeg));
+  var auto=rest.filter(function(n){return n.auto&&linked(n)}).sort(byDeg)
+      .concat(rest.filter(function(n){return n.auto&&!linked(n)}).sort(byDeg));
   for(var j=0;j<hand.length&&left>0;j++){out[hand[j].id]=1;left--}
   for(var k=0;k<auto.length&&left>0;k++){out[auto[k].id]=1;left--}
   /* ── 뽑힌 것들끼리 이어지지 않으면 지도에서 뺀다 ──
@@ -9182,47 +9220,31 @@ function angHash(s){
   return (h>>>0)/4294967296;
 }
 function setAngles(keep){
-  var byRing=Object.create(null);
-  /* ── **`A` 가 아니라 `N` 을 기준으로 정한다** ──
-     `A`(화면에 올라온 것)는 분야·초점·상한에 따라 바뀐다. 그걸 기준으로 각도를 정하면
-     **필터를 건드릴 때마다 배치가 통째로 달라진다.**
-     실측: '처음으로' 를 눌렀을 때 「집값 5.36% 상승」이 **471px** 어긋났다(검사 63) —
-     되돌릴 자리 자체가 그때그때 달라졌기 때문이다.
-     **자리는 데이터가 정한다.** 화면에 무엇이 올라왔는지는 데이터가 아니다.
+  /* ── 각도는 **화면에 올라온 것 기준으로 고르게** 나눈다 ──
+     전에는 고리(연도)별로 묶어 id 해시로 뿌렸다. 그런데 실측해 보니
+     **목표 각도 자체가 12방향에 0~18개**로 쏠려 있었다 (2·3시 방향에 45%).
+     물리는 잘못이 없었다 — 반지름 어긋남 0, 목표에서 벗어난 거리 중앙값 36px.
+     **해시는 표본이 클 때만 고르다.** 한 고리에 한두 개씩이면 어디로 갈지 모른다.
 
-     지도에 절대 안 올라가는 판례는 뺀다 — 그것까지 세면 한 고리에 2,500개가 되어
-     각도 간격이 0.14° 가 되고, 실제로 그려지는 몇 개가 한 방향에 몰린다. */
-  N.forEach(function(n){
-    if(n.id&&n.id.lastIndexOf('case_prec_',0)===0)return;
-    var y=pyOf(n);
-    var k=isFinite(y)?String(Math.round(y)):'x';
-    (byRing[k]||(byRing[k]=[])).push(n);
-  });
-  Object.keys(byRing).forEach(function(k){
-    var g=byRing[k];
-    /* id 순으로 세워야 실행마다 같은 자리에 온다 */
-    g.sort(function(a,b){return String(a.id)<String(b.id)?-1:1});
-    /* ── 균등 분배 대신 **id 해시** ──
-       고리 안에서 균등하게 나누면 그 고리 전체가 채워질 때만 고르다.
-       그런데 첫 화면에는 결과 40개만 올라온다 — 뽑는 기준(연결 수·분야)은 각도와 무관하므로
-       **뽑힌 것들이 한쪽에 몰린다.** 실측: 고리 영역의 50%(12/24칸)가 비었다(검사 26).
-       id 해시는 어느 부분집합을 뽑아도 통계적으로 고르게 흩어진다.
-       완벽한 균등은 아니지만 **부분집합에서도 고르다** — 그게 우리가 필요한 성질이다. */
-    g.forEach(function(n){
-      if(keep&&typeof n.ang==='number'&&isFinite(n.ang))return;
-      n.ang=angHash('a:'+n.id)*Math.PI*2;
-    });
-    /* ── 해시로만 뿌리면 **둘이 같은 방향에 겹친다** ──
-       그러면 겹침 해소가 그 둘을 크게 밀어내고, '처음으로' 로 되돌려도
-       데이터가 정한 자리에서 **119px** 벗어난다(검사 63).
-       분산은 해시가 만들고, **최소 간격만** 보장한다 — 순서는 안 바꾼다. */
-    g.sort(function(a,b){return a.ang-b.ang});
-    var gap=Math.PI*2/Math.max(g.length,10)*0.55;
-    for(var gi=1;gi<g.length;gi++){
-      if(g[gi].ang-g[gi-1].ang<gap)g[gi].ang=g[gi-1].ang+gap;
-    }
-  });
+     그래서 지도에 올라온 것(A)을 통째로 각도 순으로 세우고 균등하게 나눈다.
+     순서는 해시가 정하므로 뜻이 없고, 간격만 고르다.
+
+     ── `A` 를 써도 되나 ──
+     예전에 "A 로 자리를 정하면 안 된다" 고 적었다. 필터를 바꿀 때마다 배치가 달라져
+     '처음으로' 가 471px 어긋났기 때문이다. **그 제약은 풀렸다** —
+     검사 63 이 이제 '데이터가 정한 자리' 가 아니라 **'처음 화면의 자리'** 와 견준다.
+     첫 화면이 동그란 것이 우선이고, 되돌리기는 처음 화면을 기준으로 재면 된다. */
+  var pool=A.filter(function(n){return !(n.id&&n.id.lastIndexOf('case_prec_',0)===0)});
+  if(!pool.length)return;
+  /* 순서는 해시 — 실행마다 같고 뜻이 없다 */
+  var arr=pool.slice().sort(function(a,b){
+    var d=angHash('a:'+a.id)-angHash('a:'+b.id);
+    return d||(String(a.id)<String(b.id)?-1:1)});
+  var step=Math.PI*2/arr.length;
+  var off=angHash('map0')*Math.PI*2;
+  arr.forEach(function(n,i){ n.ang=off+i*step });
 }
+
 
 
 N.forEach(function(n){
@@ -9268,10 +9290,15 @@ function measure(){
   var wOf=function(t,px,w){cx.font=w+' '+px+"px 'Noto Sans KR',sans-serif";
     return cx.measureText(t||'').width};
   N.forEach(function(n){
+    /* ── 첫 화면에서는 결과의 **숫자 줄을 뺀다** ──
+       「합계출산율 0.7명대」 아래에 「0.72명」을 또 쓰고 있었다 — **이름에 이미 숫자가 있다.**
+       그 한 줄 때문에 이름표 높이가 화면에서 49px 이 되어 위아래로 서로 겹쳤다.
+       빼면 30px 이 된다. 숫자는 눌렀을 때 카드가 크게 보여준다. */
     var big=n.t==='result';
+    var showBig=big&&n.big&&!BIG_LINE_OFF;
     var w=wOf(n.lab,big?15.5:12.5,big?'500':'400');
     var lines=1;
-    if(big&&n.big){w=Math.max(w,wOf(n.big,14.5,'700'));lines=2}
+    if(showBig){w=Math.max(w,wOf(n.big,14.5,'700'));lines=2}
     if(n.t==='bill'&&n.yr&&n.pres){
       w=Math.max(w,wOf(n.yr+(n.check?'':' · '+n.pres),13.5,'400'));lines=2}
     n.lw=w;
@@ -9280,7 +9307,7 @@ function measure(){
        노드 반지름은 넣지 않는다 — 박스가 이미 y+r 에서 시작하기 때문이다.
        여기에 r 을 넣었더니 반지름을 두 번 세서 박스가 3배로 커졌고,
        초점 이웃 이름표가 6개 중 0개만 남았다. */
-    n.lh=15+(big&&n.big?22:0)+((n.t==='bill'&&n.yr&&n.pres)?14:0)+12;
+    n.lh=15+(showBig?22:0)+((n.t==='bill'&&n.yr&&n.pres)?14:0)+12;
   });
   /* 역할 배지는 초점 이웃에만 뜬다. 모든 노드에 더하면
      짧은 이름의 박스가 두 배가 돼 이름표가 62/171 → 5/171 로 무너진다.
@@ -11117,7 +11144,7 @@ function draw(){
          그리고 간격만 배율을 안 타서 확대하면 더 겹쳤다. 간격도 배율을 태운다. */
       var LS=labelFontScale(), ly=yy;
       cx.textAlign='center';cx.fillText(n.lab,n.x,ly+(big?4:0));
-      if(big&&n.big){ly+=22*LS;
+      if(showBigDraw(n)){ly+=22*LS;
         cx.font='700 '+(14.5*LS)+"px 'Noto Sans KR',sans-serif";
         cx.fillStyle='rgba(227,174,85,'+Math.min(1,n.a).toFixed(2)+')';
         cx.fillText(n.big,n.x,ly)}
@@ -12877,7 +12904,17 @@ function resetAllView(){
   if(typeof orbClear==='function')orbClear();
   drag=null; dragPull=null;
   N.forEach(function(n){ delete n.fixed; delete n.__pulling; delete n.angT; n.vx=0; n.vy=0 });
-  syncSide();syncKind();refilter();setAngles();reheat(0.9);
+  syncSide();syncKind();refilter();setAngles();
+  /* ── 되돌린 자리에 **바로 놓는다** ──
+     전에는 각도만 다시 뿌리고 물리에 맡겼다. 그런데 물리는 안정점을 여럿 가져
+     같은 코드로 40 · 301 · 554px 을 오갔다 — 겹침 해소가 어느 쪽으로 미느냐에 따라 다르다.
+     첫 화면도 «각도·반지름으로 놓고 물리가 겹침만 푼다» 이므로,
+     여기서도 같은 자리에 놓으면 첫 화면과 같아진다. 물리는 그 뒤에 겹침만 푼다. */
+  A.forEach(function(n){
+    var R=ringR(n), a=(typeof n.ang==='number'&&isFinite(n.ang))?n.ang:0;
+    n.x=Math.cos(a)*R; n.y=Math.sin(a)*R*0.86; n.vx=0; n.vy=0;
+  });
+  reheat(0.9);
   var qq=document.getElementById('q');if(qq){qq.value='';if(typeof qClose==='function')qClose()}
   /* 전부 초기화이므로 이력도 비운다. 안 그러면 '처음으로' 뒤에 '뒤로' 가 남아
      방금 지운 상태로 되돌아간다 — '처음으로' 라는 말과 어긋난다. */

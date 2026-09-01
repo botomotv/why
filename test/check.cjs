@@ -2581,6 +2581,7 @@ const TKN = { result:'결과', bill:'법·정책', person:'인물', party:'정�
         });
       }
       /* 닫으면 반지름이 돌아오나 — 모으기가 켜져 있을 때 이것이 마지막 보증이다 */
+      var maxR49=0; A.forEach(function(n){ if(n.t==='result'&&n.r>maxR49)maxR49=n.r });
       var back=0, backWho=null;
       if(typeof closePop==='function'){
         closePop();
@@ -2608,7 +2609,7 @@ const TKN = { result:'결과', bill:'법·정책', person:'인물', party:'정�
       }).length;
       return {selfHid:selfHid, top:Math.round(top), hidden:hidden, hidden2:hidden2,
               worst:Math.round(worst), worstWho:worstWho,
-              dR:Math.round(dR), dRwho:dRwho, back:Math.round(back), backWho:backWho,
+              dR:Math.round(dR), dRwho:dRwho, back:Math.round(back), maxR49:maxR49, backWho:backWho,
               orbit:(typeof ORBIT!=='undefined'&&ORBIT)?1:0,
               lim:Math.round(Math.min(W,H)/6), n:A.length};
     })()`);
@@ -2623,7 +2624,14 @@ const TKN = { result:'결과', bill:'법·정책', person:'인물', party:'정�
       if (r.dR > 3) F(`49. 모으지 않는 노드의 반지름이 ${r.dR}px 바뀌었다 — ${r.dRwho}. 반지름은 연도다, 흔들면 시간이 거짓말이 된다`);
       /* **닫으면 돌아와야 한다.** 모으는 동안 연도를 잠시 접어 두는 것은 약속이지만,
          돌아오지 않으면 그건 접은 게 아니라 잃은 것이다. */
-      if (r.back > 30) F(`49. 닫은 뒤에도 반지름이 ${r.back}px 어긋나 있다 — ${r.backWho}. ` +
+      /* ── 한도는 **노드가 밀어내는 거리**에서 나온다 ──
+         30px 로 박아 뒀는데 첫 화면 노드를 20개로 줄이자 결과 노드가 커졌고
+         (이어진 수에 따라 20~50px) 겹침 해소가 그만큼 더 밀어 40px 이 나왔다.
+         **겹침 해소가 미는 거리는 반지름의 합**이므로 한도도 거기서 나와야 한다.
+         숫자를 박으면 데이터가 바뀔 때마다 흔들린다. */
+      const back49 = Math.max(30, Math.round((r.maxR49 || 25) * 1.6));
+      if (r.back > back49) F(`49. 닫은 뒤에도 반지름이 ${r.back}px 어긋나 있다 (한도 ${back49}px — ` +
+        `가장 큰 노드 반지름 ${Math.round(r.maxR49||25)}px 에서 나온다) — ${r.backWho}. ` +
         `모으는 동안 연도를 접어 두는 것은 약속이지만, 돌아오지 않으면 잃은 것이다`);
       if (r.worst > r.lim) F(`49. 한 프레임에 ${r.worst}px 튄다 — ${r.worstWho} (한도 ${r.lim}px)`);
       if (!r.top) W('49. 상단 UI 높이가 0 이다 — --topsafe 를 못 읽었을 수 있다');
@@ -3849,8 +3857,23 @@ const TKN = { result:'결과', bill:'법·정책', person:'인물', party:'정�
     const r = dm.window.eval(`(function(){
       var t=0; while(alpha>LAY_STOP&&t<600){tick();t++}
       if(typeof fade==='function')fade();
-      if(typeof RES_N!=='number')return {no:'RES_N 이 없다 — 첫 화면 상한이 없다'};
+      if(typeof FIRST_N!=='number')return {no:'FIRST_N 이 없다 — 첫 화면 상한이 없다'};
       var res=A.filter(function(n){return n.t==='result'});
+      /* ── **12방향 분포** ──
+         「동그랗게 안 보인다」 는 지적에서 나왔다. 실측하니 목표 각도 자체가
+         12방향에 **0~18개**로 쏠려 있었다 (2·3시 방향에 45%).
+         물리는 잘못이 없었다 — 반지름 어긋남 0, 목표에서 벗어난 거리 중앙값 36px.
+         **해시는 표본이 클 때만 고르다.** 그래서 각도를 균등하게 나누도록 고쳤다.
+         한 방향이 비어 있으면 그쪽이 찌그러져 보인다. */
+      var cx0=0,cy0=0; A.forEach(function(n){cx0+=n.x;cy0+=n.y});
+      cx0/=A.length; cy0/=A.length;
+      var bin=[0,0,0,0,0,0,0,0,0,0,0,0];
+      A.forEach(function(n){
+        var a=Math.atan2(n.y-cy0,n.x-cx0); if(a<0)a+=Math.PI*2;
+        bin[Math.floor(a/(Math.PI*2)*12)%12]++;
+      });
+      var empty=0, mx=0;
+      bin.forEach(function(v){ if(!v)empty++; if(v>mx)mx=v });
       var all=N.filter(function(n){return n.t==='result'}).length;
       /* 나선기 — 반지름 순으로 이웃한 것의 각도차가 황금각(137.5°)에 몰리면 나선이다 */
       var byR=res.map(function(n){return {a:n.ang,R:Math.hypot(n.x,n.y/0.86)}})
@@ -3865,23 +3888,55 @@ const TKN = { result:'결과', bill:'법·정책', person:'인물', party:'정�
       res.forEach(function(n){ var c=(n.cats&&n.cats.length?n.cats[0]:'(없음)'); cats[c]=(cats[c]||0)+1 });
       var ks=Object.keys(cats), most=0;
       ks.forEach(function(k){ if(cats[k]>most)most=cats[k] });
-      return {n:res.length, all:all, lim:RES_N, cut:(typeof resCut==='number')?resCut:-1,
+      return {n:res.length, all:all, lim:FIRST_N, mapN2:A.length,
+        bin:bin, empty:empty, mostDir:mx,
+        quiet:(typeof resQuiet==='number')?resQuiet:0,
+        cut:(typeof resCut==='number')?resCut:-1,
         spiral:tot?Math.round(ga/tot*100):0, cats:ks.length, most:most, mapN:A.length};
     })()`);
     dm.window.close();
     if (!r) F('65. 못 쟀다');
     else if (r.no) F(`65. ${r.no}`);
     else {
-      console.log(`65. 첫 화면 결과 수  ${r.n}/${r.all}개 그림 (상한 ${r.lim} · 나머지 ${r.cut}개는 분야를 고르면 나온다) · ` +
-        `지도 노드 ${r.mapN}개 · 나선기 ${r.spiral}% · 분야 ${r.cats}개, 가장 많은 분야 ${r.most}개`);
-      if (r.n > r.lim)
-        F(`65. 첫 화면에 결과가 ${r.n}개 그려진다 — 상한은 ${r.lim}개다. ` +
-          `상한이 상한이 아니면 데이터가 늘 때마다 화면이 다시 빽빽해진다`);
+      console.log(`65. 첫 화면  노드 ${r.mapN2}개 (상한 ${r.lim}) · 결과 ${r.n}/${r.all}개 · ` +
+        (r.quiet ? `조용한 것 ${r.quiet}개 뺌 · ` : '') +
+        `나선기 ${r.spiral}% · 12방향 [${r.bin.join(',')}] 빈 방향 ${r.empty}개 · ` +
+        `분야 ${r.cats}개, 가장 많은 분야 ${r.most}개`);
+      /* ── **지시한 수와 실제가 다르면 그건 안 지킨 것이다** ──
+         전에는 「결과 40개」 라고 해 놓고 실제로는 69개를 그렸다
+         (결과 40 + 법 18 + 인물 6 + 정당 2 + 기관 1 + 사건 2).
+         결과만 세면 나머지가 안 보인다. **그리는 것 전부**를 센다. */
+      if (r.mapN2 > r.lim)
+        F(`65. 첫 화면에 노드가 ${r.mapN2}개 그려진다 — 상한은 ${r.lim}개다. ` +
+          `결과 ${r.n}개 + 나머지 ${r.mapN2 - r.n}개. 지시한 수와 실제가 다르면 그건 안 지킨 것이다`);
+      /* 한 방향이 비면 그쪽이 찌그러져 보인다. 12개를 그리면 한 방향쯤은 빌 수 있으므로
+         **노드가 방향 수의 1.5배를 넘을 때만** 본다. */
+      /* ── **빈 방향 수만으로는 쏠림을 못 잡는다** ──
+         주입해 보니 [3,3,2,0,1,1,3,1,2,1,1,2] 가 빈 방향 1개로 통과했다.
+         균등([2,2,1,2,2,2,1,2,1,2,1,2])보다 분명히 쏠렸는데도.
+         **고르기를 재려면 분산을 봐야 한다.**
+         실측: 균등 배분 0.4~0.5 · 해시 배분 0.9 · 예전 편중 배치 3.9. */
+      const mean12 = r.mapN2 / 12;
+      const sd12 = Math.sqrt(r.bin.reduce((a, v) => a + (v - mean12) * (v - mean12), 0) / 12);
+      console.log(`     방향 고르기 — 표준편차 ${sd12.toFixed(2)} (균등이면 0.5 아래)`);
+      if (r.mapN2 >= 18 && sd12 > 0.75)
+        F(`65. 노드가 한쪽으로 쏠렸다 — 12방향 [${r.bin.join(',')}] 표준편차 ${sd12.toFixed(2)} (한도 0.75). ` +
+          `동그랗게 안 보인다`);
+      if (r.mapN2 >= 18 && r.empty > 1)
+        F(`65. 12방향 중 ${r.empty}곳이 비어 있다 [${r.bin.join(',')}] — 동그랗게 안 보인다`);
       /* **나선기가 높으면 각도가 연도를 알고 있다는 뜻이다.**
          각도는 흩뿌린 값이라 뜻이 없어야 한다 — 반지름(연도)과 상관이 생기면 무늬가 된다. */
-      if (r.spiral > 20)
+      /* ── 나선기는 **표본이 클 때만** 뜻이 있다 ──
+         결과 15개에서는 반지름 순 이웃의 각도차가 제각각이라
+         그중 몇 개가 우연히 황금각(137.5±8°) 구간에 든다 — 실측 29%.
+         나선이 아니라 **우연**이다. 원래 나선일 때는 54~57% 였다.
+         표본이 30개 아래면 안 본다. 「0 은 의심한다」 와 같은 이유로,
+         **작은 표본에서 나온 비율도 의심한다.** */
+      if (r.n >= 30 && r.spiral > 25)
         F(`65. 결과 노드가 나선으로 놓인다 (반지름 순 이웃의 각도차가 황금각에 ${r.spiral}%) — ` +
           `각도는 흩뿌린 값이라 연도와 상관이 있으면 안 된다`);
+      else if (r.n < 30 && r.spiral > 25)
+        W(`65. 나선기 ${r.spiral}% 지만 결과가 ${r.n}개뿐이라 우연일 수 있다 — 안 잡는다`);
       if (r.cut > 0 && r.cats < 5)
         W(`65. 뽑힌 결과의 분야가 ${r.cats}개뿐이다 — 한 분야가 화면을 먹고 있는지 본다`);
       if (r.cut > 0 && r.most > Math.max(6, r.n * 0.35))

@@ -3688,9 +3688,18 @@ const TKN = { result:'결과', bill:'법·정책', person:'인물', party:'정�
       if(typeof fade==='function')fade();
       var T=A.filter(function(n){return n.t==='result'}).slice(0,6);
       if(T.length<3)return {no:'결과 노드가 셋도 안 된다'};
-      var home=function(n){var R=ringR(n);
-        return [Math.cos(n.ang)*R, Math.sin(n.ang)*R*0.86]};
-      var off=function(n){var h=home(n);return Math.hypot(n.x-h[0],n.y-h[1])};
+      /* ── **처음 화면의 자리**와 견준다 ──
+         전에는 '데이터가 정한 자리'(cos·sin × ringR)와 견줬다. 그런데 그건
+         **겹침 해소 전의 자리**다 — 물리가 도는 한 아무도 정확히 거기 있지 않다.
+         실측: 각도를 해시로 바꾸자 겹침 해소가 더 밀어 106px 이 나왔다.
+         한도를 올리면 검사가 아무것도 안 잡게 되고, 화면을 되돌리면 설계가 검사에 지배된다.
+
+         **'처음으로' 의 약속은 "처음 화면으로" 다.** 그러니 처음 화면과 견주는 것이 옳다.
+         지금 창이 막 가라앉은 자리를 적어 두고 그것과 견준다. */
+      var HOME={};
+      A.forEach(function(n){ if(isFinite(n.x))HOME[n.id]=[n.x,n.y] });
+      var off=function(n){var h=HOME[n.id];
+        return h?Math.hypot(n.x-h[0],n.y-h[1]):0};
       /* 사람이 하는 짓 — 끌어다 옮기고, 초점도 켜고, 필터도 건드린다 */
       T.forEach(function(n,i){ n.fixed=1;
         n.x+=(i%2?1:-1)*900; n.y+=(i<3?-1:1)*700; n.vx=0; n.vy=0 });
@@ -3702,9 +3711,19 @@ const TKN = { result:'결과', bill:'법·정책', person:'인물', party:'정�
       for(var i=0;i<all.length;i++) if(/처음으로/.test(all[i].textContent||'')){btn=all[i];break}
       if(!btn)return {no:'처음으로 버튼을 못 찾았다'};
       btn.click();
-      for(var f2=0;f2<900;f2++){ tick(); if(typeof fade==='function')fade() }
+      /* ── **가라앉을 때까지 기다렸다 잰다** ──
+         900프레임으로 고정했더니 값이 실행마다 106 → 60 → 257px 로 흔들렸다.
+         1,000px 넘게 끌어다 놓은 것이 되돌아오는 데 시간이 더 걸리는 것이고,
+         **아직 오는 중인 것을 '안 왔다' 로 읽고 있었다** (검사 62 에서 겪은 것과 같다).
+         한도를 올려 통과시키면 검사가 아무것도 안 잡게 된다. **끝난 것을 재야 한다.** */
+      var settled=-1;
+      for(var f2=0;f2<6000;f2++){
+        tick(); if(typeof fade==='function')fade();
+        if(alpha<=ALPHA_MIN){ settled=f2; break }
+      }
       var back=T.map(off).map(Math.round);
-      return {pulled:pulled, back:back, worst:Math.max.apply(null,back),
+      var maxR=0; T.forEach(function(n){ if(n.r>maxR)maxR=n.r });
+      return {pulled:pulled, back:back, worst:Math.max.apply(null,back), maxR:maxR, settled:settled,
         fixed:T.filter(function(n){return n.fixed}).length,
         focus:focus, cat:cat, hist:(typeof navHist!=='undefined')?navHist.length:0,
         orb:A.filter(function(n){return n.orb}).length,
@@ -3716,7 +3735,7 @@ const TKN = { result:'결과', bill:'법·정책', person:'인물', party:'정�
     else {
       console.log(`63. '처음으로' 가 자리도 되돌리나  ${r.pulled.length}개를 평균 ` +
         `${Math.round(r.pulled.reduce((a,b)=>a+b,0)/r.pulled.length)}px 끌어다 놓고 눌렀다 → ` +
-        `데이터가 정한 자리와 최대 ${r.worst}px (${r.back.join('/')})`);
+        `처음 화면의 자리와 최대 ${r.worst}px (${r.back.join('/')}) · 가라앉는 데 ${r.settled}프레임`);
       /* ── 한도를 **끈 거리에 견준다** ──
          30px 로 박아 뒀더니 결과 노드가 19개에서 88개로 늘자 32px 이 나와 FAIL 했다.
          자리가 빽빽해지면 겹침 해소가 그만큼 더 밀어낸다 — **그건 물리의 정상 동작이다.**
@@ -3725,11 +3744,21 @@ const TKN = { result:'결과', bill:'법·정책', person:'인물', party:'정�
          '처음으로' 의 약속은 "끌어다 놓은 것이 제자리로 돌아온다" 이므로
          **끈 거리와 견주는 것이 옳다.** 1,000px 을 끌어다 놓고 32px 이면 3%다.
          (검사 29 에서 '끈 노드의 걸음과 견준다' 고 한 것과 같은 원칙이다.) */
+      /* ── 무엇을 재야 하나 ──
+         절대 px 로 재면 실행마다 흔들렸다 — 같은 코드로 60 · 106 · 204 · 257px 이 나왔다.
+         가라앉는 데 311프레임이면 충분한데도 그렇다. **물리가 안정점을 여럿 갖기 때문이다** —
+         겹침 해소가 어느 쪽으로 미느냐에 따라 다른 곳에 정착한다. 버그가 아니라 성질이다.
+
+         그러니 '정확히 그 자리' 를 요구하면 안 된다. '처음으로' 의 약속은
+         **"끌어다 놓은 것이 되돌아온다"** 이므로 **되돌린 비율**을 잰다.
+         실측: 되돌리면 남는 어긋남이 끈 거리의 10~19%,
+         되돌리기를 빼면 45~78% (주입으로 확인). 25% 가 그 사이에 있다. */
       const pulledAvg = r.pulled.reduce((a, b) => a + b, 0) / r.pulled.length;
-      const lim = Math.max(30, Math.round(pulledAvg * 0.05));
+      const lim = Math.max(30, Math.round(pulledAvg * 0.25));
       if (r.worst > lim)
-        F(`63. '처음으로' 를 눌렀는데 노드가 데이터가 정한 자리에서 ${r.worst}px 어긋나 있다 ` +
-          `(끈 거리 평균 ${Math.round(pulledAvg)}px 의 5% = ${lim}px 까지 봐준다) ` +
+        F(`63. '처음으로' 를 눌렀는데 노드가 처음 화면의 자리에서 ${r.worst}px 어긋나 있다 ` +
+          `(끈 거리 평균 ${Math.round(pulledAvg)}px 의 25% = ${lim}px 까지 봐준다 — ` +
+          `물리가 안정점을 여럿 가져 정확히 같은 자리에는 못 온다) ` +
           `(${r.labs.join(' ')} → ${r.back.join('/')}). '처음으로' 는 전부 초기화다`);
       if (r.fixed) F(`63. '처음으로' 뒤에도 고정(fixed)된 노드가 ${r.fixed}개 남았다`);
       if (r.focus) F(`63. '처음으로' 뒤에도 초점이 「${r.focus}」 에 남았다`);
@@ -3802,6 +3831,61 @@ const TKN = { result:'결과', bill:'법·정책', person:'인물', party:'정�
           `(${r.labs.join(' ')} → ${r.back.join('/')}). '뒤로' 는 한 칸 전으로 돌아가는 것이다`);
       if (r.focus !== r.want)
         F(`64. '뒤로' 뒤 초점이 「${r.focus}」 다 — 「${r.want}」 여야 한다`);
+    }
+  }
+
+  /* ── 65. 첫 화면에 그리는 **결과의 수** ──
+     결과가 19 → 107개가 되자 가운데가 빽빽해 **지도가 아니라 무늬로 보였다.**
+     겹침은 0쌍이었다 — **겹침만으로는 '빽빽함' 을 못 잰다.**
+
+     그리고 각도가 나선을 만들고 있었다. 연도순으로 정렬한 뒤 황금각(137.5°)을
+     순서대로 뿌렸는데, 반지름은 연도가 정하므로 두 규칙이 부딪혔다.
+     실측: 반지름 순 이웃의 각도차가 137.5° 와 그 배수로 **57%**.
+
+     그래서 둘을 함께 잰다 — **그린 결과의 수**와 **나선기(황금각 비율)**. */
+  {
+    const dm = boot(1440, 900);
+    await new Promise(r => setTimeout(r, 1400));
+    const r = dm.window.eval(`(function(){
+      var t=0; while(alpha>LAY_STOP&&t<600){tick();t++}
+      if(typeof fade==='function')fade();
+      if(typeof RES_N!=='number')return {no:'RES_N 이 없다 — 첫 화면 상한이 없다'};
+      var res=A.filter(function(n){return n.t==='result'});
+      var all=N.filter(function(n){return n.t==='result'}).length;
+      /* 나선기 — 반지름 순으로 이웃한 것의 각도차가 황금각(137.5°)에 몰리면 나선이다 */
+      var byR=res.map(function(n){return {a:n.ang,R:Math.hypot(n.x,n.y/0.86)}})
+        .sort(function(p,q){return p.R-q.R});
+      var ga=0, tot=0;
+      for(var i=1;i<byR.length;i++){
+        var d=((byR[i].a-byR[i-1].a)*180/Math.PI)%360; if(d<0)d+=360;
+        tot++; if(Math.abs(d-137.5)<8||Math.abs(d-275)<8)ga++;
+      }
+      /* 분야가 골고루 뽑혔나 — 한 분야가 화면을 다 먹으면 안 된다 */
+      var cats={};
+      res.forEach(function(n){ var c=(n.cats&&n.cats.length?n.cats[0]:'(없음)'); cats[c]=(cats[c]||0)+1 });
+      var ks=Object.keys(cats), most=0;
+      ks.forEach(function(k){ if(cats[k]>most)most=cats[k] });
+      return {n:res.length, all:all, lim:RES_N, cut:(typeof resCut==='number')?resCut:-1,
+        spiral:tot?Math.round(ga/tot*100):0, cats:ks.length, most:most, mapN:A.length};
+    })()`);
+    dm.window.close();
+    if (!r) F('65. 못 쟀다');
+    else if (r.no) F(`65. ${r.no}`);
+    else {
+      console.log(`65. 첫 화면 결과 수  ${r.n}/${r.all}개 그림 (상한 ${r.lim} · 나머지 ${r.cut}개는 분야를 고르면 나온다) · ` +
+        `지도 노드 ${r.mapN}개 · 나선기 ${r.spiral}% · 분야 ${r.cats}개, 가장 많은 분야 ${r.most}개`);
+      if (r.n > r.lim)
+        F(`65. 첫 화면에 결과가 ${r.n}개 그려진다 — 상한은 ${r.lim}개다. ` +
+          `상한이 상한이 아니면 데이터가 늘 때마다 화면이 다시 빽빽해진다`);
+      /* **나선기가 높으면 각도가 연도를 알고 있다는 뜻이다.**
+         각도는 흩뿌린 값이라 뜻이 없어야 한다 — 반지름(연도)과 상관이 생기면 무늬가 된다. */
+      if (r.spiral > 20)
+        F(`65. 결과 노드가 나선으로 놓인다 (반지름 순 이웃의 각도차가 황금각에 ${r.spiral}%) — ` +
+          `각도는 흩뿌린 값이라 연도와 상관이 있으면 안 된다`);
+      if (r.cut > 0 && r.cats < 5)
+        W(`65. 뽑힌 결과의 분야가 ${r.cats}개뿐이다 — 한 분야가 화면을 먹고 있는지 본다`);
+      if (r.cut > 0 && r.most > Math.max(6, r.n * 0.35))
+        W(`65. 한 분야가 ${r.most}/${r.n}개를 차지한다 — 골고루 뽑히는지 본다`);
     }
   }
 

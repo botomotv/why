@@ -8298,9 +8298,36 @@ var A=[],AL=[];
 
    결과 19개는 이 수에 안 센다 — 지도의 입구라 언제나 전부 그린다. */
 var MAP_N=Number((location.search.match(/[?&]mn=(\d+)/)||[])[1]||30);
+/* ── 첫 화면에 그리는 결과의 수 ──
+   `?rn=` 으로 바꿔서 눈으로 비교할 수 있다. 값은 스크린샷으로 정한다 — 계산이 아니다.
+
+   **분야를 고르면 상한을 안 건다.** 그때는 사람이 스스로 좁힌 것이고, 그 분야를 다 보러 온 것이다.
+
+   **배율은 안 쓴다.** 처음에 「확대하면 더 나온다」 로 만들었더니 두 가지가 어긋났다:
+     ① 로드 직후 `cam.s` 가 1.0(초기값)이라 상한이 71 이 됐고, 첫 화면이 가라앉아
+        0.35 가 된 뒤에도 `refilter` 를 다시 안 불러 **64개가 그대로 남았다**
+     ② 카메라를 움직일 때마다 뽑히는 것이 바뀌면 노드가 나타났다 사라진다 —
+        이름표를 고를 때 '화면 가운데에 가까운 것' 을 안 쓴 것과 같은 이유다.
+   **사람이 한 행동(분야 고르기)에만 반응한다.** 카메라는 우연이지 뜻이 아니다. */
+/* ── 값은 **스크린샷으로 정했다** ── (1440×786, 결과 107개 기준)
+   | RES_N | 지도 노드 | 선 | 겹침 | 눈으로 본 것 |
+   |------:|---------:|---:|-----:|---|
+   |    24 |       53 | 70 |    0 | 성기다. 「연결고리」 라는 느낌이 약하다 |
+   |  **40** |   **69** | **82** | **0** | **결과가 읽히고 법·정당이 함께 보인다** |
+   |    60 |       89 | 86 |    1 | 다시 빽빽해진다 |
+   |   107 |      136 | 86 |    0 | **동심원 띠**가 생겨 지도가 아니라 무늬가 된다 |
+   107 은 겹침이 0 인데도 나쁘다 — **겹침만으로는 '빽빽함' 을 못 잰다.** 눈으로 봐야 한다. */
+var RES_N=Number((location.search.match(/[?&]rn=(\d+)/)||[])[1]||40);
+var resCut=0;
+function resLimit(){ return (cat&&cat!=='all')?1e9:RES_N }
 var mapSet=null, mapKey='', focusNb=null;
+function byDeg0(a,b){
+  var da=(adj[a.id]||[]).length, db=(adj[b.id]||[]).length;
+  return db-da||String(a.id).localeCompare(String(b.id));
+}
 function planMap(){
-  var key=[N.length,cat,sideF||'',kindF||'',onlyP||'',focus||'',MAP_N,focusNb?Object.keys(focusNb).length:0].join('|');
+  var key=[N.length,cat,sideF||'',kindF||'',onlyP||'',focus||'',MAP_N,RES_N,
+    focusNb?Object.keys(focusNb).length:0].join('|');
   if(mapSet&&mapKey===key)return mapSet;
   var out={}, left=MAP_N;
   var deg=function(n){return (adj[n.id]||[]).length};
@@ -8330,14 +8357,57 @@ function planMap(){
   if(focus&&map[focus]&&focusNb){
     Object.keys(focusNb).forEach(function(k){if(map[k]&&inCat(map[k]))out[k]=1});
   }
-  /* 결과는 자리를 세지 않는다 — 이 지도의 입구라 언제나 전부 그린다 */
-  pool.forEach(function(n){if(n.t==='result')out[n.id]=1});
+  /* ── 첫 화면에 그리는 **결과의 수** ──
+     전에는 "결과는 지도의 입구라 언제나 전부" 였다. 19개일 때는 맞았다.
+     **107개가 되자 가운데가 빽빽해 지도가 아니라 무늬로 보였다.**
+     지우는 게 아니라 **나중에 보여주는 것**이다 — 분야를 고르거나 확대하면 나오고,
+     검색·카드 목록·'모두 보기' 에는 언제나 전부 있다.
+
+     ── 무엇을 먼저 보여줄지 ──
+     "중요한 것" 을 고르는 순간 우리가 지면을 편집한 것이 된다. 기준은 이것만 쓴다:
+       ① **이어진 선의 수** — 사실이다. 우리가 정한 값이 아니라 데이터가 만든 값이다
+       ② **분야별로 돌아가며** — 어느 분야가 중요한지가 아니라,
+          한 분야가 화면을 다 먹지 않게 하는 것이다 (판례·헌재를 뺄 때와 같은 이유)
+       ③ 같은 값이면 id 순 — 실행마다 달라지면 그 흔들림도 우리가 고른 것이 된다
+     **연도·진영은 안 쓴다.** 최근 것을 앞세우면 "요즘 일이 더 중요하다" 가 되고,
+     진영을 쓰면 균형이 아니라 연출이 된다. */
+  var resAll=pool.filter(function(n){return n.t==='result'});
+  var lim=resLimit();
+  if(resAll.length<=lim){
+    resAll.forEach(function(n){out[n.id]=1});
+    resCut=0;
+  } else {
+    var lanes=Object.create(null);
+    resAll.slice().sort(byDeg0).forEach(function(n){
+      var c=(n.cats&&n.cats.length?n.cats[0]:'(없음)');
+      (lanes[c]||(lanes[c]=[])).push(n);
+    });
+    var keys=Object.keys(lanes).sort();
+    var took=0, row=0;
+    while(took<lim){
+      var moved=0;
+      for(var li=0;li<keys.length&&took<lim;li++){
+        /* **`L` 이라고 쓰면 안 된다.** 전역 `L`(관계 배열)을 가린다 —
+           `var` 는 함수 스코프라 planMap 전체에서 가려지고, 아래 「이어지지 않으면 뺀다」의
+           `L.forEach` 가 **분야 배열을 순회한다.** 에러도 안 나고 결과만 틀린다.
+           실제로 rn=24·40·60 에서는 조용히 틀렸고 rn=200(이 분기를 안 타는 값)에서야
+           `L` 이 undefined 가 되어 드러났다. 짧은 이름은 전역과 부딪힌다. */
+        var lane=lanes[keys[li]];
+        if(row<lane.length){ out[lane[row].id]=1; took++; moved=1 }
+      }
+      if(!moved)break;
+      row++;
+    }
+    resCut=resAll.length-took;
+  }
   /* 남은 자리는 **손으로 넣은 것 먼저, 그다음 자동**. 둘 다 연결 수 순이다.
      손을 먼저 두는 것은 근거의 세기 때문이지 '더 중요해서' 가 아니다 —
      사람이 확인한 것과 글자를 맞춘 것은 다른 값이다. */
-  var byDeg=function(a,b){return deg(b)-deg(a)||String(a.id).localeCompare(String(b.id))};
-  var hand=pool.filter(function(n){return !n.auto&&!out[n.id]}).sort(byDeg);
-  var auto=pool.filter(function(n){return n.auto&&!out[n.id]}).sort(byDeg);
+  var byDeg=byDeg0;
+  /* **결과는 여기서 안 뽑는다.** 위 라운드로빈이 이미 골랐다 —
+     여기 남겨 두면 상한 40 인데 41개가 그려진다(실측). 상한이 상한이 아니게 된다. */
+  var hand=pool.filter(function(n){return n.t!=='result'&&!n.auto&&!out[n.id]}).sort(byDeg);
+  var auto=pool.filter(function(n){return n.t!=='result'&&n.auto&&!out[n.id]}).sort(byDeg);
   for(var j=0;j<hand.length&&left>0;j++){out[hand[j].id]=1;left--}
   for(var k=0;k<auto.length&&left>0;k++){out[auto[k].id]=1;left--}
   /* ── 뽑힌 것들끼리 이어지지 않으면 지도에서 뺀다 ──
@@ -9091,14 +9161,67 @@ function ringR(n){return radY(pyOf(n))}
    지도에 올라오면 **나머지 42개의 각도가 전부 밀려** 한 프레임에 170px 튀었다
    (검사 29). 남이 들어왔다고 내 자리가 바뀌면 안 된다.
    keep=true 면 자리가 없는 노드에만 새로 준다. */
+/* ── 각도는 **뜻이 없어야 한다** ──
+   전에는 **연도순으로 정렬한 뒤 황금각(137.5°)을 순서대로** 뿌렸다.
+   황금각은 해바라기처럼 반지름이 √i 로 커질 때 고르게 퍼지는 값이다.
+   그런데 여기서는 반지름을 **연도**가 정한다 — 두 규칙이 부딪혀 **나선**이 됐다.
+
+   실측: 반지름 순으로 이웃한 결과 노드의 각도차가
+   140°(황금각) 38회 · 280°(그 두 배) 23회 — 합쳐 **57%**.
+   가운데 노란 원들이 소용돌이처럼 말려 지도가 아니라 무늬로 보였다.
+
+   **각도가 연도를 알면 안 된다.** 그래서 고리(연도)별로 묶어 그 안에서 균등하게 나누고,
+   고리마다 시작 각도를 id 해시로 다르게 준다.
+     · 한 고리 안에서 고르다 (뭉치지 않는다)
+     · 이웃 고리가 같은 방향으로 줄 서지 않는다 (나선이 안 생긴다)
+     · 실행마다 같다 (해시라서 — 흔들리면 그 흔들림도 우리가 고른 것이 된다) */
+function angHash(s){
+  var h=2166136261;
+  s=String(s);
+  for(var i=0;i<s.length;i++){ h^=s.charCodeAt(i); h=Math.imul(h,16777619) }
+  return (h>>>0)/4294967296;
+}
 function setAngles(keep){
-  var GA=2.39996;
-  var arr=A.slice().sort(function(a,b){return pyOf(a)-pyOf(b)});
-  if(!keep){ arr.forEach(function(n,i){n.ang=i*GA}); return }
-  var used=0;
-  arr.forEach(function(n){ if(typeof n.ang==='number'&&isFinite(n.ang))used++ });
-  var next=used;
-  arr.forEach(function(n){ if(typeof n.ang!=='number'||!isFinite(n.ang))n.ang=(next++)*GA });
+  var byRing=Object.create(null);
+  /* ── **`A` 가 아니라 `N` 을 기준으로 정한다** ──
+     `A`(화면에 올라온 것)는 분야·초점·상한에 따라 바뀐다. 그걸 기준으로 각도를 정하면
+     **필터를 건드릴 때마다 배치가 통째로 달라진다.**
+     실측: '처음으로' 를 눌렀을 때 「집값 5.36% 상승」이 **471px** 어긋났다(검사 63) —
+     되돌릴 자리 자체가 그때그때 달라졌기 때문이다.
+     **자리는 데이터가 정한다.** 화면에 무엇이 올라왔는지는 데이터가 아니다.
+
+     지도에 절대 안 올라가는 판례는 뺀다 — 그것까지 세면 한 고리에 2,500개가 되어
+     각도 간격이 0.14° 가 되고, 실제로 그려지는 몇 개가 한 방향에 몰린다. */
+  N.forEach(function(n){
+    if(n.id&&n.id.lastIndexOf('case_prec_',0)===0)return;
+    var y=pyOf(n);
+    var k=isFinite(y)?String(Math.round(y)):'x';
+    (byRing[k]||(byRing[k]=[])).push(n);
+  });
+  Object.keys(byRing).forEach(function(k){
+    var g=byRing[k];
+    /* id 순으로 세워야 실행마다 같은 자리에 온다 */
+    g.sort(function(a,b){return String(a.id)<String(b.id)?-1:1});
+    /* ── 균등 분배 대신 **id 해시** ──
+       고리 안에서 균등하게 나누면 그 고리 전체가 채워질 때만 고르다.
+       그런데 첫 화면에는 결과 40개만 올라온다 — 뽑는 기준(연결 수·분야)은 각도와 무관하므로
+       **뽑힌 것들이 한쪽에 몰린다.** 실측: 고리 영역의 50%(12/24칸)가 비었다(검사 26).
+       id 해시는 어느 부분집합을 뽑아도 통계적으로 고르게 흩어진다.
+       완벽한 균등은 아니지만 **부분집합에서도 고르다** — 그게 우리가 필요한 성질이다. */
+    g.forEach(function(n){
+      if(keep&&typeof n.ang==='number'&&isFinite(n.ang))return;
+      n.ang=angHash('a:'+n.id)*Math.PI*2;
+    });
+    /* ── 해시로만 뿌리면 **둘이 같은 방향에 겹친다** ──
+       그러면 겹침 해소가 그 둘을 크게 밀어내고, '처음으로' 로 되돌려도
+       데이터가 정한 자리에서 **119px** 벗어난다(검사 63).
+       분산은 해시가 만들고, **최소 간격만** 보장한다 — 순서는 안 바꾼다. */
+    g.sort(function(a,b){return a.ang-b.ang});
+    var gap=Math.PI*2/Math.max(g.length,10)*0.55;
+    for(var gi=1;gi<g.length;gi++){
+      if(g[gi].ang-g[gi-1].ang<gap)g[gi].ang=g[gi-1].ang+gap;
+    }
+  });
 }
 
 
@@ -11082,6 +11205,37 @@ function draw(){
       badgeRect=[bx2,by2-bh2/2,bw2,bh2];
     } else badgeRect=null;
   } else badgeRect=null;
+
+  /* ── 첫 화면에 결과를 다 안 그렸으면 **그 수를 밝힌다** ──
+     **말없이 자르면 "이게 전부" 라는 거짓말이 된다.** 지우는 게 아니라 나중에 보여주는 것이므로
+     어떻게 하면 나오는지도 함께 적는다 — 분야를 고르거나 확대하면 된다. */
+  if(!focus&&resCut>0){
+    var rt='결과 '+resCut+'개는 분야를 고르면 나옵니다';
+    cx.font="500 11.5px 'Noto Sans KR',-apple-system,sans-serif";
+    cx.textAlign='center';cx.textBaseline='middle';
+    var rw=cx.measureText(rt).width+16, rh=20;
+    /* ── 안내 배지 자리 ──
+       ① **노드를 가리면 안 된다** — 가운데에 뒀더니 「3,058 → 5,058명」과 겹쳤다.
+          자기가 낸 말로 지도를 가리는 셈이다.
+       ② **하단 버튼에 가려도 안 된다** — 맨 아래로 내렸더니 폰에서
+          '보는 법 · 전체 보기' 버튼이 통째로 덮었다. 안 보이는 안내는 없는 것과 같다.
+       그래서 **버튼을 실제로 재서 그 위에** 둔다. 숫자를 박으면 버튼이 바뀔 때 또 어긋난다.
+       `offsetTop` 을 쓴다 — `getBoundingClientRect` 는 전환 잔상에 휘둘린다. */
+    /* 검사가 창을 닫은 뒤에도 타이머가 한 번 더 돌 때가 있다 — 그때 document 가 없다.
+       배지 하나 때문에 draw 가 죽으면 그 뒤 검사를 아무것도 못 본다 (orbView 와 같은 이유). */
+    var doc=(typeof document!=='undefined'&&document&&document.querySelector)?document:null;
+    var bt=doc?(doc.querySelector('.legendbtn')||doc.querySelector('.zoomctl')):null;
+    var btTop=(bt&&bt.offsetHeight)?bt.offsetTop:H;
+    var ry2=Math.min(H-8-rh/2, btTop-10-rh/2);
+    var rx2=(W-rw)/2;
+    cx.fillStyle='rgba(14,15,18,0.86)';
+    cx.beginPath();
+    if(cx.roundRect)cx.roundRect(rx2,ry2-rh/2,rw,rh,10);else cx.rect(rx2,ry2-rh/2,rw,rh);
+    cx.fill();
+    cx.strokeStyle='rgba(154,162,174,0.3)';cx.lineWidth=1;cx.stroke();
+    cx.fillStyle='#9AA2AE';
+    cx.fillText(rt,rx2+rw/2,ry2);
+  }
 
   /* ── 다 못 모았으면 **그 수를 밝힌다** ──
      폰처럼 좁은 화면에서는 여섯 개가 원에 다 안 들어간다. 그때 몇 개는 제자리에 남는다.

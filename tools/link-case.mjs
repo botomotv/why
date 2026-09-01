@@ -81,7 +81,18 @@ let gistDropped = 0;
    성 한 글자도 이름이다 — 사건번호와 함께 있으면 누구인지 좁혀진다.
    그래서 ○ 가 하나라도 있으면 그 판시사항은 안 쓴다. */
 const NAME_RISK = /[○●◯]|\[당사자\]|대리인|변호사|청구인\s*[가-힣]|피청구인\s*[가-힣]|피고인\s*[가-힣]{2,3}(?![가-힣])|증인\s*[가-힣]{2,3}(?![가-힣])/;
-function safeGist(g) { if (NAME_RISK.test(g)) { gistDropped++; return false } return true }
+/* ── 검사 47 과 **같은 그물**을 쓴다 (db/name_pattern.json) ──
+   전에는 여기 그물에 `변호인` 이 없어서 「변호인 선임권」이 담긴 판시사항이 그대로 올라갔고,
+   검사 47 이 그것을 FAIL 로 잡았다. **거르는 쪽과 재는 쪽이 다르면 반드시 갈라진다.**
+   오탐이 섞여도 **버리는 쪽으로 기운다** — 오려내다 놓치면 이름이 지도에 올라간다. */
+const NP = JSON.parse(fs.readFileSync(path.join(ROOT, 'db', 'name_pattern.json'), 'utf8'));
+const NAME_HARD = [
+  new RegExp(`(?:${NP.role})\\s+(?:${NP.sur})[가-힣]{0,2}(?![가-힣])(?<!${NP.josa})`),
+  new RegExp(`(?:^|[\\s"'(\\[·,])(?:${NP.sur})[가-힣]{1,2}(?<!${NP.josa})\\s+(?:변호사|판사|재판장)(?![가-힣])`),
+];
+function safeGist(g) {
+  if (NAME_RISK.test(g) || NAME_HARD.some(re => re.test(g))) { gistDropped++; return false }
+  return true }
 
 const nodes = new Map(), links = [];
 /* **같은 사건번호는 하나만.** 법제처가 같은 사건을 일련번호만 달리해 두 번 주는 경우가 있다

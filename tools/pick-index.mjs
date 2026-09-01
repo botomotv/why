@@ -173,6 +173,21 @@ for (const n of nodes) for (const c of n.cats) {
   if (m[2].includes(`'${n.id}'`)) continue;
   cmap = cmap.replace(re, `$1$2${m[2] ? ',' : ''}'${n.id}'$3`);
 }
+/* ── **옮긴 노드는 옛 분야에서 지운다** ──
+   넣기만 하고 안 지웠더니, 환경 지표의 분야를 safe → env 로 옮겼는데
+   CATMAP 에는 safe 로 남아 **런타임에 cats 가 ['env','safe'] 둘 다**가 됐다.
+   1관문이 두 위원회를 다 훑어서 무관한 법이 딸려 온다.
+   자리를 정하는 곳이 둘이면 갈라진다 — 여기가 한 곳이 되게 한다.
+   **여기서 관리하는 id 만** 건드린다. 손으로 넣은 노드는 그대로 둔다. */
+const managed = new Set(nodes.map(n => n.id));
+const want = {}; for (const n of nodes) want[n.id] = new Set(n.cats);
+cmap = cmap.replace(/(\n ['"]?)([A-Za-z_]+)(['"]?:\[)([^\]]*)(\])/g, (all, a, cat, b, body, c) => {
+  const kept = body.split(',').map(x => x.trim()).filter(Boolean).filter(tok => {
+    const id = tok.replace(/['"]/g, '');
+    return !managed.has(id) || want[id].has(cat);
+  });
+  return a + cat + b + kept.join(',') + c;
+});
 html = html.slice(0, CM_A) + cmap + html.slice(CM_B);
 const A = '/*AUTO-KOSIS-START*/', B = '/*AUTO-KOSIS-END*/';
 const i = html.indexOf(A), j = html.indexOf(B);

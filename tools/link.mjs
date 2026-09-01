@@ -66,6 +66,14 @@ const lawOf = nm => String(nm || '')
   .replace(/\s+/g, ' ')
   .trim();
 
+/* ── **띄어쓰기만 다른 같은 법을 하나로 본다** ──
+   위 주석이 「아래 lawKey 가 그 일을 한다」 고 적어 두었는데 **그 코드가 없었다.**
+   말과 코드가 따로 놀면 문법 오류가 없어서 아무도 모른다 — 실측 15무리 31개가
+   두 노드로 갈려 있었다 (「농수산물 유통 및 가격안정에 관한 법률」과 「농수산물유통 및 …」).
+   화면에서는 같은 줄이 두 번 뜨고, 이름표가 겹쳐 하나는 아예 안 그려진다.
+   **비교할 때만 공백을 없애고 이름은 그대로 쓴다.** */
+const lawKey = nm => String(nm || '').replace(/\s+/g, '');
+
 const db = new DatabaseSync(DB, DRY ? { readOnly: true } : {});
 if (!DRY) db.exec(fs.readFileSync(path.join(ROOT, 'db', 'schema.sql'), 'utf8'));
 
@@ -299,9 +307,15 @@ for (const nd of nodes) {
     if (!(ok1 && ok2 && key)) continue;
     gate.g123++;
     const cat = nd.cats.find(c => (cc[c] || new Set()).has(b.cm));
-    const gk = nd.id + ' ' + b.law;
+    const gk = nd.id + ' ' + lawKey(b.law);
     if (!groups.has(gk)) groups.set(gk, { res: nd, law: b.law, cat, key, items: [] });
     groups.get(gk).items.push(b);
+    /* 여러 표기가 섞이면 **띄어쓴 쪽**을 쓴다 — 지금 법제처 표기가 그렇다.
+       같은 길이면 사전순으로 골라 실행마다 흔들리지 않게 한다. */
+    const cur = groups.get(gk);
+    if (b.law !== cur.law &&
+        (b.law.length > cur.law.length ||
+         (b.law.length === cur.law.length && b.law < cur.law))) cur.law = b.law;
   }
 }
 
@@ -312,9 +326,9 @@ for (const g of [...groups.values()].sort((a, b) => a.law.localeCompare(b.law)))
   const ys = g.items.map(x => x.y).sort((a, b) => a - b);
   const from = ys[0], to = ys[ys.length - 1];
   const nid = 'auto_' + g.law.replace(/[^가-힣A-Za-z0-9]/g, '').slice(0, 24) + '_' + (++seq);
-  if (!lawNodes.has(g.law)) {
+  if (!lawNodes.has(lawKey(g.law))) {
     const span = from === to ? `${from}년` : `${from}~${to}년`;
-    lawNodes.set(g.law, {
+    lawNodes.set(lawKey(g.law), {
       id: nid, t: 'bill', auto: 1, side: 'gov', kind: '법률', st: '공포',
       lab: g.law, title: g.law, yr: String(to),
       /* '공포' 는 법률 용어다 — 검사 30이 '설명 없는 어려운 말' 로 62개 전부를 잡았다.
@@ -369,7 +383,7 @@ for (const g of [...groups.values()].sort((a, b) => a.law.localeCompare(b.law)))
     });
   }
   /* 공포일마다 대통령을 찾아 센다. 순서는 시간순 — 우리가 고르지 않는다. */
-  const node = lawNodes.get(g.law);
+  const node = lawNodes.get(lawKey(g.law));
   if (!node.prop) {
     /* 가장 최근 개정부터 거슬러 올라가며 발의자를 찾은 첫 건만 쓴다 */
     const byDt = [...g.items].sort((a, b) => String(b.dt).localeCompare(String(a.dt)));
@@ -444,7 +458,7 @@ const q = s => "'" + String(s)
   .replace(/\u2028|\u2029/g, ' ') + "'";
 /* **한 줄 설명이 끝내 없는 법은 안 올린다.** "확인 중" 이 화면에 남는 것보다 낫다. */
 const dropped = [...lawNodes.values()].filter(n => !n.tip || nameDrop.has(n.id));
-dropped.forEach(n => lawNodes.delete(n.lab));
+dropped.forEach(n => lawNodes.delete(lawKey(n.lab)));
 if (dropped.length) {
   console.log(`  한 줄 설명이 없어 지도에 안 올린 법 ${dropped.length}개: ${dropped.map(n => n.lab).join(', ')}`);
   /* ── **뺀 것을 파일로 남긴다** ──

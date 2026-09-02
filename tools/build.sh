@@ -7,6 +7,7 @@
 #   pick-index   결과 노드를 index.html 에 쓴다 (AUTO-KOSIS)
 #   link         그 결과에 법을 잇는다 (AUTO-N · AUTO-L) — **결과가 먼저 있어야 한다**
 #   link-case    그 법에 판례·헌재를 잇는다 (AUTO-CASE-*) — **법이 먼저 있어야 한다**
+#   link-after   사건 → 법 → 결과 「그 뒤에」 (AUTO-AFTER-*) — **법이 먼저 있어야 한다**
 #   result-easy  결과 카드의 쉬운 설명 (AUTO-REZ)
 #   node-url     근거 링크
 #   result-roster 결과 명부 (검사 61 이 대조한다)
@@ -31,6 +32,10 @@ node tools/name-explain.mjs
 node tools/link.mjs
 
 node tools/link-case.mjs
+# ── 「그 뒤에」 — 사건 → 법 → 결과 ──
+# **법 노드가 확정된 뒤에 돌린다.** 이 도구는 지도에 이미 있는 법을 찾아 잇고,
+# 없으면 새로 만든다. link.mjs 보다 먼저 돌리면 법 id 가 바뀌어 선이 끊긴다.
+node tools/link-after.mjs
 node tools/result-easy.mjs 2>/dev/null || echo '  (result-easy 건너뜀)'
 node tools/node-url.mjs
 node tools/hand-law-url.mjs

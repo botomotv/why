@@ -1249,48 +1249,95 @@ const TKN = { result:'결과', bill:'법·정책', person:'인물', party:'정�
     if (!decl.size) F('24. 최상위 var 를 하나도 못 찾았다 — 검사가 아무것도 안 보고 있다');
   }
 
-  // 25. 반지름 순서가 연도 순서와 맞는가
-  //     C안은 고리 폭을 노드 개수에 비례해 나눈다. 비례는 잃어도 **순서는 지켜야 한다.**
-  //     안쪽이 항상 과거, 바깥이 항상 최근(또는 시간 방향을 뒤집으면 그 반대).
-  //     이게 깨지면 지도가 거짓말이 된다 — 1970년 법안이 2020년 법안보다 바깥에 놓인다.
+  // 25. 자리가 무엇을 뜻하는지 — **분야가 각도로 모여 있나 · 화면이 그렇게 밝히나**
+  //
+  //     ── 이 검사는 다시 썼다 ──
+  //     전에는 「반지름 순서가 연도 순서와 맞는가」와 「고리 간격 ≠ 시간 간격을 밝히는가」를 쟀다.
+  //     **그 약속이 없어졌다** — 반지름은 이제 연도가 아니라 분야 구역 안의 흩뿌린 값이다.
+  //     약속을 바꾸면 그 약속을 재던 검사도 같이 바꾼다. 통째로 지우지 않고
+  //     **이 검사만 할 수 있는 것**을 남긴다: 자리가 뜻하는 것과 화면의 설명이 같은가.
   {
     const d25 = boot(1440, 900);
-    await new Promise(r => setTimeout(r, 1200));
+    await new Promise(r => setTimeout(r, 1400));
     const r = d25.window.eval(`(function(){
-      if(typeof radY!=='function')return null;
-      var out={};
-      [false,true].forEach(function(dir){
-        timeOut=dir;
-        if(typeof ringLUT!=='undefined')ringLUTKey='';   /* 표를 다시 만들게 */
-        var ys=[];
-        for(var y=RY0;y<=RY1;y++)ys.push({y:y,r:radY(y)});
-        /* 방향을 정한다 — 첫 값과 끝 값 중 어느 쪽이 큰가 */
-        var inc = ys[ys.length-1].r > ys[0].r;
-        var bad=[];
-        for(var i=1;i<ys.length;i++){
-          var d=ys[i].r-ys[i-1].r;
-          if(inc? d < -0.01 : d > 0.01)
-            bad.push(ys[i-1].y+'→'+ys[i].y+' ('+ys[i-1].r.toFixed(1)+'→'+ys[i].r.toFixed(1)+')');
+      if(typeof catIndex!=='function')return null;
+      /* 같은 분야가 각도로 모여 있나 — 각도 순으로 세워 이웃이 같은 분야인 비율 */
+      /* **배치와 물리를 나눠 잰다.** 목표 각도(setAngles 가 준 값)로 재면 배치 자체를,
+         실제 자리로 재면 물리가 얼마나 흩뜨렸는지를 본다.
+         섞어서 재면 배치가 완벽해도 물리 탓에 FAIL 이 나고, 어느 쪽이 문제인지 모른다. */
+      /* **분야 없는 노드는 목록에서 빼고 센다.** 그것들은 원 전체에 흩뿌리므로
+         분야 구역 사이에 끼어든다. 그 자리에서 쌍을 건너뛰면 **사슬이 끊긴 것으로 세어**
+         배치가 완벽해도 78% 가 나온다. 분야가 있는 것끼리 이웃을 만든다. */
+      function measure(key){
+        var arr=A.filter(function(n){return isFinite(n.x)&&isFinite(n.y)})
+          .map(function(n){var a=key(n); if(a<0)a+=Math.PI*2; return {c:catIndex(n),a:a}})
+          .sort(function(x,y){return x.a-y.a});
+        var only=arr.filter(function(x){return x.c>=0});
+        var same=0,pairs=0;
+        for(var i=0;i<only.length;i++){
+          var j=(i+1)%only.length;
+          pairs++; if(only[i].c===only[j].c)same++;
         }
-        out[dir?'timeOut':'timeIn']={
-          bad:bad, n:ys.length, dir:inc?'연도↑ 반지름↑':'연도↑ 반지름↓',
-          rin:+ys[0].r.toFixed(1), rout:+ys[ys.length-1].r.toFixed(1)};
-      });
-      timeOut=true; ringLUTKey='';
-      return out;
+        return {same:same,pairs:pairs,arr:arr};
+      }
+      var real=measure(function(n){return Math.atan2(n.y,n.x)});
+      var plan=measure(function(n){return (typeof n.ang==='number'&&isFinite(n.ang))?(n.ang%(Math.PI*2)):0});
+      var arr=real.arr;
+      if(arr.length<4)return {no:'노드가 4개 미만이라 못 잰다'};
+      var same=real.same, pairs=real.pairs;
+      /* 분야가 흩어져 있으면 이 비율은 1/분야수 근처다 — 그것과 견준다 */
+      var cats={}; arr.forEach(function(x){if(x.c>=0)cats[x.c]=1});
+      var nc=Object.keys(cats).length||1;
+      /* 반지름에 연도가 남아 있지 않은지 — 남아 있으면 없앤 것이 아니다 */
+      var yrs=[], rad=[];
+      A.forEach(function(n){ var y=+String(n.yr||'').slice(0,4);
+        if(y>1900&&isFinite(n.x)){ yrs.push(y); rad.push(Math.hypot(n.x,n.y/0.86)) } });
+      var corr=0;
+      if(yrs.length>6){
+        var my=yrs.reduce(function(a,b){return a+b},0)/yrs.length;
+        var mr=rad.reduce(function(a,b){return a+b},0)/rad.length;
+        var sxy=0,sx=0,sy=0;
+        for(var k=0;k<yrs.length;k++){var dy=yrs[k]-my,dr=rad[k]-mr;sxy+=dy*dr;sx+=dy*dy;sy+=dr*dr}
+        corr=(sx&&sy)?sxy/Math.sqrt(sx*sy):0;
+      }
+      /* **분야가 있는 노드만 센다.** 전체를 세면 이론 최대(n−분야수)가 부풀어
+         「덜 모였다」 는 거짓 경보가 난다 — jsdom 38개 중 분야 있는 것은 29개였다. */
+      var withCat=arr.filter(function(x){return x.c>=0}).length;
+      return {same:same,pairs:pairs,planSame:plan.same,nc:nc,n:withCat,all:arr.length,corr:+corr.toFixed(2),yrN:yrs.length};
     })()`);
     d25.window.close();
-    if (!r) F('25. radY 를 못 불렀다');
+    if (!r) F('25. catIndex 를 못 불렀다 — 검사가 화면을 안 보고 있다');
+    else if (r.no) W(`25. ${r.no}`);
     else {
-      Object.keys(r).forEach(k => {
-        const x = r[k];
-        console.log(`25. 반지름 순서     ${k.padEnd(8)} ${x.dir} · ${x.rin}→${x.rout}px · 어긋난 곳 ${x.bad.length}/${x.n - 1}`);
-        if (x.bad.length) F(`25. ${k} — 반지름 순서가 연도 순서와 어긋난 곳 ${x.bad.length}곳 (${x.bad.slice(0,3).join(', ')}). 안쪽이 항상 과거여야 한다`);
-      });
+      /* ── **이론 최대와 견줘야 한다** ──
+         처음엔 「흩어져 있으면 1/분야수」와 견줬다. 그래서 18% 를 FAIL 로 잡았는데
+         **실측하니 배치는 완벽했다** — 목표 각도 9/28, 이론 최대 9/29.
+         분야 20개에 노드 29개면 같은 분야 이웃은 **최대 9쌍**뿐이다.
+         분야마다 한 덩어리로 모으면 같은 분야 이웃 쌍은 `노드수 − 분야수` 다.
+         검사 숫자와 눈이 갈라지면 검사가 다른 것을 재고 있는 것이다. */
+      const cap = Math.max(1, r.n - r.nc);
+      const ratio = r.same / cap;
+      const base = 1 / r.nc;
+      const pratio = r.planSame / cap;
+      console.log(`25. 분야가 모였나   배치 ${r.planSame}/${cap} (${(pratio*100).toFixed(0)}%) · ` +
+        `물리가 민 뒤 ${r.same}/${cap} (${(ratio*100).toFixed(0)}%) · ` +
+        `흩어져 있으면 ${(base*100).toFixed(0)}% 쯤 · 분야 ${r.nc}개 · 분야 있는 노드 ${r.n}/${r.all}개`);
+      console.log(`25. 반지름 ↔ 연도   상관 ${r.corr} (연도를 없앴으므로 0 에 가까워야 한다 · 잰 노드 ${r.yrN}개)`);
+      /* **분야로 모으기로 했으면 실제로 모여 있어야 한다.** 흩어진 것보다 뚜렷이 높아야 한다. */
+      /* **배치가 틀리면 FAIL.** 그건 우리가 고칠 수 있다 — setAngles 가 분야로 안 모은 것이다. */
+      if (r.pairs >= 6 && pratio < 0.9)
+        F(`25. 배치가 분야로 안 모았다 — 이론 최대의 ${(pratio*100).toFixed(0)}% 뿐이다 (${r.planSame}/${cap}). ` +
+          `「부동산은 이쪽, 노동은 저쪽」이 안 된다`);
+      /* **물리가 민 것은 WARN.** 겹침을 푸느라 밀린 것이고, 크면 배치가 안 보인다. */
+      else if (r.pairs >= 6 && ratio < 0.5)
+        W(`25. 물리가 분야 배치를 많이 흩뜨렸다 — 배치 ${(pratio*100).toFixed(0)}% → 화면 ${(ratio*100).toFixed(0)}%`);
+      /* **반지름에 연도가 남아 있으면 없앤 것이 아니다.** 자리에 없는 뜻이 남는다. */
+      if (r.yrN > 6 && Math.abs(r.corr) > 0.5)
+        F(`25. 반지름이 아직 연도를 따라간다 (상관 ${r.corr}). 연도 배치를 없앴는데 자리에 시간이 남아 있다`);
 
-      /* 고리 간격이 실제 시간 간격과 다르다는 것을 화면에 밝히는가.
-         C안은 시간 축을 비선형으로 만든다. 밝히지 않으면 시간을 왜곡해 보여주는 게 된다.
-         정확성 문제라 문구가 사라지면 FAIL 이다.
+      /* ── 자리가 무엇을 뜻하는지 **화면이 밝히는가** ──
+         전에는 「고리 간격 ≠ 시간 간격」이었다. 이제 자리를 정하는 것은 분야다.
+         **자리에 없는 뜻을 만들지 않는 것**이 이 문구의 목적이라 여전히 정확성 문제다.
          워터마크 검사(16번)와 같은 방식으로 fillText 를 가로채 실제로 그려지는지 본다. */
       for (const [vw, vh] of [[412, 915], [1440, 900]]) {
         const dN = boot(vw, vh);
@@ -1305,17 +1352,11 @@ const TKN = { result:'결과', bill:'법·정책', person:'인물', party:'정�
           return seen;
         })()`) || [];
         dN.window.close();
-        /* 좁은 화면은 한 줄로 줄여 쓴다 ('고리 간격 ≠ 시간 간격') —
-           지도 위에서 이름표와 겹쳐 둘 다 안 읽혔기 때문이다.
-           검사는 '이 문장이 있는가' 가 아니라 **'간격이 다르다는 말을 하는가'** 를 봐야 한다.
-           약속을 바꾸면 그 약속을 재던 검사도 같이 바꾼다. */
-        const hit = drawn.some(t => /고리 간격[^가-힣]*(≠|은 실제)/.test(t));
-        console.log(`25. 간격 안내       ${vw}px · ${hit ? '그려짐' : '없음'} (그린 글자 ${drawn.length}개)`);
+        const hit = drawn.some(t => /자리\s*[=는]\s*분야|자리는 분야/.test(t));
+        console.log(`25. 자리 안내       ${vw}px · ${hit ? '그려짐' : '없음'} (그린 글자 ${drawn.length}개)`);
         if (!drawn.length) F(`25. ${vw}px — fillText 를 하나도 못 잡았다. 검사가 화면을 안 보고 있다`);
-        else if (!hit) F(`25. ${vw}px — 고리 간격이 실제 시간 간격과 다르다는 말이 화면에 없다. 시간 축이 비선형인데 밝히지 않으면 왜곡이다`);
+        else if (!hit) F(`25. ${vw}px — 자리가 무엇을 뜻하는지(분야) 화면에 없다. 밝히지 않으면 보는 사람이 거리에 뜻을 붙인다`);
       }
-      /* 0 은 의심한다. 재본 구간이 없으면 통과가 아니라 빈손이다. */
-      if (!Object.keys(r).length) F('25. 재본 방향이 0개다');
     }
   }
 

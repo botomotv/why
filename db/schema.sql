@@ -176,7 +176,7 @@ CREATE TABLE IF NOT EXISTS override (
 -- 발의자·소관부처에서 대통령을 끌어오는 경로를 아예 두지 않기 위한 선언이다.
 CREATE TABLE IF NOT EXISTS rule (
   name  TEXT PRIMARY KEY,
-  role  TEXT NOT NULL CHECK (role IN ('push','block','topic','term','rel')),
+  role  TEXT NOT NULL CHECK (role IN ('push','block','topic','term','rel','after')),
   reads TEXT NOT NULL,
   note  TEXT NOT NULL
 );
@@ -189,7 +189,7 @@ CREATE TABLE IF NOT EXISTS link (
   id       INTEGER PRIMARY KEY,
   from_id  TEXT NOT NULL,
   to_id    TEXT NOT NULL,
-  role     TEXT NOT NULL CHECK (role IN ('push','block','topic','term','rel')),
+  role     TEXT NOT NULL CHECK (role IN ('push','block','topic','term','rel','after')),
   rule     TEXT NOT NULL REFERENCES rule(name),
   why      TEXT NOT NULL,
   evidence TEXT,

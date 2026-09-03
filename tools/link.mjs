@@ -412,7 +412,7 @@ for (const g of [...groups.values()].sort((a, b) => a.law.localeCompare(b.law)))
   const why = `같은 분야(${catLab}) · 공포 ${from === to ? from : from + '~' + to}` +
               ` (결과 ${g.res.yr}년, ${gap === 0 ? '같은 해' : gap + '년 차이'})` +
               ` · 법 이름에 '${g.key}'`;
-  links.push({ from: node.id, to: g.res.id, why, n: g.items.length });
+  links.push({ from: node.id, to: g.res.id, why, n: g.items.length, y0: from, y1: to, lawLab: g.law });
   perNode[g.res.id].laws++;
   perNode[g.res.id].amend += g.items.length;
 }
@@ -512,8 +512,50 @@ const nodeJs = [...lawNodes.values()].map(n =>
    그러면 표시가 빠져도 화면이 그대로라 아무도 모른다 — 실제로 자동 선 266개 전부가
    자기 표시 없이 들어가 있었다. 8번째 칸이 'auto' 다 (7번째는 손 선의 날짜 칸이라 비운다).
    강제: 검사 45. auto 노드에 닿는 선에 이 표시가 없으면 FAIL. */
-const linkJs = links.map(l =>
-  `[${q(l.from)},${q(l.to)},'같은 주제','topic',${q(l.why)},${q('개정 ' + l.n + '건')},'','auto']`).join('\n,');
+/* ── 「같은 주제」를 「그 뒤에」로 올린다 ──
+   이 사이트가 답하려는 것은 「그래서 어떻게 됐나」다. 그런데 선 7,341개가 전부
+   `topic`(같은 주제)이었다 — 그건 **옆에 나란히 있다**는 뜻이지 이어졌다는 뜻이 아니다.
+
+   **근거는 우리가 만들지 않는다.** 두 가지가 이미 데이터에 있다:
+     ① 그 법이 공포된 해 (국회 의안정보시스템)
+     ② 그 결과의 시계열 (통계표에서 그대로 옮긴 값)
+   그 해를 사이에 두고 **앞 값과 뒤 값이 둘 다 있으면** 그 사실을 그대로 적는다.
+   없으면 「같은 주제」 그대로 둔다 — 지어내지 않는다.
+
+   **인과는 여전히 단정하지 않는다 (규칙 4).** 「이 법 때문에」가 아니라
+   「그 뒤에 이렇게 됐습니다. 이 법 때문이라는 뜻은 아닙니다」다.
+
+   ── 중첩 대괄호를 정규식으로 자르지 않는다 ──
+   `series:[['2016','0.96'],…]` 를 `[^\]]*` 로 잡으면 첫 닫는 괄호에서 끊긴다.
+   그리고 **다음 노드가 시작하는 자리에서 자른다** — 고정 길이 창은 남의 값을 삼킨다
+   (실제로 「산재 사망률」 0.96 에 다른 표의 57.7 이 붙은 적이 있다). */
+const SERIES = new Map();
+for (const m of html.matchAll(/\{id:'([^']+)',t:'result'/g)) {
+  let e2 = html.indexOf("\n,{id:'", m.index + 1);
+  if (e2 < 0 || e2 > m.index + 6000) e2 = m.index + 6000;
+  const seg = html.slice(m.index, e2);
+  const si = seg.indexOf('series:[');
+  if (si < 0) continue;
+  const pts = [...seg.slice(si).matchAll(/\['(\d{4})','([^']*)'\]/g)]
+    .map(x => ({ y: +x[1], v: x[2] })).sort((a, b) => a.y - b.y);
+  if (pts.length >= 2) SERIES.set(m[1], pts);
+}
+let upN = 0;
+const linkJs = links.map(l => {
+  const pts = SERIES.get(l.to);
+  if (pts) {
+    const b = pts.filter(s => s.y <= l.y0).pop();
+    const a = pts.filter(s => s.y > l.y0).pop();
+    if (b && a && b.y !== a.y) {
+      upN++;
+      const span = l.y0 === l.y1 ? `${l.y0}년` : `${l.y0}~${l.y1}년`;
+      const why = `「${l.lawLab}」이 ${span}에 공포됐습니다. 그 뒤에 이 숫자는 ` +
+                  `${b.y}년 ${b.v} → ${a.y}년 ${a.v} 이 됐습니다. 이 법 때문이라는 뜻은 아닙니다 · ` + l.why;
+      return `[${q(l.from)},${q(l.to)},'그 뒤에','after',${q(why)},${q(b.y + ' ' + b.v + ' → ' + a.y + ' ' + a.v)},'','auto']`;
+    }
+  }
+  return `[${q(l.from)},${q(l.to)},'같은 주제','topic',${q(l.why)},${q('개정 ' + l.n + '건')},'','auto']`;
+}).join('\n,');
 
 let out = fs.readFileSync(path.join(ROOT, 'index.html'), 'utf8');
 const put = (tag, body) => {
@@ -528,6 +570,8 @@ fs.writeFileSync(path.join(ROOT, 'index.html'), out);
 const withEasy = [...lawNodes.values()].filter(n => n.plain).length;
 const withRsn = [...lawNodes.values()].filter(n => n.reason).length;
 console.log(`index.html 에 노드 ${nl(lawNodes.size)}개 · 선 ${nl(links.length)}개 내보냄`);
+console.log(`  그중 「그 뒤에」 ${nl(upN)}개 — 법이 공포된 해를 사이에 두고 앞뒤 값이 둘 다 있는 것`);
+console.log(`  나머지 ${nl(links.length - upN)}개는 「같은 주제」 — 시계열이 없거나 법이 그 기간 밖이다`);
 const withPres = [...lawNodes.values()].filter(n => n.presCount && n.presCount.length).length;
 console.log(`  당시 대통령을 붙인 것 ${withPres}/${lawNodes.size} (공포일 × 재임표)`);
 console.log(`  그 법 고유의 제·개정이유가 붙은 것 ${withRsn}/${lawNodes.size}` +

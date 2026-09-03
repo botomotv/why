@@ -3907,9 +3907,35 @@ const TKN = { result:'결과', bill:'법·정책', person:'인물', party:'정�
          물리는 잘못이 없었다 — 반지름 어긋남 0, 목표에서 벗어난 거리 중앙값 36px.
          **해시는 표본이 클 때만 고르다.** 그래서 각도를 균등하게 나누도록 고쳤다.
          한 방향이 비어 있으면 그쪽이 찌그러져 보인다. */
+      /* ── **배치와 물리를 나눠 잰다** ──
+         물리(겹침 해소)가 실행마다 조금씩 다르게 밀어서 같은 코드가
+         0.44 · 0.46 을 오갔다 — 3번 중 2번 FAIL. **그런 검사는 있으나 마나다.**
+         목표 각도(setAngles 가 준 값)는 결정론적이라 흔들리지 않는다.
+         배치가 쏠리면 FAIL(우리가 고칠 수 있다), 물리가 민 것은 WARN 으로 본다.
+         검사 25 에서 쓴 것과 같은 처리다. */
+      function bins(key){
+        var cx0=0,cy0=0, pts=[];
+        /* **목표 반지름을 쓴다.** 실제 위치의 반지름을 쓰면 물리가 민 값이 섞여
+           「배치」 를 잰다는 뜻이 없어진다 — 실제로 0.53 이 0.66 으로 뒤집혔다. */
+        A.forEach(function(n){
+          var a=key(n);
+          var R=(typeof ringR==='function')?ringR(n):Math.hypot(n.x,n.y/0.86);
+          pts.push({x:Math.cos(a)*R, y:Math.sin(a)*R*0.86});
+        });
+        pts.forEach(function(p){cx0+=p.x;cy0+=p.y});
+        cx0/=pts.length||1; cy0/=pts.length||1;
+        var b=[0,0,0,0,0,0,0,0,0,0,0,0];
+        pts.forEach(function(p){
+          var a=Math.atan2(p.y-cy0,p.x-cx0); if(a<0)a+=Math.PI*2;
+          b[Math.floor(a/(Math.PI*2)*12)%12]++;
+        });
+        return b;
+      }
+      var binPlan=bins(function(n){
+        return (typeof n.ang==='number'&&isFinite(n.ang))?n.ang:0 });
+      var bin=[0,0,0,0,0,0,0,0,0,0,0,0];
       var cx0=0,cy0=0; A.forEach(function(n){cx0+=n.x;cy0+=n.y});
       cx0/=A.length; cy0/=A.length;
-      var bin=[0,0,0,0,0,0,0,0,0,0,0,0];
       A.forEach(function(n){
         var a=Math.atan2(n.y-cy0,n.x-cx0); if(a<0)a+=Math.PI*2;
         bin[Math.floor(a/(Math.PI*2)*12)%12]++;
@@ -3931,7 +3957,7 @@ const TKN = { result:'결과', bill:'법·정책', person:'인물', party:'정�
       var ks=Object.keys(cats), most=0;
       ks.forEach(function(k){ if(cats[k]>most)most=cats[k] });
       return {n:res.length, all:all, lim:FIRST_N, mapN2:A.length,
-        bin:bin, empty:empty, mostDir:mx,
+        bin:bin, binPlan:binPlan, empty:empty, mostDir:mx,
         quiet:(typeof resQuiet==='number')?resQuiet:0,
         cut:(typeof resCut==='number')?resCut:-1,
         spiral:tot?Math.round(ga/tot*100):0, cats:ks.length, most:most, mapN:A.length};
@@ -3965,12 +3991,23 @@ const TKN = { result:'결과', bill:'법·정책', person:'인물', party:'정�
          그래서 **평균으로 나눈다**(변동계수). 노드 수와 무관한 값이 된다.
          실측: 균등 0.11~0.29 · 고리별 해시 0.94 · 예전 편중 배치 1.23. */
       const mean12 = r.mapN2 / 12;
+      const cvOf = b => {
+        const sd = Math.sqrt(b.reduce((a, v) => a + (v - mean12) * (v - mean12), 0) / 12);
+        return mean12 > 0 ? sd / mean12 : 0;
+      };
       const sd12 = Math.sqrt(r.bin.reduce((a, v) => a + (v - mean12) * (v - mean12), 0) / 12);
-      const cv12 = mean12 > 0 ? sd12 / mean12 : 0;
-      console.log(`     방향 고르기 — 평균 대비 흔들림 ${cv12.toFixed(2)} (균등이면 0.3 아래, 표준편차 ${sd12.toFixed(2)})`);
-      if (r.mapN2 >= 18 && cv12 > 0.45)
-        F(`65. 노드가 한쪽으로 쏠렸다 — 12방향 [${r.bin.join(',')}] 평균 대비 흔들림 ${cv12.toFixed(2)} (한도 0.45). ` +
+      const cv12 = cvOf(r.bin);
+      const cvPlan = cvOf(r.binPlan || r.bin);
+      console.log(`     방향 고르기 — 배치 ${cvPlan.toFixed(2)} [${(r.binPlan||[]).join(',')}] · ` +
+        `물리가 민 뒤 ${cv12.toFixed(2)} (균등이면 0.3 아래)`);
+      /* **배치가 쏠리면 FAIL.** 목표 각도는 결정론적이라 흔들리지 않는다 —
+         물리로 재면 같은 코드가 0.44·0.46 을 오가 3번 중 2번 FAIL 했다. */
+      if (r.mapN2 >= 18 && cvPlan > 0.45)
+        F(`65. 배치가 한쪽으로 쏠렸다 — 12방향 [${(r.binPlan||[]).join(',')}] 평균 대비 흔들림 ${cvPlan.toFixed(2)} (한도 0.45). ` +
           `동그랗게 안 보인다`);
+      /* 물리가 배치를 크게 흩뜨리면 화면은 쏠려 보인다 — 그건 WARN 이다 */
+      else if (r.mapN2 >= 18 && cv12 > 0.6)
+        W(`65. 물리가 배치를 흩뜨렸다 — 배치 ${cvPlan.toFixed(2)} → 화면 ${cv12.toFixed(2)} [${r.bin.join(',')}]`);
       if (r.mapN2 >= 18 && r.empty > 1)
         F(`65. 12방향 중 ${r.empty}곳이 비어 있다 [${r.bin.join(',')}] — 동그랗게 안 보인다`);
       /* **나선기가 높으면 각도가 연도를 알고 있다는 뜻이다.**

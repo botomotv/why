@@ -592,9 +592,14 @@ body.popfull .pexp .pex-i{transform:rotate(180deg)}
    참고 자료지 조작이 아니다. 위에 두면 그만큼 **지도 세로를 먹는다** —
    상단 UI 가 282px 이면 1440×786 에서 지도가 504px 밖에 안 남고,
    이름표 한 줄이 24px 이라 **21줄이 상한**이 된다. 실측으로 나온 자리다. */
+/* ── 범례는 **검색창 바로 아래** 가로 한 줄이다 ──
+   화면 맨 아래로 내렸더니 지도 이름표와 섞여 읽히지 않았고,
+   폰에서는 하단 버튼 뒤에 깔렸다. 검색창 아래가 제자리다.
+   부모(.search 560px)를 벗어나 화면 폭을 쓰게 해야 한 줄로 들어간다 —
+   알약 일곱 개가 663px 이라 560px 안에서는 두 줄이 된다. */
 .lgd{pointer-events:none;display:flex;flex-wrap:wrap;justify-content:center;gap:5px 6px;
-  font-size:12px;line-height:1.4;
-  position:fixed;left:50%;bottom:10px;transform:translateX(-50%);z-index:29;margin:0;
+  font-size:12px;line-height:1.4;margin-top:9px;
+  position:relative;left:50%;transform:translateX(-50%);
   width:max-content;max-width:min(96vw,880px)}
 /* **지도 위에 뜨므로 배경이 필요하다.** 배경 없이 뒀더니 폰에서 지도의 이름표와
    글자가 섞여 둘 다 안 읽혔다. 알약 하나하나에 바탕을 깐다. */
@@ -620,11 +625,11 @@ body.popfull .pexp .pex-i{transform:rotate(180deg)}
 .lg-thick::before,.lg-thick::after{content:'';position:absolute;left:0;right:0;background:#8A929E}
 .lg-thick::before{top:1px;height:1px;opacity:.55}
 .lg-thick::after{bottom:1px;height:2.6px}
-/* ── 뒤로·처음으로는 **검색창 오른쪽** ──
-   아래에 두면 상단 UI 가 56px 두꺼워지고 그만큼 지도가 줄어든다.
-   옆은 비어 있다. 좁은 화면에서는 파일 맨 끝 미디어쿼리가 아래로 되돌린다. */
+/* ── 뒤로·처음으로는 **검색창 아래 가운데** ──
+   오른쪽에 붙였더니 검색창과 한 덩어리로 보여 무엇을 되돌리는 버튼인지 흐려졌다.
+   가운데 아래가 제자리다 — 읽는 순서가 검색 → 범례 → 되돌리기다. */
 .undo{display:flex;gap:9px;justify-content:center;pointer-events:none;
-  position:absolute;top:0;left:100%;margin:0 0 0 14px}
+  margin:9px 0 0}
 
 .undo>*{pointer-events:auto}
 .ub{display:flex;align-items:center;gap:8px;font-family:inherit;font-size:15.5px;font-weight:500;
@@ -1154,16 +1159,13 @@ body.hasundo .rolebar{top:232px;width:calc(100vw - 24px);max-height:96px;overflo
    검색창은 560px 이고 버튼 두 개가 230px 이다. 가운데 정렬이므로
    `560 + 230*2 = 1020` 이 있어야 양쪽이 안 잘린다. 그 아래에서는 아래로 내린다.
    **끄는 게 아니라 켜는 곳을 여기서 고친다** — 이 파일은 뒤엣것이 이긴다. */
-@media (max-width:1060px){
-  .undo{position:static;margin:8px 0 0}
-}
+/* 뒤로·처음으로는 이제 어느 폭에서나 검색창 아래 가운데다 — 되돌릴 규칙이 없다 */
 /* ── 폰 하단은 **쌓는 순서**가 있다 ──
    아래에서부터 버튼바 · 범례 · 조작 안내 · 캔버스 안내다.
    범례를 `bottom:10` 그대로 두었더니 '보는 법 · 전체 보기 · 시간 방향' 버튼 뒤에 깔려
    **둘 다 안 읽혔다.** 버튼바 높이(72px)만큼 올린다.
    캔버스 안내는 `botUI` 가 `.hint` 를 재서 저절로 그 위에 앉는다 — 숫자를 박지 않는다. */
 @media (max-width:620px){
-  .lgd{top:var(--lgdtop,300px);bottom:auto}
   /* ── 폰에서는 범례를 **한 줄로** 줄인다 ──
      세 줄이면 상단 UI 가 화면의 68% 를 먹어 지도가 아래로 밀린다 (실측 375×812).
      남기는 것은 **첫 화면에 실제로 보이는 것** — 결과·법·「그 뒤에」 셋이다.
@@ -1184,14 +1186,7 @@ body.hasundo .rolebar{top:232px;width:calc(100vw - 24px);max-height:96px;overflo
   <span class="sicon">⌕</span>
   <input id="q" type="text" placeholder="무엇이든 검색해 보세요 — 이재명, 간첩법, 민주노총, 2020" autocomplete="off" aria-label="검색">
   <div class="sres" id="sres"></div>
-  <div class="undo">
-    <!-- ← 뒤로 · 한 칸씩. '처음으로' 와 나란히 두되 왼쪽이다 —
-         읽는 순서가 곧 되돌아가는 순서다 (한 칸 → 전부). -->
-    <button class="ub ub-back" id="backBtn" disabled><span>←</span> <b>뒤로</b></button>
-    <button class="ub" id="resetAll" disabled><span>↺</span> <b id="resetLab">처음으로</b></button>
-  </div>
-</div>
-<!-- ── 모양 범례 — **화면 아래 가로 한 줄** ──
+  <!-- ── 모양 범례 — **검색창 바로 아래 가로 한 줄** ──
        '보는 법' 서랍에도 있지만 **아무도 서랍을 안 연다.**
        모양으로 종류를 갈랐으면 그 뜻이 처음 화면에 있어야 한다.
        색·모양을 글자가 아니라 **실제로 그려서** 보여준다 — 지도에 그리는 것과 같은 모양이다.
@@ -1213,6 +1208,13 @@ body.hasundo .rolebar{top:232px;width:calc(100vw - 24px);max-height:96px;overflo
     <!-- 굵기가 뜻하는 것. **판단이 아니라 어떻게 이어졌나**다 — 카드의 층(tierOf)과 같은 기준이다. -->
     <span class="lgi lgi-x"><i class="lg lg-thick"></i>굵을수록 근거가 셈</span>
   </div>
+  <div class="undo">
+    <!-- ← 뒤로 · 한 칸씩. '처음으로' 와 나란히 두되 왼쪽이다 —
+         읽는 순서가 곧 되돌아가는 순서다 (한 칸 → 전부). -->
+    <button class="ub ub-back" id="backBtn" disabled><span>←</span> <b>뒤로</b></button>
+    <button class="ub" id="resetAll" disabled><span>↺</span> <b id="resetLab">처음으로</b></button>
+  </div>
+</div>
 <div class="rolebar" id="roleBar" hidden></div>
 <div id="stage"><canvas id="gc"></canvas></div>
 
@@ -16707,6 +16709,62 @@ function byDeg0(a,b){
   var da=(adj[a.id]||[]).length, db=(adj[b.id]||[]).length;
   return db-da||String(a.id).localeCompare(String(b.id));
 }
+/* ── 첫 화면에 **무엇을 먼저 보여줄지** ──
+   전에는 「이어진 선의 수」 하나로 골랐다. **그게 정확히 반대로 갔다.**
+
+   실측 (결과 321개):
+     농가 부채          30선   ← 1등
+     119 구조 건수      15선
+     공무원노조 조직률   13선
+     …
+     자살률 OECD 1위     2선
+     최저임금 시급       1선   ← 꼴찌 수준
+
+   **연결 수는 「핵심어가 얼마나 넓은가」를 잰다.** 사람이 좁게 고른 핵심어일수록
+   붙는 법이 적다. 「농가 부채」는 `농업`·`농어업` 이 넓어서 30개가 붙었고,
+   「최저임금」은 2020년대 공포가 1건뿐이라 1개다.
+   궁금해서 많이 붙는 게 아니라, 말이 넓어서 많이 붙는다.
+
+   ── 다른 두 가지도 못 쓴다 ──
+     · **사람 수가 큰 것** — 단위가 제각각이라 비교가 안 된다.
+       「생활체육 참여율 52.1%」 · 「자영업자 572만명」 · 「합계출산율 0.75명」 ·
+       「119 구조 이송 178만건」. 「명」만 봐도 구조 건수가 출산율보다 커진다.
+     · **최근 것** — 변별력이 없다. 지표누리 통계는 거의 다 2024~2025 로 끝난다.
+       그리고 최근 것을 앞세우면 「요즘 일이 더 중요하다」 가 된다.
+
+   ── 그래서 쓰는 것: **사람이 확인해서 넣었나** ──
+   이건 우리가 새로 만든 판단이 아니라 **데이터에 이미 있는 구분**이다.
+     · 손으로 넣은 것 — 사람이 「이건 사람들이 궁금해한다」 고 판단해 하나씩 확인해 넣었다
+     · 자동 1차     — 지표누리 후보를 사람이 하나씩 보고 고른 것
+     · 자동 4차     — 표 이름으로 대량 선정한 것
+   이 파일은 이미 나머지 자리에 이 순서를 쓰고 있었다
+   (「손을 먼저 두는 것은 근거의 세기 때문이지 '더 중요해서' 가 아니다」).
+   **결과에만 안 쓰고 있었다.** 같은 원칙을 결과에도 쓴다.
+
+   확인: 사용자가 든 10개(합계출산율·집값·최저임금·자살률·청년실업률·의대 정원·
+   연금 고갈·사교육비·전기요금·산재 사망) 중 **9개가 손으로 넣은 것**이고,
+   「왜 궁금해하나」 고 지적한 7개(생활체육·국제회의·교원노조·공무원노조·농가 부채·
+   119 구조·열차사고)는 **전부 자동**이다. 갈래가 그대로 가른다.
+
+   같은 갈래 안에서는 연결 수 — 그건 사실이고, 갈래가 같으면 근거의 세기도 같다. */
+function srcRank(n){
+  var id=String(n.id||'');
+  /* **손원본과 손통계는 같은 등급이다.** 둘 다 사람이 「이건 궁금해한다」 고 판단해
+     하나씩 확인해 넣었다. 갈라 두었더니 손원본 19개가 자리를 다 먹어
+     최저임금·자살률·청년실업률(손통계)이 하나도 안 나왔다. */
+  if(id.lastIndexOf('hs_',0)===0)return 0;     /* 손 · 부처 통계에서 값을 확인해 넣음 */
+  if(id.lastIndexOf('ix4_',0)===0)return 3;    /* 자동 4차 · 표 이름으로 대량 선정 */
+  if(id.lastIndexOf('ix_',0)===0)return 2;     /* 자동 1차 · 후보를 하나씩 보고 고름 */
+  if(id.lastIndexOf('evt_',0)===0)return 0;    /* 사건 — 「그 뒤에」의 첫 칸이다 */
+  if(id.lastIndexOf('aft_',0)===0)return 2;
+  if(id.lastIndexOf('auto_',0)===0)return 3;
+  return 0;                                    /* 손으로 넣은 원본 */
+}
+var catOrder=[];   /* 분야 구역이 원 둘레에 놓인 순서. setAngles 가 채운다 */
+function byPick(a,b){
+  var d=srcRank(a)-srcRank(b); if(d)return d;
+  return byDeg0(a,b);
+}
 function planMap(){
   var key=[N.length,cat,sideF||'',kindF||'',onlyP||'',focus||'',MAP_N,RES_N,
     focusNb?Object.keys(focusNb).length:0].join('|');
@@ -16763,33 +16821,64 @@ function planMap(){
     resAll.forEach(function(n){out[n.id]=1});
     resCut=0;
   } else {
-    var lanes=Object.create(null);
-    resAll.slice().sort(byDeg0).forEach(function(n){
-      var c=(n.cats&&n.cats.length?n.cats[0]:'(없음)');
-      (lanes[c]||(lanes[c]=[])).push(n);
+    /* ── **갈래가 먼저, 분야 상한이 그다음** ──
+       전에는 분야마다 한 줄씩 돌아가며 뽑았다(라운드로빈). 그러면 그 분야에
+       손으로 넣은 결과가 없을 때 **자동으로 긁어온 것이 대신 올라온다** —
+       실제로 「국제회의 개최」·「생활체육 참여율」이 그렇게 첫 화면에 왔다.
+       분야 균형이 갈래 우선을 덮어쓴 것이다.
+
+       그래서 순서를 뒤집는다: **byPick 순서대로 담되, 한 분야가 CAT_CAP 개를 넘으면
+       건너뛴다.** 손으로 넣은 것이 먼저 채워지고, 한 분야가 화면을 다 먹지도 않는다.
+       그래도 자리가 남으면 상한을 풀어 마저 채운다 — 빈자리로 두는 것보다 낫다. */
+    /* ── 분야를 **원 둘레 순서로 돌아가며** 뽑는다 ──
+       갈래 우선(byPick)만 쓰고 분야 상한으로 제한했더니, 어느 분야가 뽑히는지는
+       연결 수가 정했다. 그래서 뽑힌 12개 분야가 원 한쪽에 몰려 흔들림 0.50 이 났다.
+       **자리를 정하는 순서(catOrder)와 뽑는 순서를 맞춘다** — 그러면 뽑힌 것들이
+       원 전체에 고르게 퍼진다. 분야 안에서는 갈래 우선 그대로다. */
+    var CAT_CAP=2;
+    var byCat=Object.create(null);
+    resAll.slice().sort(byPick).forEach(function(n){
+      var c=catIndex(n); if(c<0)c=-1;
+      (byCat[c]||(byCat[c]=[])).push(n);
     });
-    var keys=Object.keys(lanes).sort();
-    var took=0, row=0;
-    while(took<lim){
-      var moved=0;
-      for(var li=0;li<keys.length&&took<lim;li++){
-        /* **`L` 이라고 쓰면 안 된다.** 전역 `L`(관계 배열)을 가린다 —
-           `var` 는 함수 스코프라 planMap 전체에서 가려지고, 아래 「이어지지 않으면 뺀다」의
-           `L.forEach` 가 **분야 배열을 순회한다.** 에러도 안 나고 결과만 틀린다.
-           실제로 rn=24·40·60 에서는 조용히 틀렸고 rn=200(이 분기를 안 타는 값)에서야
-           `L` 이 undefined 가 되어 드러났다. 짧은 이름은 전역과 부딪힌다. */
-        var lane=lanes[keys[li]];
-        if(row<lane.length){ out[lane[row].id]=1; took++; moved=1 }
+    var order=catOrder.filter(function(c){return byCat[c]});
+    Object.keys(byCat).forEach(function(k){
+      if(order.indexOf(+k)<0&&order.indexOf(k)<0)order.push(+k) });
+    /* ── **자동으로 긁어온 것은 첫 화면에 안 쓴다** ──
+       분야를 돌아가며 뽑되, 그 분야에 손으로 넣은 결과가 없으면 **건너뛴다.**
+       건너뛰지 않았더니 「생활체육 참여율」·「아동 안전사고 사망률」이
+       그 분야를 대표해 첫 화면에 올라왔다 — 사람이 궁금해서가 아니라 자리가 비어서다.
+       빈 분야는 그냥 비운다. 손으로 넣은 38개면 18자리를 채우고도 남는다. */
+    var took=0;
+    for(var round=0;round<CAT_CAP&&took<lim;round++){
+      for(var oi2=0;oi2<order.length&&took<lim;oi2++){
+        var lst2=byCat[order[oi2]]; if(!lst2)continue;
+        /* 이 분야에서 아직 안 뽑힌 것 중 **손으로 넣은 것**만 본다 */
+        var pick=null;
+        for(var qi=0;qi<lst2.length;qi++){
+          if(out[lst2[qi].id])continue;
+          if(srcRank(lst2[qi])!==0)break;   /* byPick 정렬이라 손이 앞에 있다 */
+          pick=lst2[qi]; break;
+        }
+        if(!pick)continue;
+        out[pick.id]=1; took++;
       }
-      if(!moved)break;
-      row++;
+    }
+    /* 손으로 넣은 것을 다 써도 자리가 남으면 그때 자동을 쓴다 — 빈자리보다는 낫다.
+       실측(2026-09): 손 38개 · 자리 18개라 여기까지 오지 않는다. */
+    if(took<lim){
+      var rest2=resAll.slice().sort(byPick);
+      for(var ri2=0;ri2<rest2.length&&took<lim;ri2++){
+        if(out[rest2[ri2].id])continue;
+        out[rest2[ri2].id]=1; took++;
+      }
     }
     resCut=resAll.length-took;
   }
   /* 남은 자리는 **손으로 넣은 것 먼저, 그다음 자동**. 둘 다 연결 수 순이다.
      손을 먼저 두는 것은 근거의 세기 때문이지 '더 중요해서' 가 아니다 —
      사람이 확인한 것과 글자를 맞춘 것은 다른 값이다. */
-  var byDeg=byDeg0;
+  var byDeg=byPick;
   /* **결과는 여기서 안 뽑는다.** 위 라운드로빈이 이미 골랐다 —
      여기 남겨 두면 상한 40 인데 41개가 그려진다(실측). 상한이 상한이 아니게 된다. */
   /* ── 남은 자리에는 **지금 담긴 결과와 이어진 것**을 먼저 넣는다 ──
@@ -17687,6 +17776,13 @@ var CAT_ALL=Object.keys(CATMAP).length;
    분야를 안 적은 노드는 8229줄에서 **전체 분야**를 받는다. 그건 '모든 분야' 가 아니라
    '분야를 모른다' 는 뜻이라 한 칸에 몰아넣지 않고 -1(분야 없음)로 둔다. */
 function catIndex(n){
+  /* ── **인물·정당·기관에는 분야를 안 준다** ──
+     「노무현」이 「외국인·참정권」 분야인 게 아니다 — 그 분야 법에 관여했다는 뜻이다.
+     사람과 정당은 여러 분야에 걸쳐 있어 **하나를 고르는 것 자체가 임의**다.
+     실측: 그렇게 고른 값 때문에 인물 3명·정당 2개가 이웃한 두 구역에 몰려
+     10시 방향에 9개가 쌓였다 (흔들림 0.66). 분야를 모르는 것으로 두면
+     원 전체에 흩어진다 — 「모른다」 를 「같은 분야」 로 만들지 않는 것과 같은 이유다. */
+  if(n&&(n.t==='person'||n.t==='party'||n.t==='org'||n.t==='post'))return -1;
   var c=n&&n.cats; if(!c||!c.length||c.length>=CAT_ALL)return -1;
   var best=-1;
   for(var i=0;i<c.length;i++){ var o=CAT_ORD[c[i]];
@@ -17748,14 +17844,42 @@ function setAngles(keep){
       if(c<0){ noCat.push(n); return }
       if(!g[c]){g[c]=[];ord.push(c)}
       g[c].push(n)});
-    /* ── 구역 **순서**는 흩뿌린다 ──
-       CATS 차례(부동산 → 외국인 → 연금 → 의료 …)대로 원을 돌게 했더니,
-       첫 화면에 이웃한 분야들이 함께 뽑혀 **7시 방향에 7개**가 몰렸다 (흔들림 0.46).
+    /* ── 구역 **순서**는 흩뿌리되, 첫 화면이 고르게 퍼지도록 **번갈아** 놓는다 ──
+       CATS 차례대로면 이웃한 분야가 함께 뽑혀 7시 방향에 7개가 몰렸다 (흔들림 0.46).
+       해시로 흩뿌려도 0.54~0.58 이 남았다. 원인은 다른 데 있었다 —
+       **첫 화면 결과는 사람이 넣은 38개에서 나오는데 그 분야가 12개뿐**이라
+       구역 20개 중 8개가 통째로 빈다. 빈 구역이 몰려 있으면 그쪽이 텅 빈다.
+
+       그래서 **손으로 넣은 결과가 있는 분야와 없는 분야를 번갈아** 놓는다.
+       12개가 쓰여도 원 전체에 고르게 퍼진다.
        분야마다 **고정된 자리**를 갖는 것은 그대로다 — 「부동산은 늘 이쪽」이 성립한다.
-       바뀌는 것은 그 자리들이 원 둘레에 늘어선 순서뿐이고, 거기에는 뜻이 없다. */
-    ord.sort(function(a,b){
+       순서에는 뜻이 없으므로(원래 해시였다) 이렇게 바꿔도 새 주장이 생기지 않는다. */
+    var handCat=Object.create(null);
+    N.forEach(function(n){
+      if(n.t!=='result'||n.ghost)return;
+      var id=String(n.id||'');
+      if(id.lastIndexOf('ix_',0)===0||id.lastIndexOf('ix4_',0)===0)return;
+      var c=catIndex(n); if(c>=0)handCat[c]=1;
+    });
+    var byHash=function(a,b){
       var d=angHash('sector:'+a)-angHash('sector:'+b);
-      return d||(a-b)});
+      return d||(a-b)};
+    var hasHand=ord.filter(function(c){return handCat[c]}).sort(byHash);
+    var noHand =ord.filter(function(c){return !handCat[c]}).sort(byHash);
+    ord.length=0;
+    /* **하나씩 번갈아 놓으면 남는 것이 뒤에 몰린다.** 12 : 8 이면 앞 8쌍만 번갈고
+       뒤에 4개가 붙어 그 방향이 두꺼워졌다 (흔들림 0.48).
+       비율대로 흩는다 — 자리 i 에서 「지금까지 놓아야 할 hasHand 수」가 늘면 그것을 놓는다. */
+    var hi=0, ni=0, tot=hasHand.length+noHand.length;
+    for(var oi=0;oi<tot;oi++){
+      var want=Math.round((oi+1)*hasHand.length/tot);
+      if(hi<want&&hi<hasHand.length)ord.push(hasHand[hi++]);
+      else if(ni<noHand.length)ord.push(noHand[ni++]);
+      else if(hi<hasHand.length)ord.push(hasHand[hi++]);
+    }
+    /* 원 둘레 순서를 밖에서도 쓴다 — 첫 화면 결과를 **이 순서대로** 뽑아야
+       뽑힌 것들이 원 전체에 고르게 퍼진다 (planMap 참조). */
+    catOrder=ord.slice();
     ord.forEach(function(c){ g[c].sort(function(a,b){
       var d=angHash('a:'+a.id)-angHash('a:'+b.id);
       return d||(String(a.id)<String(b.id)?-1:1)}) });

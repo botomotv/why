@@ -17166,7 +17166,8 @@ function orbOutside(list){
   list.forEach(function(o){ inSet[o.id]=1 });
   /* 이미 계획된 지도 이름표 (원에 모은 것은 뺀다 — 그건 지금 다시 놓는 중이다) */
   for(var i=0;i<A.length;i++){ var m=A[i];
-    if(inSet[m.id]||!isFinite(m.x)||m.a<=0.16)continue;
+    /* **지금 알파가 아니라 가라앉은 뒤의 알파**를 본다 — 위 fadeWant 주석 참조 */
+    if(inSet[m.id]||!isFinite(m.x)||fadeWant(m)<=0.16)continue;
     if(focus&&m.id===focus)continue;      /* 누른 것의 이름표는 가운데라 원과 안 겹친다 */
     /* 남의 **도형** — 이름표가 그 위에 얹히면 둘 다 안 읽힌다 */
     var mr=((m.r||4)+1)*cam.s;
@@ -17177,6 +17178,7 @@ function orbOutside(list){
   if(labelBoxes&&labelBoxes.length)for(var j=0;j<A.length;j++){ var q=A[j];
     if(inSet[q.id]||(focus&&q.id===focus))continue;
     if(!labelSet||!labelSet[q.id])continue;
+    if(fadeWant(q)<=0.16)continue;   /* 곧 흐려질 것은 피할 대상이 아니다 */
     if(!isFinite(q.x))continue;
     var lb=labelBox(q,(typeof labelFontScale==='function')?labelFontScale():1);
     out.push({x:lb.x*cam.s+cam.x, y:lb.y*cam.s+cam.y, w:lb.w*cam.s, h:lb.h*cam.s});
@@ -18346,12 +18348,29 @@ function viewCX(){return W/2}
    그래서 카메라가 그 아래에만 노드를 담는다.
    **숫자를 박지 않는다** — updateTopSafe() 가 실제 요소의 offsetTop+offsetHeight 로
    --topsafe 를 정하고, 여기서 그 값을 읽는다. UI 가 커지면 따라 커진다. */
+/* ── `--topsafe` 는 **페이지 좌표**, 여기가 돌려주는 것은 **캔버스 좌표**다 ──
+   CSS 가 `.pop{position:fixed;top:var(--topsafe)}` 로 쓰므로 그 변수는 뷰포트 기준이어야 한다.
+   그런데 캔버스(`#stage`)는 페이지 y=114 에서 시작한다 — 상단 막대 62 + 분야 줄 52.
+   그 차이를 안 빼고 캔버스 좌표로 쓰고 있었다. **지도가 세로 114px 을 통째로 잃었다.**
+
+   실측 (1280×800, 카드 열림): 지도가 쓸 수 있는 자리 832×403 → 832×517.
+   원으로 모을 때 `ky` 가 0.70 → 0.79 가 되고, 이웃 다섯 중 둘만 서던 것이 다섯 다 선다.
+
+   문법 오류가 없고 검사도 안 잡았다. 화면만 아래로 밀려 있었다 —
+   `size()` 는 이미 `lb0.offsetTop-stg0.offsetTop` 으로 같은 보정을 하고 있었는데
+   여기만 빠져 있었다. **한쪽에만 두면 그쪽만 맞고 반대쪽은 조용히 틀린다.** */
 function topSafePx(){
   try{
     var v=getComputedStyle(document.documentElement).getPropertyValue('--topsafe');
     var n=parseFloat(String(v).trim());
-    if(isFinite(n)&&n>0)return Math.min(n, H*0.5);
+    if(isFinite(n)&&n>0)return Math.min(Math.max(0,n-stageTop()), H*0.5);
   }catch(e){}
+  return 0;
+}
+/* 캔버스가 페이지 어디서 시작하나. offset* 이라 transform 잔상에 안 휘둘린다. */
+function stageTop(){
+  try{ var e=document.getElementById('stage');
+    return (e&&isFinite(e.offsetTop))?e.offsetTop:0 }catch(e){}
   return 0;
 }
 
@@ -19493,11 +19512,26 @@ function clampY(){
   if(top>tp+16)cam.ty+=(tp+16-top);
 }
 var PT=0;
+/* ── 가라앉은 뒤의 알파를 **한 곳에서** 정한다 ──
+   `fade()` 는 매 프레임 이 값으로 다가간다. 그런데 `orbSet` 은 **누른 그 순간**
+   원의 자리를 정한다 — 그때 `n.a` 는 아직 흐려지기 전, 전부 1.0 이다.
+   그래서 원이 **곧 사라질 도형 101개**를 피하려다 자리를 못 찾았다.
+   실측 (1280×800): 겹침 7 · 다섯 중 셋을 잘라내고 둘만 원에 섰다 —
+   「한쪽으로 길게 뻗는다」 가 이것이었다.
+
+   재는 것과 그리는 것이 두 벌이면 갈라진다. 식을 여기 하나만 두고
+   `fade()` 는 이 값으로 다가가고, `orbOutside` 는 **이 값으로 미리 본다.** */
+function fadeWant(n){
+  if(!inCat(n))return 0;
+  if(!focus)return .86;
+  var r=ring[n.id];
+  return r===0?1:r===1?1:r===2?.30:.10;
+}
 function fade(){
   clampY();PT+=0.016;
   N.forEach(function(n){
     var vis=inCat(n);
-    var w=!vis?0:focus?(ring[n.id]===0?1:ring[n.id]===1?1:ring[n.id]===2?.30:.10):.86;
+    var w=fadeWant(n);
     if(hover===n&&vis)w=1;
     n.a+=(w-n.a)*0.09;
     n.gl+=(((n.id===focus?1:hover===n?.6:0)*(vis?1:0))-n.gl)*0.11;

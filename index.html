@@ -613,6 +613,9 @@ body.popfull .pexp .pex-i{transform:rotate(180deg)}
   border-right:6px solid transparent;border-bottom:11px solid #8A929E}
 .lg-prec{transform:rotate(45deg);width:9px;height:9px;background:#3FA9A6}
 .lg-per{border-radius:50%;background:transparent;border:1.8px solid #7FB2EE}
+.lg-sb{border-radius:50%;background:transparent;border:2px solid #5B9BE5;width:11px;height:11px}
+.lg-sr{border-radius:50%;background:transparent;border:2px solid #E2635A;width:11px;height:11px}
+.lg-so{border-radius:50%;background:transparent;border:2px solid #8B7BD8;width:11px;height:11px}
 .lg-auto{background:transparent;border:1.4px dashed #8A929E;border-radius:2px;width:13px;height:9px}
 /* 「그 뒤에」 — 사건에서 법으로 흐른다는 뜻이라 **화살표**로 그린다.
    다른 알약은 모양(노드)을 보여주는데 이것만 관계다. 색은 선 색과 같다. */
@@ -1202,6 +1205,14 @@ body.hasundo .rolebar{top:232px;width:calc(100vw - 24px);max-height:96px;overflo
     <span class="lgi lgi-s"><i class="lg lg-detc"></i>헌재 결정</span>
     <span class="lgi lgi-s"><i class="lg lg-prec"></i>판례·사건</span>
     <span class="lgi lgi-s"><i class="lg lg-per"></i>사람·정당</span>
+    <!-- ── 진영 색이 뜻하는 것 ──
+         색은 이미 사람·정당의 테두리와 선에 쓰고 있는데 어디에도 안 적혀 있었다.
+         **뜻을 안 밝히면 색이 그냥 장식이 된다** (굵기 범례를 넣은 것과 같은 이유).
+         「계열」이라고 쓴다 — 당명이 여러 번 바뀌었고(한나라→새누리→자유한국→국민의힘)
+         우리가 계보를 판정하는 것이 아니라 노드의 `side` 값을 그대로 보여주는 것이다. -->
+    <span class="lgi lgi-s"><i class="lg lg-sb"></i>민주당 계열</span>
+    <span class="lgi lgi-s"><i class="lg lg-sr"></i>국민의힘 계열</span>
+    <span class="lgi lgi-s"><i class="lg lg-so"></i>그 외 정당</span>
     <!-- 「그 뒤에」 — 이 사이트가 답하려는 것이다. 「같은 주제」와 다르다는 걸 밝힌다. -->
     <span class="lgi"><i class="lg lg-after"></i>그 뒤에</span>
     <span class="lgi lgi-x"><i class="lg lg-auto"></i>점선은 자동</span>
@@ -1239,7 +1250,9 @@ body.hasundo .rolebar{top:232px;width:calc(100vw - 24px);max-height:96px;overflo
     <p class="linesub"><b>속이 빈 점선은 자동으로 들어온 것</b>입니다.
       사람이 근거를 확인해 넣은 것은 속이 채워져 있습니다.</p>
     <p class="linesub">색은 진영입니다 — 파랑은 민주당 계열, 빨강은 국민의힘 계열,
-      금색은 결과 숫자입니다. 법·헌재·판례는 진영이 없어 회색이고 모양으로만 갈립니다.</p>
+      <b>보라는 그 밖의 정당</b>(정의당·조국혁신당·개혁신당)입니다. 금색은 결과 숫자입니다.
+      법·헌재·판례는 진영이 없어 회색이고 모양으로만 갈립니다.
+      노조·시민단체도 진영 축에 없어 회색입니다 — 어느 편이라고 우리가 정하지 않습니다.</p>
   </details>
   <details class="railcard linecard">
     <summary class="raillab">선이 뜻하는 것</summary>
@@ -16916,6 +16929,19 @@ function planMap(){
     for(var i=0;i<e.length;i++) if(pickedRes[other(e[i],n.id)])return 1;
     return 0;
   };
+  /* ── 정당은 **전부** 올린다 ──
+     남은 자리를 연결 수로 나눠 갖게 했더니 「정의당」(2선)·「조국혁신당」(1선)·
+     「개혁신당」(1선)이 빠졌다 — **하필 `side:'other'`(그 외 정당) 세 개 전부**다.
+     연결 수는 사실이지만, 그 값이 진영과 상관되면 **고르지 않은 것이 아니라
+     진영으로 고른 것과 결과가 같아진다.**
+
+     정당은 13개뿐이고 「누가」 축의 전부다. 전부 올리면 **고를 일이 없으므로
+     편집 판단도 없다.** 인물(9개)도 같은 이유로 전부 올린다.
+     실측: other 0/3 → 3/3, 지도 노드 98 → 101. */
+  /* **상한 안에서 센다.** 「몇 개」 라고 해 놓고 그 위에 얹으면 지시한 수를 넘는다 —
+     이 파일이 이미 한 번 겪은 일이다(결과 40 이라 해 놓고 69개를 그렸다). */
+  pool.forEach(function(n){ if((n.t==='party'||n.t==='person')&&!out[n.id]){out[n.id]=1;left--} });
+  if(left<0)left=0;
   var rest=pool.filter(function(n){return n.t!=='result'&&!out[n.id]});
   /* ── 남은 자리는 **종류별로 돌아가며** 채운다 ──
      전에는 손→자동 순으로만 뽑았다. 그러면 연결이 많은 **법이 자리를 다 먹어서**
@@ -16956,6 +16982,10 @@ function planMap(){
     L.forEach(function(l){ if(out[l[0]]&&out[l[1]]){has[l[0]]=1;has[l[1]]=1} });
     Object.keys(out).forEach(function(id){
       var n=map[id]; if(!n||n.t==='result')return;
+      /* 정당·인물은 전부 올리기로 했으므로 여기서 빼지 않는다 — 위 주석 참조.
+         이어진 것이 지도에 없으면 선 없는 점이 되지만, 그건 **사실**이다
+         (조국혁신당은 이어진 것이 1개뿐이다). 그 사실은 카드가 밝힌다. */
+      if(n.t==='party'||n.t==='person')return;
       if(!has[id])delete out[id];
     });
   }

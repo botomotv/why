@@ -126,6 +126,23 @@ for (const r of reasons) {
 /* 법이 하나도 안 붙은 사건은 안 올린다 — 이을 것이 없으면 사건만 떠 있게 된다 */
 for (const [e, v] of [...events]) if (!v.laws.size) events.delete(e);
 
+/* ── 확정 판결의 형량 ──
+   「그때 그 사건의 범인은 어떤 판결을 받았나」 — 이 사이트가 답하려는 두 가지 중 하나다.
+   `db/crime_cases.json` 은 **사람이 사건번호를 확인해 넣고** `tools/sentence.mjs` 가
+   주문에서 형량만 뽑아 채운다. 여기서는 그것을 사건 노드에 얹기만 한다.
+
+   **이름은 안 올린다 (규칙 8).** 주문의 「피고인 1」 은 판례 원문이 이미 익명화한 것이고,
+   우리가 쓰는 것은 `pen` 한 줄뿐이다 — 「가장 무거운 형 무기징역 · 나머지 징역 12년~1년 6개월」.
+   **확정된 것만 (규칙 1).** `finalNo`(대법원 사건번호)가 없으면 안 붙인다. */
+let PEN = { cases: [], notFound: [] };
+try { PEN = JSON.parse(fs.readFileSync(path.join(ROOT, 'db', 'crime_cases.json'), 'utf8')) } catch {}
+const penBy = new Map();
+for (const c of (PEN.cases || [])) {
+  if (!c.node || !c.pen) continue;
+  if (!c.finalNo) continue;   /* 확정 전에는 안 올린다 */
+  penBy.set(c.node, c);
+}
+
 /* ── 지도에 이미 있는 결과·법 노드 ── */
 const html = fs.readFileSync(path.join(ROOT, 'index.html'), 'utf8');
 const mapLaws = new Map();   /* lawKey → id */
@@ -276,11 +293,23 @@ try {
   db.exec('COMMIT');
 } catch (e) { db.exec('ROLLBACK'); throw e }
 
+/* 사건 노드에 형량을 얹는다 — 위 penBy 주석 참조 */
+let penHit = 0;
+for (const [nid, c] of penBy) {
+  const n = nodes.get(nid);
+  if (!n) { console.log(`  ! 형량 — 지도에 ${nid} 노드가 없다 (crime_cases.json 의 node 를 고쳐라)`); continue }
+  n.pen = c.pen; n.penNo = c.caseNo; n.penCourt = c.court || '';
+  n.penFinal = c.finalNo; n.penUrl = c.url || ''; penHit++;
+}
+console.log(`  형량이 붙은 사건 ${penHit}개 / crime_cases.json 에 확정 판결 ${penBy.size}건 · 못 찾은 것 ${(PEN.notFound||[]).length}건`);
 const nodeJs = [...nodes.values()].map(n => n.law
   ? `{id:${q(n.id)},t:'bill',auto:1,side:'gov',kind:'법률',st:'공포',lab:${q(n.lab)},title:${q(n.title)},` +
     `yr:${q(n.yr)},off:${q(n.off)},tip:${q(n.tip)},body:${q(n.body)},src:${q(n.src)},url:${q(n.url)},cats:[]}`
   : `{id:${q(n.id)},t:'event',auto:1,side:'rec',lab:${q(n.lab)},title:${q(n.title)},yr:${q(n.yr)},` +
-    `ekind:${q(n.ekind)},tip:${q(n.tip)},body:${q(n.body)},src:${q(n.src)},url:${q(n.url)},cats:[]}`
+    `ekind:${q(n.ekind)},tip:${q(n.tip)},body:${q(n.body)},` +
+    (n.pen ? `pen:${q(n.pen)},penNo:${q(n.penNo)},penCourt:${q(n.penCourt)},penFinal:${q(n.penFinal)},` +
+             (n.penUrl ? `penUrl:${q(n.penUrl)},` : '') : '') +
+    `src:${q(n.src)},url:${q(n.url)},cats:[]}`
 ).join('\n,');
 const linkJs = links.map(l =>
   `[${q(l.from)},${q(l.to)},'그 뒤에','after',${q(l.why)},${q(l.ev)},'','auto']`).join('\n,');

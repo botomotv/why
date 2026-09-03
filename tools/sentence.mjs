@@ -159,6 +159,38 @@ if (!spec.cases || !spec.cases.length) {
   }, null, 2));
   process.exit(0);
 }
+/* ── 주문에서 **형량 한 줄**을 만든다 ──
+   「사람 이름은 안 올린다. "주범 징역 42년" 이면 충분하다」 에 대한 답이다.
+   판례 주문은 「피고인 1을 무기징역에 처한다 / 피고인 2를 징역 12년에 처한다 / …」 꼴이다.
+   그대로 카드에 쓰면 열여섯 줄이 되고, 「피고인 1」 이 누구인지도 알 수 없다.
+
+   **판정하지 않는다.** 「주범」 이라고 쓰지 않는다 — 어느 피고인이 주범인지는
+   주문에 안 적혀 있고 우리가 정할 값이 아니다. **가장 무거운 형**이라고 쓴다.
+   그건 주문에 적힌 그대로를 정렬한 사실이다.
+
+   무기징역·사형은 연수로 비교할 수 없으므로 따로 맨 위에 둔다. */
+function penShort(lines) {
+  const txt = lines.join(' / ');
+  const yrs = [];
+  for (const m of txt.matchAll(/징역\s*(\d+)년(?:\s*(\d+)개월)?/g))
+    yrs.push(+m[1] * 12 + (m[2] ? +m[2] : 0));
+  const life = /무기징역/.test(txt), death = /사형/.test(txt);
+  const fine = [...txt.matchAll(/벌금\s*([\d,]+)\s*(원|만원)/g)]
+    .map(m => +m[1].replace(/,/g, '') * (m[2] === '만원' ? 10000 : 1));
+  const fmt = mo => (mo % 12 ? (mo / 12 | 0) + '년 ' + (mo % 12) + '개월' : (mo / 12) + '년');
+  const parts = [];
+  if (death) parts.push('사형');
+  if (life) parts.push('무기징역');
+  if (yrs.length) {
+    const lo = Math.min(...yrs), hi = Math.max(...yrs);
+    parts.push('징역 ' + (lo === hi ? fmt(hi) : fmt(hi) + '~' + fmt(lo)));
+  }
+  if (fine.length) parts.push('벌금 ' + Math.max(...fine).toLocaleString('ko-KR') + '원');
+  if (!parts.length) return '';
+  const n = (txt.match(/피고인\s*\d+/g) || []).length;
+  const who = n > 1 ? ` · 피고인 ${new Set(txt.match(/피고인\s*\d+/g)).size}명` : '';
+  return '가장 무거운 형 ' + parts[0] + (parts.length > 1 ? ' · 나머지 ' + parts.slice(1).join(' · ') : '') + who;
+}
 const DRY = has('--dry');
 const done = [];
 for (const c of spec.cases) {
@@ -175,6 +207,7 @@ for (const c of spec.cases) {
   const v = pickVerdict(p.body);
   if (!v.ok) { console.log(`  ! ${c.id} — ${v.why}`); continue }
   c.verdict = v.verdict;
+  c.pen = penShort(v.verdict);
   c.court = p.court; c.dt = p.dt; c.caseNm = p.caseNm;
   c.src = '출처 · 법제처 국가법령정보 공동활용 (법원 판례)';
   c.url = `https://www.law.go.kr/DRF/lawService.do?OC=${OC}&target=prec&ID=${sn}&type=HTML`;

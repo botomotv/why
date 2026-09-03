@@ -35,6 +35,9 @@ node tools/link-case.mjs
 # ── 「그 뒤에」 — 사건 → 법 → 결과 ──
 # **법 노드가 확정된 뒤에 돌린다.** 이 도구는 지도에 이미 있는 법을 찾아 잇고,
 # 없으면 새로 만든다. link.mjs 보다 먼저 돌리면 법 id 가 바뀌어 선이 끊긴다.
+# 확정 판결의 형량 — 사람이 db/crime_cases.json 에 사건번호를 넣으면 주문에서 형량만 뽑는다.
+# **link-after 보다 먼저** 돌린다: link-after 가 그 값을 사건 노드에 얹기 때문이다.
+node tools/sentence.mjs || echo '  (형량 건너뜀 — 사건번호가 없거나 창고에 판례가 없다)'
 node tools/link-after.mjs
 node tools/result-easy.mjs 2>/dev/null || echo '  (result-easy 건너뜀)'
 node tools/node-url.mjs

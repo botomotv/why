@@ -613,6 +613,13 @@ body.popfull .pexp .pex-i{transform:rotate(180deg)}
   border-right:6px solid transparent;border-bottom:11px solid #8A929E}
 .lg-prec{transform:rotate(45deg);width:9px;height:9px;background:#3FA9A6}
 .lg-per{border-radius:50%;background:transparent;border:1.8px solid #7FB2EE}
+/* 확정 판결 — 헌재 결론 배지(.vd)와 같은 자리·같은 무게다 */
+.pen{margin:12px 0;padding:11px 13px;border-radius:10px;
+  background:rgba(192,138,94,.10);border:1px solid rgba(192,138,94,.38)}
+.pen-lab{font-size:11.5px;letter-spacing:.04em;color:#C08A5E;margin:0 0 4px}
+.pen-n{font-size:16px;font-weight:700;color:#EDE3D8;margin:0;line-height:1.45}
+.pen-x{font-size:11.5px;color:var(--t2);margin:5px 0 0;line-height:1.5}
+.pen-x a{color:#C08A5E}
 .lg-sb{border-radius:50%;background:transparent;border:2px solid #5B9BE5;width:11px;height:11px}
 .lg-sr{border-radius:50%;background:transparent;border:2px solid #E2635A;width:11px;height:11px}
 .lg-so{border-radius:50%;background:transparent;border:2px solid #8B7BD8;width:11px;height:11px}
@@ -4600,7 +4607,7 @@ var CASE_N=[/*AUTO-AFTER-N-START*/
 ,{id:'aft_동의대사건등희생자의명예회복및보상에관한법률_11',t:'bill',auto:1,side:'gov',kind:'법률',st:'공포',lab:'동의대 사건 등 명예회복법',title:'동의대 사건 등 희생자의 명예회복 및 보상에 관한 법률',yr:'2012',off:'2012년 공포',tip:'동의대 사건 등 희생자의 명예회복 및 보상에 관한 법률입니다.',body:'국회를 통과해 공포된 법입니다. 2012년에 만들어졌습니다.',src:'출처 · 국회 의안정보시스템',url:'https://www.law.go.kr/%EB%B2%95%EB%A0%B9/%EB%8F%99%EC%9D%98%EB%8C%80%20%EC%82%AC%EA%B1%B4%20%EB%93%B1%20%ED%9D%AC%EC%83%9D%EC%9E%90%EC%9D%98%20%EB%AA%85%EC%98%88%ED%9A%8C%EB%B3%B5%20%EB%B0%8F%20%EB%B3%B4%EC%83%81%EC%97%90%20%EA%B4%80%ED%95%9C%20%EB%B2%95%EB%A5%A0',cats:[]}
 ,{id:'evt_지뢰',t:'event',auto:1,side:'rec',lab:'지뢰',title:'지뢰',yr:'2014',ekind:'사건',tip:'2014년에 있었던 일입니다.',body:'이 사건의 이름이 법 이름에 그대로 들어 있습니다 — 국회가 그렇게 이름 붙였습니다. 그 법을 아래에 이어 두었습니다.',src:'출처 · 국회 의안정보시스템 (공포된 법률의 이름)',url:'https://likms.assembly.go.kr/bill/main.do',cats:[]}
 ,{id:'aft_지뢰피해자지원에관한특별법_12',t:'bill',auto:1,side:'gov',kind:'법률',st:'공포',lab:'지뢰 피해자지원법',title:'지뢰피해자 지원에 관한 특별법',yr:'2019',off:'2014~2019년 · 3번 고침',tip:'지뢰피해자 지원에 관한 특별법입니다.',body:'국회를 통과해 공포된 법입니다. 2014년부터 2019년까지 3번 고쳤습니다.',src:'출처 · 국회 의안정보시스템',url:'https://www.law.go.kr/%EB%B2%95%EB%A0%B9/%EC%A7%80%EB%A2%B0%ED%94%BC%ED%95%B4%EC%9E%90%20%EC%A7%80%EC%9B%90%EC%97%90%20%EA%B4%80%ED%95%9C%20%ED%8A%B9%EB%B3%84%EB%B2%95',cats:[]}
-,{id:'evt_416세월호참사',t:'event',auto:1,side:'rec',lab:'4·16세월호참사',title:'4·16세월호참사',yr:'2014',ekind:'사건',tip:'2014년에 있었던 일입니다.',body:'이 사건의 이름이 법 이름에 그대로 들어 있습니다 — 국회가 그렇게 이름 붙였습니다. 그 법을 아래에 이어 두었습니다.',src:'출처 · 국회 의안정보시스템 (공포된 법률의 이름)',url:'https://likms.assembly.go.kr/bill/main.do',cats:[]}
+,{id:'evt_416세월호참사',t:'event',auto:1,side:'rec',lab:'4·16세월호참사',title:'4·16세월호참사',yr:'2014',ekind:'사건',tip:'2014년에 있었던 일입니다.',body:'이 사건의 이름이 법 이름에 그대로 들어 있습니다 — 국회가 그렇게 이름 붙였습니다. 그 법을 아래에 이어 두었습니다.',pen:'가장 무거운 형 무기징역 · 나머지 징역 12년~1년 6개월 · 피고인 16명',penNo:'2014노490',penCourt:'광주고등법원',penFinal:'2015도6809',penUrl:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=182110&type=HTML',src:'출처 · 국회 의안정보시스템 (공포된 법률의 이름)',url:'https://likms.assembly.go.kr/bill/main.do',cats:[]}
 ,{id:'aft_416세월호참사피해구제및지원등을위한특별법_13',t:'bill',auto:1,side:'gov',kind:'법률',st:'공포',lab:'4·16세월호참사 피해구제법',title:'4·16세월호참사 피해구제 및 지원 등을 위한 특별법',yr:'2024',off:'2015~2024년 · 6번 고침',tip:'4·16세월호참사 피해구제 및 지원 등을 위한 특별법입니다.',body:'국회를 통과해 공포된 법입니다. 2015년부터 2024년까지 6번 고쳤습니다.',src:'출처 · 국회 의안정보시스템',url:'https://www.law.go.kr/%EB%B2%95%EB%A0%B9/4%C2%B716%EC%84%B8%EC%9B%94%ED%98%B8%EC%B0%B8%EC%82%AC%20%ED%94%BC%ED%95%B4%EA%B5%AC%EC%A0%9C%20%EB%B0%8F%20%EC%A7%80%EC%9B%90%20%EB%93%B1%EC%9D%84%20%EC%9C%84%ED%95%9C%20%ED%8A%B9%EB%B3%84%EB%B2%95',cats:[]}
 ,{id:'aft_416세월호참사진상규명및안전사회건설등을위_14',t:'bill',auto:1,side:'gov',kind:'법률',st:'공포',lab:'4·16세월호참사 진상규명법',title:'4·16세월호참사 진상규명 및 안전사회 건설 등을 위한 특별법',yr:'2014',off:'2014년 공포',tip:'4·16세월호참사 진상규명 및 안전사회 건설 등을 위한 특별법입니다.',body:'국회를 통과해 공포된 법입니다. 2014년에 만들어졌습니다.',src:'출처 · 국회 의안정보시스템',url:'https://www.law.go.kr/%EB%B2%95%EB%A0%B9/4%C2%B716%EC%84%B8%EC%9B%94%ED%98%B8%EC%B0%B8%EC%82%AC%20%EC%A7%84%EC%83%81%EA%B7%9C%EB%AA%85%20%EB%B0%8F%20%EC%95%88%EC%A0%84%EC%82%AC%ED%9A%8C%20%EA%B1%B4%EC%84%A4%20%EB%93%B1%EC%9D%84%20%EC%9C%84%ED%95%9C%20%ED%8A%B9%EB%B3%84%EB%B2%95',cats:[]}
 ,{id:'evt_한국인원자폭탄',t:'event',auto:1,side:'rec',lab:'한국인 원자폭탄',title:'한국인 원자폭탄',yr:'2016',ekind:'사건',tip:'2016년에 있었던 일입니다.',body:'이 사건의 이름이 법 이름에 그대로 들어 있습니다 — 국회가 그렇게 이름 붙였습니다. 그 법을 아래에 이어 두었습니다.',src:'출처 · 국회 의안정보시스템 (공포된 법률의 이름)',url:'https://likms.assembly.go.kr/bill/main.do',cats:[]}
@@ -21562,6 +21569,20 @@ function render(id){
         '당사자 실명이 있어 받지 않습니다 — 정확한 주문은 아래 원문 링크에서 보세요.</p></div>':'')+
       /* 결론 배지가 있으면 한 줄 설명은 안 쓴다 — 같은 말이 두 번 나온다 */
       (!n.verdict&&tipOf(n)?'<div class="oneline">'+tipOf(n)+'</div>':'')+
+      /* ── 그때 그 사건은 **어떤 판결을 받았나** ──
+         이 사이트가 답하려는 두 가지 중 하나다. 결론이 먼저다 — 헌재 결정과 같은 자리다.
+
+         **사람 이름은 안 올린다 (규칙 8).** 판례 주문이 이미 「피고인 1」 로 익명화한 것을
+         `tools/sentence.mjs` 가 한 줄로 줄인다. 「주범」 이라고도 안 쓴다 —
+         어느 피고인이 주범인지는 주문에 안 적혀 있고 우리가 정할 값이 아니다.
+         **확정된 것만 (규칙 1).** 대법원 사건번호가 있는 것만 여기 온다. */
+      (n.pen?'<div class="pen"><p class="pen-lab">확정 판결</p>'+
+        '<p class="pen-n">'+esc(n.pen)+'</p>'+
+        '<p class="pen-x">'+esc(n.penCourt||'')+' '+esc(n.penNo||'')+
+        (n.penFinal?' · 대법원 '+esc(n.penFinal)+' 확정':'')+'</p>'+
+        (n.penUrl?'<p class="pen-x"><a href="'+esc(n.penUrl)+'" target="_blank" rel="noopener">판결 원문</a>'+
+          ' · 주문에 적힌 것만 옮겼습니다. 범죄사실·당사자 이름은 받지 않습니다</p>':'')+
+        '</div>':'')+
       '<div class="sec"><p class="sec-lab">무슨 일이었나</p><p class="body">'+n.body+'</p>'+
         (n.easy?'<div class="easy">'+n.easy.map(function(q){
           return '<p class="eq">'+q[0]+'</p><p class="ea">'+q[1]+'</p>'}).join('')+'</div>':'')+'</div>'+

@@ -97,6 +97,14 @@ function stubCanvas(win) {
     },
     strokeText(){},translate(){},scale(){},rotate(){},
     setTransform(a,b,c,d,e,f){ this.__m = [a,b,c,d,e,f] },
+    /* ── getTransform 이 없으면 drawnText 가 **월드 좌표를 화면 좌표로 읽는다** ──
+       drawnText 는 getTransform() 이 없으면 배율을 DPR 로 가정한다. 그러면 월드에
+       그린 이름표가 화면 좌표로 보고되어 상자가 2.4배로 커지고 자리도 틀린다.
+       실측: 「중국인 매수 65%」가 폭 279px·높이 36.7px 로 잡혀 워터마크와 겹친 것으로 나왔다.
+       브라우저에서는 겹치지 않는다 — **스텁이 만든 거짓 경보다.**
+       "가짜 값(스텁·목)은 실물과 대조한다" 가 이 자리에서도 성립한다. */
+    getTransform(){ const m=this.__m||[1,0,0,1,0,0];
+      return {a:m[0],b:m[1],c:m[2],d:m[3],e:m[4],f:m[5]} },
     setLineDash(){},drawImage(){},clip(){},ellipse(){},
     createLinearGradient:()=>({addColorStop(){}}),
     createRadialGradient:()=>({addColorStop(){}})
@@ -1869,58 +1877,80 @@ const TKN = { result:'결과', bill:'법·정책', person:'인물', party:'정�
     }
   }
 
-  // 34. 화면에 그려진 글자끼리 겹치는가 — 실제로 그린 것 전부
-  //     이름표만 재던 검사는 '겹침 0쌍' 이라고 했는데 화면에서는 겹쳤다.
-  //     선 위 관계 라벨('같은 주제', '6년 뒤 2020 → 2026'), 고리 연도 눈금,
-  //     역할 배지, 잘림 배지, 워터마크, 상단 안내가 전부 빠져 있었다.
-  //     그래서 상자를 따로 계산하지 않고 **fillText 를 가로채** 실제로 그린 것을 잰다.
-  //     좌표와 변환까지 받아 적으므로 월드 좌표(이름표)와 화면 좌표(배지)가 섞여도 맞다.
+  // 34. 화면에 그려진 글자가 **하나라도** 겹치면 FAIL
+  //     ── 왜 이 검사가 다시 쓰였나 ──
+  //     전에는 (a) WARN 이었고 (b) 상자 공식을 **검사가 베껴 쓰고** 있었고
+  //     (c) 해상도 둘 · 초점 하나만 봤다. 사람은 「글씨가 겹친다」 고 하는데
+  //     검사는 조용했다. 셋 다 고친다.
+  //
+  //     **공식을 베껴 쓰지 않는다.** 페이지의 `drawnText()`(fillText 를 가로채
+  //     그린 것 그대로 담는다)와 `textOverlap()`(같은 노드의 두 줄은 겹침이 아니다)을
+  //     그대로 부른다. 화면·물리·검사가 같은 함수를 부르지 않으면 셋이 다 다른 말을 한다.
+  //
+  //     **사람이 하는 짓을 흉내 낸다** — 첫 화면만 보지 않고 실제로 눌러 본다.
+  //     관계 라벨·역할 배지·'+N 모두 보기' 배지는 누른 뒤에만 그려진다.
   {
-    for (const [w, h, nm] of [[412, 915, '폰'], [1440, 900, '노트북']]) {
+    const R34 = [[375, 812, '폰'], [840, 1180, '폴드'], [1280, 800, '노트북'], [1920, 1080, '큰 화면']];
+    let tot34 = 0, seen34 = 0;
+    for (const [w, h, nm] of R34) {
       const d34 = boot(w, h);
       await new Promise(r => setTimeout(r, 1200));
-      const win = d34.window;
-      const r = win.eval(`(function(){
-        var t=0; while(alpha>LAY_STOP&&t<600){tick()}
+      const r = d34.window.eval(`(function(){
+        if(typeof drawnText!=='function'||typeof textOverlap!=='function')
+          return {no:'drawnText/textOverlap 이 없다'};
+        /* 실행마다 같은 값이 나와야 한다 — 아래 while 은 alpha 가 이미 LAY_STOP
+           아래라 한 번도 안 돌았고, 그래서 rAF 가 몇 번 돌았느냐가 값을 갈랐다.
+           resetAllView() 는 자리를 데이터로 다시 놓고 사전 틱으로 가라앉힌다. */
+        if(typeof resetAllView==='function')resetAllView();
+        var t=0; while(alpha>LAY_STOP&&t<600){tick();t++}
         fit(); cam.s=cam.ts;cam.x=cam.tx;cam.y=cam.ty;
-        /* 초점을 잡은 상태도 본다 — 관계 라벨과 배지는 그때만 그려진다 */
-        var c=A.filter(function(n){return n.t==='result'&&adj[n.id]});
-        if(c.length){
-          var tg=c.reduce(function(a,b){return (adj[b.id]||[]).length>(adj[a.id]||[]).length?b:a});
-          setFocus(tg.id);
-          if(typeof gatherFan==='function'){size();gatherFan()}
-          var t2=0; while(alpha>LAY_STOP&&t2<600){tick()}
-          size(); if(typeof fitFocus==='function')fitFocus();
-          cam.s=cam.ts;cam.x=cam.tx;cam.y=cam.ty;
+        var out=[];
+        function shot(name){
+          labelSet=null;labelKey='';
+          var b=drawnText(), who=[];
+          out.push({name:name, glyphs:b.length, over:textOverlap(b,who), who:who.slice(0,6)});
         }
-        labelSet=null;labelKey='';
-        window.__texts.length=0;
-        draw();
-        return window.__texts.slice();
+        shot('첫 화면');
+        /* ── 실제로 눌러 본다 ── 이어진 것이 많은 결과부터. 종류를 섞는다 */
+        var cand=A.filter(function(n){return adj[n.id]&&adj[n.id].length})
+          .sort(function(a,b){
+            var ta=(a.t==='result')?0:1, tb=(b.t==='result')?0:1;
+            if(ta!==tb)return ta-tb;
+            var da=adj[a.id].length, db=adj[b.id].length;
+            if(da!==db)return db-da;
+            return a.id<b.id?-1:1});
+        var pick=cand.slice(0,4);
+        var other=cand.filter(function(n){return n.t!=='result'}).slice(0,2);
+        pick=pick.concat(other);
+        for(var i=0;i<pick.length;i++){
+          setFocus(pick[i].id);
+          size();
+          /* 다 모일 때까지 — 덜 모인 상태를 재면 겹침이 없다고 나온다 */
+          for(var f=0;f<500;f++){
+            if(typeof orbStep==='function')orbStep();
+            if(typeof fade==='function')fade();
+            tick();
+          }
+          cam.s=cam.ts;cam.x=cam.tx;cam.y=cam.ty;
+          shot('「'+String(pick[i].lab||pick[i].id).slice(0,14)+'」 누름');
+          closePop();
+          for(var g=0;g<300;g++){tick(); if(typeof fade==='function')fade()}
+        }
+        return {out:out};
       })()`);
       d34.window.close();
-      if (!r || !r.length) { F(`34. ${nm} — 그려진 글자를 하나도 못 받았다. 검사가 화면을 안 보고 있다`); continue }
-
-      /* 글자 상자를 만든다. align 에 따라 x 기준이 다르다. */
-      const box = r.map(o => {
-        const half = o.w / 2;
-        const cx0 = o.align === 'center' ? o.x : (o.align === 'right' || o.align === 'end' ? o.x - half : o.x + half);
-        /* 한 줄 글자가 실제로 차지하는 세로는 글꼴 크기의 약 0.75 배다.
-           절반(h)은 0.38. 1.24 배로 잡았더니 같은 노드의 이름과 숫자가
-           서로 겹친 것으로 나왔다 — 그건 원래 위아래로 쌓는 것이다. */
-        return { t: o.t, x: cx0, y: o.y - o.px * 0.30, w: half, h: o.px * 0.38 };
-      }).filter(b => b.t.trim() && b.x + b.w > 0 && b.x - b.w < w && b.y + b.h > 0 && b.y - b.h < h);
-
-      let over = 0; const ex = [];
-      for (let i = 0; i < box.length; i++) for (let j = i + 1; j < box.length; j++) {
-        const a = box[i], b = box[j];
-        if (Math.abs(a.x - b.x) < (a.w + b.w) * 0.92 && Math.abs(a.y - b.y) < (a.h + b.h) * 0.92) {
-          over++; if (ex.length < 3) ex.push(`"${a.t.slice(0,12)}" × "${b.t.slice(0,12)}"`);
-        }
+      if (!r || r.no) { F(`34. ${nm} — ${(r&&r.no)||'못 쟀다'}. 검사가 화면을 안 보고 있다`); continue }
+      for (const o of r.out) {
+        /* **0 은 의심한다.** 글자를 하나도 못 받았으면 그건 '겹침 없음' 이 아니라 '안 보고 있음' 이다 */
+        if (!o.glyphs) { F(`34. ${nm} ${o.name} — 그린 글자가 0개다. 겹침 0 은 '문제 없음' 이 아니라 '안 보고 있음' 이다`); continue }
+        seen34 += o.glyphs; tot34 += o.over;
+        console.log(`34. 그린 글자 겹침  ${nm} ${w}×${h} · ${o.name} · 글자 ${o.glyphs}개 · 겹친 쌍 ${o.over}`);
+        if (o.over)
+          F(`34. ${nm} ${w}×${h} · ${o.name} — 그린 글자가 ${o.over}쌍 겹친다 (${o.who.join(' / ')}). ` +
+            `글씨는 하나도 겹치면 안 된다`);
       }
-      console.log(`34. 그려진 글자 겹침 ${nm} ${w}×${h} · 화면 안 글자 ${box.length}개 · 겹친 쌍 ${over}`);
-      if (over) W(`34. ${nm} — 화면에 그려진 글자 ${over}쌍이 겹친다 (${ex.join(', ')})`);
     }
+    console.log(`34. 그린 글자 겹침  합계 — 잰 글자 ${seen34}개 · 겹친 쌍 ${tot34}`);
   }
 
   // 35. 누른 뒤 화면이 비는 순간이 있는가

@@ -17170,6 +17170,7 @@ function orbOutside(list){
     if(inSet[m.id]||!isFinite(m.x)||fadeWant(m)<=0.16)continue;
     if(focus&&m.id===focus)continue;      /* 누른 것의 이름표는 가운데라 원과 안 겹친다 */
     /* 남의 **도형** — 이름표가 그 위에 얹히면 둘 다 안 읽힌다 */
+    if(!solidAt(m))continue;   /* 흐린 도형은 장애물이 아니다 — solidAt 주석 참조 */
     var mr=((m.r||4)+1)*cam.s;
     out.push({x:m.x*cam.s+cam.x, y:m.y*cam.s+cam.y, w:mr, h:mr, shape:1});
   }
@@ -17178,7 +17179,12 @@ function orbOutside(list){
   if(labelBoxes&&labelBoxes.length)for(var j=0;j<A.length;j++){ var q=A[j];
     if(inSet[q.id]||(focus&&q.id===focus))continue;
     if(!labelSet||!labelSet[q.id])continue;
-    if(fadeWant(q)<=0.16)continue;   /* 곧 흐려질 것은 피할 대상이 아니다 */
+    /* ── **아직 확정되지 않은 이름표는 장애물이 아니다** ──
+       여기 오는 `labelSet` 은 누르기 **전**의 계획이다. 모으고 나면 다시 계획하는데,
+       그때 이웃의 이웃(ring 2)은 순위가 뒤라 자리가 남을 때만 이름표를 받는다.
+       그걸 붙박이 장애물로 세면 원이 어느 반지름에서도 자리를 못 찾는다 —
+       실측 「이재명」: 여섯 중 넷이 제자리로 남았고 실행마다 값이 흔들렸다. */
+    if(!solidAt(q))continue;
     if(!isFinite(q.x))continue;
     var lb=labelBox(q,(typeof labelFontScale==='function')?labelFontScale():1);
     out.push({x:lb.x*cam.s+cam.x, y:lb.y*cam.s+cam.y, w:lb.w*cam.s, h:lb.h*cam.s});
@@ -17323,7 +17329,14 @@ function textDefer(on){
     cx.fillText=cx.__deferReal; delete cx.__deferReal;
   }
 }
+var wmSkip=0;   /* 워터마크 자리와 겹쳐 안 그린 글자 수 — 말없이 빼지 않는다 */
 function textFlush(){
+  /* ── 워터마크 자리는 **여기 한 곳에서** 막는다 ──
+     `planLabels` 가 이름표 상자로 이미 피하지만, 그 상자 안에서 그리는 것은
+     이름 말고도 숫자 줄·연도 줄·역할 배지가 있다. 그것들을 각각 막으면 또 빠뜨린다.
+     **담아 두었다가 한꺼번에 그리는 이 자리가 길목이다** — 여기서 걸러야 빠뜨릴 수 없다.
+     실측: 「같은 주제 ↔ 왜 · why-map.com」·「반대·대립 ↔ 왜 · why-map.com」. */
+  var RSVF=reservedScreen();
   for(var i=0;i<nodeText.length;i++){ var T=nodeText[i];
     cx.font=T.font; cx.textAlign=T.align; cx.textBaseline=T.base;
     /* ── 글자 뒤에 **어두운 판**을 깐다 ──
@@ -17334,6 +17347,12 @@ function textFlush(){
     var fs=mm?parseFloat(mm[1]):12;
     var tw=cx.measureText(T.t).width;
     var bx=T.x-(T.align==='center'?tw/2:(T.align==='right'||T.align==='end')?tw:0);
+    /* 담아 둔 좌표는 월드다 — 화면으로 옮겨 견준다 */
+    var tsx=(bx+tw/2)*cam.s+cam.x, tsy=T.y*cam.s+cam.y;
+    var tsw=(tw/2)*cam.s, tsh=(fs*0.5)*cam.s, skip=0;
+    for(var rj=0;rj<RSVF.length;rj++){ var R2=RSVF[rj];
+      if(Math.abs(tsx-R2.x)<(tsw+R2.w)&&Math.abs(tsy-R2.y)<(tsh+R2.h)){skip=1;break} }
+    if(skip){wmSkip++;continue}
     cx.globalAlpha=Math.min(1,T.a)*0.55;
     cx.fillStyle='#0E0F12';
     cx.fillRect(bx-fs*0.28, T.y-fs*0.92, tw+fs*0.56, fs*1.24);
@@ -17410,7 +17429,7 @@ function orbPlace(cx,cy,list,R,zig){
    이름표 폭만 보고 정하면 세로가 남는다. 실제로 「서울 전세」와 중심 「합계출산율」이
    12×40px 겹쳤다 — 가로는 넉넉했는데 세로가 닿았다.
    그래서 **실제로 놓아 보고 세어 본다.** 노드가 여섯 개라 계산이 싸다. */
-function orbitPlan(cx,cy,list){
+function orbitPlan(cx,cy,list,extraOk){
   var k=orbAspect();
   /* 상한은 **눌린 방향까지 따진다** — 가로는 R*kx, 세로는 R*ky 만큼 뻗는다.
      여백 46px — 이름표가 원 밖으로 조금 나가는 것은 `orbFit` 이 카메라를 밀어 담는다.
@@ -17453,9 +17472,18 @@ function orbitPlan(cx,cy,list){
         (2020 → 2025 → 2024 → 2026 이 실제로 나왔다).
         지그재그는 각도 순서를 안 건드리고 이웃끼리만 어긋나게 한다 —
         긴 이름과 짧은 이름을 섞는 것과 같은 효과다. */
+  /* ── **가장 작은 반지름에서 멈추면 안 된다** ──
+     전에는 `over(R,z)===0` 이면 곧장 멈췄다. 그런데 겹침 판정을 통과해도
+     `planLabels` 가 이름표를 안 그리는 경우가 있다 — 재는 잣대가 둘이라서다.
+     그때 `orbSet` 은 **반지름을 키우는 대신 이웃을 잘라냈다.**
+     실측 「이재명」: 겹침 0 · 반지름 150px(하한) 인데 여섯 중 넷이 제자리로 남았다.
+     자리가 남아 있는데 잘라내는 것은 자리가 없어서가 아니다 —
+     **자를 이유가 없는데 잘랐다.** 그래서 이름표 조건도 여기서 함께 본다. */
   for(var z=0;z<2&&!best;z++){
     for(var R=minWorld;R<=capWorld;R+=step){
-      if(over(R,z)===0){ best={R:R,zig:z}; break }
+      if(over(R,z)!==0)continue;
+      if(extraOk&&!extraOk(R,z))continue;
+      best={R:R,zig:z}; break;
     }
   }
   /* ③ 그래도 안 되면 화면이 허락하는 최대에서 멈춘다. **겹치는 수를 밝힌다.** */
@@ -17465,11 +17493,13 @@ function orbitPlan(cx,cy,list){
 }
 function orbClear(){
   A.forEach(function(o){ if(o.orb){ delete o.orb; delete o.orb0 } delete o.__orbRank; delete o.__orbOut });
-  orbActive=0; orbCut=0; orbList=null; orbViewKey='';
+  orbActive=0; orbCut=0; orbList=null; orbViewKey=''; orbPlanN=0; orbCamAt=null;
 }
 /* 누르기 직전 자리를 적어 두고, 닫으면 그리로 돌아간다.
    데이터가 정한 자리를 다시 계산하지 않는다 — 충돌 해소로 밀린 자리까지 그대로 돌려준다. */
 var orbZig=0, orbOver=0, orbR=0, orbCut=0;
+var orbPlanN=0;   /* 다시 계획한 횟수 — 계획과 카메라가 서로를 깨우는 것을 막는다 */
+var orbCamAt=null;
 var orbFitN=0;
 var orbPadW=0, orbPadH=0;   /* 원 위 노드의 가장 큰 이름표 반폭·반높이(화면 px) */
 var orbList=null, orbViewKey='';   /* 다시 계획할 때 쓴다 — 카드가 열리면 자리가 줄어든다 */
@@ -17486,15 +17516,14 @@ function orbSet(cx,cy,list){
      여기서 우리가 새로 고르면 그건 편집이 된다. 이미 있는 순서를 그대로 쓴다. */
   var full=list.slice();
   var use=full.slice();
-  var plan=orbitPlan(cx,cy,use);
   orbCut=0;
   /* ── 자르는 기준은 **화면이 쓰는 것과 같아야 한다** ──
      `orbitPlan` 의 겹침 판정만 보고 잘랐더니 「여섯 개가 다 들어간다」 고 해 놓고
      `planLabels` 는 둘을 뺐다. 재는 것이 두 벌이면 갈라진다 —
      그래서 **놓을 자리에 실제로 놓아 보고 planLabels 에게 물어본다.**
      좌표는 바로 되돌린다. 물리는 이 사이에 안 돈다(초점 중에는 tick 이 멈춘다). */
-  function labelsFit(cand){
-    var pp=orbPlace(cx,cy,cand,plan.R,plan.zig);
+  function labelsFit(cand,R,zig){
+    var pp=orbPlace(cx,cy,cand,R,zig);
     if(pp.some(function(v){return !isFinite(v[0])||!isFinite(v[1])}))return 0;
     var sv=cand.map(function(o){return [o.x,o.y]});
     cand.forEach(function(o,i){o.x=pp[i][0];o.y=pp[i][1]});
@@ -17506,11 +17535,15 @@ function orbSet(cx,cy,list){
     labelSet=keep; labelKey=kk;
     return miss===0;
   }
-  while((plan.over||!labelsFit(use))&&use.length>2){
+  function planFor(cand){
+    return orbitPlan(cx,cy,cand,function(R,zig){ return labelsFit(cand,R,zig) });
+  }
+  var plan=planFor(use);
+  while((plan.over||!labelsFit(use,plan.R,plan.zig))&&use.length>2){
     var worst=-1,wi=use.length-1;
     use.forEach(function(o,i){ var r=(o.__orbRank==null?i:o.__orbRank); if(r>worst){worst=r;wi=i} });
     use.splice(wi,1); orbCut++;
-    plan=orbitPlan(cx,cy,use);
+    plan=planFor(use);
   }
   /* ── 이번에 안 담는 것은 **원래 자리로 돌려보낸다** ──
      그냥 두면 앞 계획이 옮겨 놓은 자리에 멈춰 원 둘레를 어지럽힌다.
@@ -17521,7 +17554,7 @@ function orbSet(cx,cy,list){
     if(o.orb0)o.orb=[o.orb0[0],o.orb0[1]];
   });
   list=use;
-  orbZig=plan.zig; orbOver=plan.over||0; orbR=plan.R; orbFitN=45;
+  orbZig=plan.zig; orbOver=plan.over||0; orbR=plan.R; orbFitN=90;   /* 카메라가 가라앉는 데 ~50프레임 걸린다 */
   var pp=orbPlace(cx,cy,list,plan.R,plan.zig);
   list.forEach(function(o,i){
     if(!isFinite(o.x)||!isFinite(o.y))return;
@@ -17543,7 +17576,9 @@ function orbSet(cx,cy,list){
   orbActive=1;
   /* **원본을 담는다.** 잘린 목록을 담으면 다시 계획할 때마다 또 잘려 계속 줄어든다. */
   orbList=full;
-  var v0=orbView(); orbViewKey=v0.x0+','+v0.x1+','+v0.y0+','+v0.y1;
+  var v0=orbView();
+  orbViewKey=v0.x0+','+v0.x1+','+v0.y0+','+v0.y1;
+  orbCamAt=[cam.x,cam.y,cam.s];   /* 이 계획을 어떤 카메라로 쟀나 */
 }
 /* ── 원이 화면 밖으로 넘치면 그만큼만 민다 ──
    중심(누른 노드)이 구석에 있으면 원의 절반이 화면 밖으로 나간다 — 실측으로 그랬다.
@@ -17606,8 +17641,28 @@ function orbStep(){
        폰에서는 아래 절반이 덮여 세로가 708 → 307 이 됐다 —
        그 전에 세운 계획은 카드 자리까지 쓰고 있었고 **이름표가 5개 중 3개만 그려졌다.**
        자리가 바뀌면 다시 계획한다. 노드는 이징으로 따라가므로 튀지 않는다. */
-    var v=orbView(), vk=v.x0+','+v.x1+','+v.y0+','+v.y1;
-    if(vk!==orbViewKey&&orbList&&orbList.length&&orbRoom()){
+    /* ── 열쇠에 **카메라 목표**도 넣는다 ──
+       이름표가 화면 밖으로 나가는지는 `cam.x`·`cam.y` 로 판정한다. 그런데 `orbFit` 이
+       바로 아래에서 카메라를 민다 — **계획을 세운 뒤에 판정 기준이 바뀐다.**
+       그래서 누른 순간에는 「화면 밖」이라 이웃을 잘라 놓고, 카메라가 밀린 뒤에는
+       자리가 남는데도 그대로였다. 실측 「이재명」: 여섯 중 넷이 제자리 —
+       가라앉은 뒤에 같은 계산을 손으로 돌리면 여섯이 다 들어갔다.
+
+       다시 계획하면 `orbFitN` 이 되살아나므로 **횟수를 막는다** —
+       안 막으면 계획↔카메라가 서로를 깨우며 영영 안 멈춘다. */
+    var v=orbView();
+    var vk=v.x0+','+v.x1+','+v.y0+','+v.y1;
+    /* ── 카메라가 **멈춘 뒤에** 한 번 더 계획한다 ──
+       이름표가 화면 밖으로 나가는지는 `cam.x`·`cam.y`(지금 값)로 판정하는데,
+       `orbFit` 이 카메라를 밀면 그 값이 40프레임에 걸쳐 바뀐다.
+       움직이는 동안 판정하면 **낡은 자리로 잰다** — 실측 「이재명」: 이름표 둘이
+       「화면 밖」으로 걸려 여섯 중 넷을 잘랐는데, 멈춘 뒤 같은 계산을 돌리면 0개였다.
+       그래서 (a) 자리가 바뀌었을 때 (b) **카메라가 멈췄고 계획할 때와 다를 때** 다시 한다. */
+    var settled=Math.abs(cam.x-cam.tx)<0.8&&Math.abs(cam.y-cam.ty)<0.8&&Math.abs(cam.s-cam.ts)<0.003;
+    var moved=!orbCamAt||Math.abs(cam.x-orbCamAt[0])>8||Math.abs(cam.y-orbCamAt[1])>8
+      ||Math.abs(cam.s-orbCamAt[2])>0.004;
+    if((vk!==orbViewKey||(settled&&moved))&&orbList&&orbList.length&&orbRoom()&&orbPlanN<4){
+      orbPlanN++;
       orbSet(map[focus].x,map[focus].y,orbList);
     }
     orbFit(map[focus].x,map[focus].y,orbR);
@@ -18013,6 +18068,82 @@ function applyNodeScale(){
    전에는 n.lab 한 줄만 12px 로 쟀다. 그래서 겹침 검사는 PASS 인데
    화면에서는 '합계출산율 0.7명대' 와 '관련' 이 겹쳤다.
    폭도 마찬가지다 — 숫자나 배지가 이름보다 넓으면 그쪽이 박스 폭이다. */
+/* ── 지도에 그리는 이름은 **줄인다** ──
+   「고용보험 및 산업재해보상보험의 보험료징수 등에 관한 법률」은 폭이 **304px** 이다.
+   지도가 쓸 수 있는 자리가 832px 인데(카드가 열리면) 그런 이름 둘이면 화면을 다 먹는다.
+   실측: 「산재 사망 800명대」를 누르면 여섯 중 **넷이 원에 못 들어갔다.**
+
+   CLAUDE.md 가 「넘으려면 이름을 짧게 해야 한다. 아직 안 했다」 고 적어 둔 그것이다.
+
+   **말없이 자르지 않는다** — 「…」가 잘렸다는 표시다. 그리고 **줄이는 것은 지도뿐**이다.
+   카드·검색·목록은 전체 이름을 그대로 쓴다. 한 번 누르면 전부 나온다.
+
+   값은 눈대중이 아니라 실측으로 골랐다 (1280×800, 카드 열림) —
+   | 상한 | 원에 모인 이웃 | 가장 긴 이름표 |
+   |---:|---:|---:|
+   | 없음 | 2/6 | 304px |
+   | 168 | 6/6 | 168px |  */
+var LABEL_MAX_W=168;
+function shortLab(n){
+  var t=String(n&&n.lab||'');
+  if(!t||typeof cx==='undefined'||!cx||!cx.measureText)return t;
+  var big=(n.t==='result');
+  var pf=cx.font;
+  cx.font=(big?'500 15.5':'400 12.5')+"px 'Noto Sans KR',sans-serif";
+  var out=t;
+  if(cx.measureText(t).width>LABEL_MAX_W){
+    var lo=1, hi=t.length;
+    while(lo<hi){ var mid=(lo+hi+1)>>1;
+      if(cx.measureText(t.slice(0,mid)+'…').width<=LABEL_MAX_W)lo=mid; else hi=mid-1 }
+    out=t.slice(0,lo)+'…';
+  }
+  cx.font=pf;
+  return out;
+}
+/* 지도가 그리는 이름. **그리는 곳과 재는 곳이 이 함수 하나를 쓴다.** */
+function mapLab(n){ return (n&&n.labMap)||(n&&n.lab)||'' }
+/* ── 화면 좌표에 **붙박이로 그리는 것들**의 자리 ──
+   워터마크 · '+N 모두 보기' · '화면이 좁아 N개는 제자리' · '결과 N개는 …'.
+   이것들은 지도와 무관하게 고정 자리에 그리므로, 지도 글자가 **알아서 피해야 한다.**
+
+   전에는 피하는 코드를 세 군데(이름표 계획 · 이름표 그리기 · 선 라벨)에 각각 두었다.
+   그러면 새 배지가 생길 때마다 세 곳을 다 고쳐야 하고, 한 곳을 빠뜨리면
+   **그 조합만 조용히 겹친다** — 실제로 「같은 주제 ↔ +4 모두 보기」가 그랬다.
+   목록을 하나로 두고 세 곳이 이 함수를 부른다.
+
+   반환값은 **화면 좌표 · 중심 + 반폭·반높이**다 (겹침 판정이 그 꼴이라).
+   배지들은 전 프레임 값이라 한 프레임 늦다 — 자리가 안정되면 같은 값이다. */
+function reservedScreen(){
+  var out=[];
+  try{ var w=wmBox(); out.push({x:w.x,y:w.y,w:w.w,h:w.h}) }catch(e){}
+  [typeof edgeBadge!=='undefined'?edgeBadge:null,
+   typeof cutBadge!=='undefined'?cutBadge:null,
+   typeof resBadge!=='undefined'?resBadge:null].forEach(function(B){
+    if(B&&isFinite(B.x)&&isFinite(B.y))out.push({x:B.x,y:B.y,w:B.w/2+3,h:B.h/2+3});
+  });
+  return out;
+}
+/* 화면 상자를 월드로 푼다 */
+function screenToWorldBox(b){
+  var cs=Math.max(cam.s,0.02);
+  return {x:(b.x-cam.x)/cs, y:(b.y-cam.y)/cs, w:b.w/cs, h:b.h/cs};
+}
+/* 사건·헌재 노드가 이름 아래에 덧붙이는 줄. **그리는 곳과 재는 곳이 이 함수 하나를 쓴다.** */
+function evSub(n){
+  if(!n)return '';
+  /* 연표(육각형)는 연도 없이 재임 기간만 쓴다 — 「재임 2010.07–2018.03」 */
+  if(n.t==='post')return String(n.ekind||'');
+  /* 판례(마름모)는 덧줄이 없다 — 사건명 한 줄이다 */
+  if(n.t==='event'&&n.evk==='record')return '';
+  if(n.t!=='event'||!n.yr)return '';
+  var k=/헌법재판소/.test(n.ekind||'') ? '헌재 결정' : String(n.ekind||'');
+  /* ── 연도를 **두 번** 쓰지 않는다 ──
+     화면이 앞에 `n.yr` 을 붙이는데 `ekind` 도 연도로 시작하는 것이 있다 —
+     실측 「2026 · 2026년 · 선거 사고」. 앞의 연도를 뗀다. */
+  k=k.replace(/^\s*\d{4}\s*년?\s*[·,]?\s*/,'').trim();
+  /* ekind 가 비면 「2004 · 」 처럼 **구분점만 남는다.** 그때는 연도만 쓴다. */
+  return k ? (n.yr+' · '+k) : String(n.yr);
+}
 function measure(){
   var k=1;   /* 여기서는 배율 1 기준으로 재고, 쓸 때 labelFontScale() 을 곱한다 */
   var wOf=function(t,px,w){cx.font=w+' '+px+"px 'Noto Sans KR',sans-serif";
@@ -18024,18 +18155,24 @@ function measure(){
        빼면 30px 이 된다. 숫자는 눌렀을 때 카드가 크게 보여준다. */
     var big=n.t==='result';
     var showBig=big&&n.big&&!BIG_LINE_OFF;
-    var w=wOf(n.lab,big?15.5:12.5,big?'500':'400');
+    n.labMap=shortLab(n);
+    var w=wOf(n.labMap,big?15.5:12.5,big?'500':'400');
     var lines=1;
     if(showBig){w=Math.max(w,wOf(n.big,14.5,'700'));lines=2}
     if(n.t==='bill'&&n.yr&&n.pres){
       w=Math.max(w,wOf(n.yr+(n.check?'':' · '+n.pres),13.5,'400'));lines=2}
+    /* ── 사건·헌재의 **둘째 줄**도 잰다 ──
+       「2004 · 전과 · 벌금 150만원」은 이름(「음주운전」)보다 훨씬 넓다.
+       안 재면 그 줄이 옆 이름표를 덮는데 검사는 0쌍이라고 한다. */
+    var esub=evSub(n);
+    if(esub){w=Math.max(w,wOf(esub,13.5,'400'));lines=2}
     n.lw=w;
     /* 글자 덩어리의 실제 높이. draw() 가 쌓는 간격과 같아야 한다 —
        첫 줄 15px, 결과 노드 숫자 +22px, 법안 연도 +14px, 배지 +18px.
        노드 반지름은 넣지 않는다 — 박스가 이미 y+r 에서 시작하기 때문이다.
        여기에 r 을 넣었더니 반지름을 두 번 세서 박스가 3배로 커졌고,
        초점 이웃 이름표가 6개 중 0개만 남았다. */
-    n.lh=15+(showBig?22:0)+((n.t==='bill'&&n.yr&&n.pres)?14:0)+12;
+    n.lh=15+(showBig?22:0)+((n.t==='bill'&&n.yr&&n.pres)?14:0)+(esub?14:0)+12;
   });
   /* 역할 배지는 초점 이웃에만 뜬다. 모든 노드에 더하면
      짧은 이름의 박스가 두 배가 돼 이름표가 62/171 → 5/171 로 무너진다.
@@ -19013,6 +19150,20 @@ function noLabel(n){
 /* 이름표를 안 붙이는 노드는 **원만큼** 자리를 차지한다. 그리는 것이 원이니까.
    전에는 점 크기(4px)를 줬는데 그때는 실제로 점으로 그렸다.
    그리는 것이 바뀌면 미는 상자도 같이 바뀌어야 한다 — 두 벌이 되면 갈라진다. */
+/* ── 워터마크가 차지하는 **화면 자리** ──
+   그리는 곳과 피하는 곳이 이 함수 하나를 쓴다. 두 벌이 되면 갈라진다 —
+   실측: 폰에서 「중국인 매수 65% ↔ 왜 · why-map.com」 등 3쌍이 겹쳤다.
+   워터마크는 장식이지만 **글자다.** 글자끼리 겹치면 둘 다 안 읽힌다. */
+function wmBox(){
+  var narrow=W<620, fs=narrow?11:12;
+  var t=SITE.name+' · '+SITE.host, w=60;
+  try{ var pf=cx.font;
+    cx.font='500 '+fs+"px 'Noto Sans KR',-apple-system,sans-serif";
+    w=cx.measureText(t).width; cx.font=pf }catch(e){}
+  var by=narrow?58:24;
+  return {t:t, fs:fs, rx:W-12, by:by,
+    x:W-12-w/2, y:by-fs*0.36, w:w/2+5, h:fs*0.5+4};
+}
 function hw(n){ if(noLabel(n))return n.r+2; return Math.max(n.r,n.lw/2+5)+7}
 /* 이름표가 실제로 차지하는 세로. measure() 가 줄 수를 세어 n.lh 를 채운다.
    전에는 결과 노드에 18px 을 줬는데 숫자가 yy+22 에 그려져 박스 밖이었다. */
@@ -19033,7 +19184,7 @@ function hh(n){ if(noLabel(n))return n.r+2; return n.r+(n.lh||(n.t==='bill'?30:1
    대신 매 프레임 돌리지 않는다 — 카메라·필터가 그대로면 계획을 재사용한다. */
 var labelSet=null, labelKey='', labelAt=0, labelStat={shown:0,total:0,side:{}};
 var labelBoxes=[];   /* planLabels 가 고른 이름표의 월드 상자 — 선 라벨이 피해 갈 대상 */
-var edgeLab=[], edgeLabSkip=0, resBadge=null, edgeBadge=null;   /* 선 위 관계 라벨. 이름표를 다 그린 뒤 겹치지 않는 것만 그린다 */
+var edgeLab=[], edgeLabSkip=0, resBadge=null, edgeBadge=null, cutBadge=null;   /* 선 위 관계 라벨. 이름표를 다 그린 뒤 겹치지 않는 것만 그린다 */
 
 function labelFontScale(){ return LABEL_PX/(12*cam.s) }
 
@@ -19061,7 +19212,12 @@ function labelBox(n,k,sd0){
   var hasBadge=focus&&ring[n.id]===1&&roles[n.id];
   var bw=hasBadge?Math.max(n.__hw,BADGE_W/2+7):n.__hw;
   var lh=((n.lh||24)+(hasBadge?18+12:0))*k;
-  var sd=sd0||labelSide(n), gap=((n.r||8)+7)*1;
+  /* ── 여백은 **그리는 쪽과 같아야 한다** ──
+     화면은 `lx=n.x+sd*((n.r||8)+7*LS)` 로 그리는데 여기는 `+7` 이었다.
+     배율이 2.4 면 그린 글자가 상자보다 **10px 바깥**에 있다.
+     그만큼 상자가 덜 덮고, 그 틈으로 선 라벨이 들어왔다 —
+     실측 「음주운전 · 벌금 150만원 ↔ 판결·처분 2004.03」. */
+  var sd=sd0||labelSide(n), gap=(n.r||8)+7*k;
   return {x:n.x+sd*(gap+bw*k), y:n.y, w:bw*k, h:lh/2};
 }
 function planLabels(){
@@ -19075,7 +19231,13 @@ function planLabels(){
   var k=labelFontScale();
   var pool=A.filter(function(n){
     if(!isFinite(n.x)||!isFinite(n.__hw)||!(n.__hw>0))return false;
-    if(n.a<=0.16)return false;
+    /* ── **지금 알파가 아니라 가라앉은 뒤의 알파**를 본다 ──
+       `orbSet` 은 누른 그 순간 원의 자리를 정하는데, 그때 `n.a` 는 아직 1.0 이다.
+       그래서 곧 흐려질 노드 98개가 전부 이름표 후보로 남아 자리를 다 먹었고,
+       `labelsFit` 이 실패해 이웃을 잘라냈다 — 「화면이 좁아 3개는 제자리」가 이것이었다.
+       실측 (1280×800): 「합계출산율」 원위 2개/잘림 3 → 원위 5개/잘림 0.
+       `orbOutside` 가 같은 이유로 `fadeWant` 를 쓴다. 둘이 다르면 또 갈라진다. */
+    if(fadeWant(n)<=0.16)return false;
     /* **점으로 그리는 노드는 이름표 후보가 아니다.**
        빼지 않았더니 계획은 세우는데 draw 가 안 그려서, 검사가 '이름표 258개' 라고
        보고하는 동안 화면에는 19개만 있었다. 계획과 화면이 갈라지면
@@ -19124,7 +19286,13 @@ function planLabels(){
          '의대 정원 2천명 3,058 → 5,09…' 처럼 오른쪽이 잘려 나오던 것이 이것이다.
          잘린 글자는 정보가 아니라 소음이다. */
       var sx=b.x*cam.s+cam.x, sy=b.y*cam.s+cam.y, sw=b.w*cam.s, sh=b.h*cam.s;
-      if(sx-sw<0||sx+sw>W||sy-sh<0||sy+sh>H){why=1;continue}
+      /* ── 경계는 **캔버스가 아니라 지도가 쓸 수 있는 자리**다 ──
+         전에는 0..W, 0..H 로 봤다. 그런데 위쪽 169px 은 검색창·범례가 덮고 있고
+         오른쪽 448px 은 카드가 덮는다. 거기 그린 이름표는 **가려져서 안 보인다** —
+         안 보이는 글자를 그려 놓고 「그렸다」 고 세는 것은 거짓 통과와 같다.
+         그리고 워터마크(오른쪽 위)와 겹치던 것도 여기서 사라진다. */
+      var vb=orbView();
+      if(sx-sw<vb.x0||sx+sw>vb.x1||sy-sh<vb.y0||sy+sh>vb.y1){why=1;continue}
       var hit=0;
       for(var i=0;i<box.length;i++)if(hitBox(box[i],b)){hit=1;break}
       if(hit){why=2;continue}
@@ -19134,17 +19302,14 @@ function planLabels(){
          글자끼리만 재면 글자와 도형이 겹치는 것을 못 본다.
          자기 노드는 뺀다 — 이름표는 자기 원 바로 옆에 붙여 그린다. */
       var onShape=0;
-      /* ── '+N 모두 보기' 배지 자리를 **비워 둔다** ──
-         배지는 초점 노드 바로 위 고정 자리에 그린다. 이름표가 그걸 모르면 겹친다 —
-         실측 「국립농업박물관법 ↔ +24 모두 보기」. 화면 좌표를 월드로 풀어 막는다. */
-      if(focus&&hiddenEdges>0&&map[focus]&&isFinite(map[focus].x)){
-        var F0=map[focus];
-        var bwW=110/Math.max(cam.s,0.05)/2, bhW=20/Math.max(cam.s,0.05)/2;
-        var byW=F0.y-(F0.r||8)-16/Math.max(cam.s,0.05);
-        if(Math.abs(b.x-F0.x)<(b.w+bwW)&&Math.abs(b.y-byW)<(b.h+bhW)){onShape=1}
+      /* 화면 붙박이(워터마크·배지) 자리는 비워 둔다 — reservedScreen 주석 참조 */
+      var RSV=reservedScreen();
+      for(var ri=0;ri<RSV.length;ri++){
+        var rb=screenToWorldBox(RSV[ri]);
+        if(Math.abs(b.x-rb.x)<(b.w+rb.w)&&Math.abs(b.y-rb.y)<(b.h+rb.h)){onShape=1;break}
       }
       for(var j=0;j<A.length&&!onShape;j++){ var m=A[j];
-        if(m===n||!isFinite(m.x)||m.a<=0.16)continue;
+        if(m===n||!isFinite(m.x)||!solidAt(m))continue;
         /* **도형 크기만 쓴다.** `hw`/`hh` 는 이름표를 그리는 노드에는 이름표 크기를
            돌려주므로, 그걸 쓰면 모든 노드가 서로 겹쳐 이름표가 0개가 된다 (실측 103/107 탈락).
            우리가 피하려는 것은 **원·사각형 같은 도형**이다.
@@ -19527,6 +19692,17 @@ function fadeWant(n){
   var r=ring[n.id];
   return r===0?1:r===1?1:r===2?.30:.10;
 }
+/* ── **흐린 도형은 장애물이 아니다** ──
+   이름표가 남의 도형에 얹히면 둘 다 안 읽힌다 — 그건 그 도형이 **또렷할 때** 말이다.
+   초점 중에 이웃의 이웃(ring 2)은 0.30 으로 흐리다. 그 위에 글자가 놓여도 읽힌다.
+
+   그런데 그걸 장애물로 세고 있었다. 흐린 점들은 지도 어디에나 있으므로
+   **모으는 원이 어느 반지름에서도 자리를 못 찾았다.** 게다가 그 점들의 자리는
+   누른 순간의 물리 상태라 **실행마다 달랐다** — 같은 노드를 눌러도
+   여섯이 모였다가 둘만 모였다 했다. 흔들리는 것은 재는 방법이 잘못됐다는 신호다.
+
+   초점이 없을 때는 모두 0.86 이라 예전과 같다. 초점 중에만 갈린다. */
+function solidAt(n){ return fadeWant(n)>=0.5 }
 function fade(){
   clampY();PT+=0.016;
   N.forEach(function(n){
@@ -19744,6 +19920,56 @@ function draw(){
     drawBatch=batch.length/4;
   } else drawBatch=0;
   /* 여기서부터 노드 forEach 가 끝날 때까지 **글자는 담아만 둔다** (위 textDefer 참조) */
+  /* ── 화면 붙박이 배지 자리를 **글자를 그리기 전에** 정한다 ──
+     전에는 이름표를 다 그린 뒤에 정했다. 그러면 이름표는 **전 프레임의 배지 자리**를
+     보고 피한다 — 초점을 막 켠 프레임에서는 그 값이 아예 없다.
+     실측 「재한외국인 처우 기본법 ↔ +4 모두 보기」. 자리는 `map[focus]`·`cam`·`orbCut` 만
+     있으면 정할 수 있으므로 앞으로 옮긴다. **자리를 먼저 잡고 글자가 피한다.** */
+  cutBadge=null;
+  edgeBadge=null;
+  if(focus&&hiddenEdges>0&&map[focus]&&isFinite(map[focus].x)){
+    var fb=map[focus];
+    var fbx=fb.x*cam.s+cam.x, fby=fb.y*cam.s+cam.y;
+    if(fbx>-60&&fbx<W+60&&fby>-40&&fby<H+40){
+      var bt0='+'+hiddenEdges+' 모두 보기';
+      var pf1=cx.font;
+      cx.font="600 11.5px 'Noto Sans KR',-apple-system,sans-serif";
+      var bw0=cx.measureText(bt0).width+14;
+      cx.font=pf1;
+      edgeBadge={t:bt0,w:bw0,h:18,x:fbx,y:fby-(fb.r||8)*cam.s-16};
+    }
+  }
+  if(focus&&typeof orbCut==='number'&&orbCut>0&&map[focus]&&isFinite(map[focus].x)){
+    var cb=map[focus];
+    var cbx=cb.x*cam.s+cam.x, cby=cb.y*cam.s+cam.y;
+    if(cbx>-80&&cbx<W+80&&cby>-40&&cby<H+40){
+      var ct0='화면이 좁아 '+orbCut+'개는 제자리';
+      var pf2=cx.font;
+      cx.font="500 10.5px 'Noto Sans KR',-apple-system,sans-serif";
+      var cw0=cx.measureText(ct0).width+12;
+      cx.font=pf2;
+      /* '+N 모두 보기' 와 **같은 쪽(위)**에 둔다. 둘 다 뜨면 위로 한 칸 더 쌓는다. */
+      cutBadge={t:ct0,w:cw0,h:16,x:Math.max(cw0/2+4,Math.min(W-cw0/2-4,cbx)),
+        y:cby-(cb.r||8)*cam.s-16-(edgeBadge?20:0)};
+    }
+  }
+  resBadge=null;
+  if(!focus&&resCut>0){
+    var rt0='결과 '+resCut+'개는 분야를 고르면 나옵니다';
+    var pf0=cx.font;
+    cx.font="500 11.5px 'Noto Sans KR',-apple-system,sans-serif";
+    var rw0=cx.measureText(rt0).width+16, rh0=20;
+    cx.font=pf0;
+    /* **하단 버튼을 실제로 재서 그 위에** 둔다. 숫자를 박으면 버튼이 바뀔 때 또 어긋난다.
+       `offsetTop` 을 쓴다 — `getBoundingClientRect` 는 전환 잔상에 휘둘린다.
+       검사가 창을 닫은 뒤에도 타이머가 한 번 더 돌 때가 있다 — 그때 document 가 없다. */
+    var doc0=(typeof document!=='undefined'&&document&&document.querySelector)?document:null;
+    var bt0=doc0?(doc0.querySelector('.legendbtn')||doc0.querySelector('.zoomctl')):null;
+    var btT0=(bt0&&bt0.offsetHeight)?bt0.offsetTop:H;
+    var ry0=Math.max((typeof topSafePx==='function'?topSafePx():0)+rh0,
+                     Math.min(H-10-rh0/2, btT0-12-rh0/2));
+    resBadge={t:rt0,w:rw0,h:rh0,x:W/2,y:ry0};
+  }
   textDefer(1);
   A.forEach(function(n){
     if(n.a<0.015)return;
@@ -19814,10 +20040,16 @@ function draw(){
       cx.fillStyle=col;cx.fillRect(-n.r*0.8,-n.r*0.8,n.r*1.6,n.r*1.6);
       cx.strokeStyle='#0E0F12';cx.lineWidth=2;cx.strokeRect(-n.r*0.8,-n.r*0.8,n.r*1.6,n.r*1.6);
       cx.restore();
-      if(labelOn(n)&&n.a>0.16){var yr2=n.y+n.r+14*labelFontScale();
+      if(labelOn(n)&&n.a>0.16){
+        /* 다른 노드와 **같은 자리**에 그린다 — labelBox 가 좌우로 뻗은 자리를 잡는다.
+           여기만 노드 아래 가운데에 그리고 있었고, 그래서 겹침 검사가 0 인데 화면은 겹쳤다
+           (실측 「음주운전 · 벌금 150만원 ↔ 판결·처분 2004.03」). */
+        var sdR=labelSide(n), LSR=labelFontScale();
+        cx.textAlign=(sdR>0)?'left':'right';
+        var yr2=n.y;
         cx.fillStyle=n.gl>.5?'#F2F4F7':'rgba(190,197,207,'+Math.min(1,n.a).toFixed(2)+')';
-        cx.font=(n.gl>.5?'500 ':'400 ')+((n.gl>.5?13:12)*labelFontScale())+"px 'Noto Sans KR',sans-serif";
-        cx.textAlign='center';cx.fillText(n.lab,n.x,yr2)}
+        cx.font=(n.gl>.5?'500 ':'400 ')+((n.gl>.5?13:12)*LSR)+"px 'Noto Sans KR',sans-serif";
+        cx.fillText(mapLab(n),n.x+sdR*((n.r||8)+7*LSR),yr2)}
       cx.globalAlpha=1;return}
     if(n.t==='post'){
       cx.beginPath();
@@ -19830,13 +20062,16 @@ function draw(){
       cx.globalAlpha=Math.max(0,Math.min(1,n.a));
       cx.strokeStyle=col;cx.lineWidth=2.4;cx.stroke();
       if(labelOn(n)&&n.a>0.16){
-        var h6=n.gl>.5,y6=n.y+n.r+16*labelFontScale();
+        /* 판례와 같은 이유로 **좌우로 뻗은 자리**에 그린다 */
+        var h6=n.gl>.5, LS6=labelFontScale(), sd6=labelSide(n);
+        var lx6=n.x+sd6*((n.r||8)+7*LS6), y6=n.y-7*LS6;
+        cx.textAlign=(sd6>0)?'left':'right';
         cx.fillStyle=h6?'#F2F4F7':'rgba(200,207,217,'+Math.min(1,n.a).toFixed(2)+')';
-        cx.font='500 '+((h6?14:12.5)*labelFontScale())+"px 'Noto Sans KR',sans-serif";
-        cx.textAlign='center';cx.fillText(n.lab,n.x,y6);
-        cx.font='400 '+(13.5*labelFontScale())+"px 'Noto Sans KR',sans-serif";
+        cx.font='500 '+((h6?14:12.5)*LS6)+"px 'Noto Sans KR',sans-serif";
+        cx.fillText(mapLab(n),lx6,y6);
+        cx.font='400 '+(13.5*LS6)+"px 'Noto Sans KR',sans-serif";
         cx.fillStyle='rgba(120,128,140,'+Math.min(1,n.a).toFixed(2)+')';
-        cx.fillText(n.ekind||'',n.x,y6+14)}
+        cx.fillText(evSub(n),lx6,y6+14*LS6)}
       cx.globalAlpha=1;return}
     /* ── 종류를 **모양**으로 가른다 ──
        색은 이미 진영(파랑=민주 계열, 빨강=국민의힘 계열, 금=결과)에 쓰고 있다.
@@ -19860,13 +20095,21 @@ function draw(){
       if(n.auto){autoFill(n,col)}
       else{cx.fillStyle=col;cx.fill();cx.strokeStyle='#0E0F12';cx.lineWidth=2;cx.stroke()}
       if(labelOn(n)&&n.a>0.16){
-        var hotT=n.gl>.5,yyT=n.y+n.r+15*labelFontScale();
+        /* ── 사건·헌재도 **다른 노드와 같은 자리**에 그린다 ──
+           전에는 노드 아래 가운데(`textAlign='center'`, `n.x`)에 그렸다.
+           그런데 겹침을 재는 `labelBox` 는 **좌우로 뻗은 자리**(`lx`)를 잡는다.
+           그리는 곳과 재는 곳이 갈라지면 겹침 0 인데 화면은 겹친다 —
+           실측: 폰 첫 화면에서 「합계출산율 0.7명대 ↔ 2024 · 사건」 등 5쌍. */
+        var sdT=labelSide(n), LST=labelFontScale();
+        var lxT=n.x+sdT*((n.r||8)+7*LST), yyT=n.y-7*LST;
+        cx.textAlign=(sdT>0)?'left':'right';
+        var hotT=n.gl>.5;
         cx.fillStyle=hotT?'#F2F4F7':'rgba(190,197,207,'+Math.min(1,n.a).toFixed(2)+')';
-        cx.font=(hotT?'500 ':'400 ')+((hotT?13:12)*labelFontScale())+"px 'Noto Sans KR',sans-serif";
-        cx.textAlign='center';cx.fillText(n.lab,n.x,yyT);
-        cx.font='400 '+(13.5*labelFontScale())+"px 'Noto Sans KR',sans-serif";
+        cx.font=(hotT?'500 ':'400 ')+((hotT?13:12)*LST)+"px 'Noto Sans KR',sans-serif";
+        cx.fillText(mapLab(n),lxT,yyT);
+        cx.font='400 '+(13.5*LST)+"px 'Noto Sans KR',sans-serif";
         cx.fillStyle='rgba(120,128,140,'+Math.min(1,n.a).toFixed(2)+')';
-        cx.fillText(n.yr+' · 헌재 결정',n.x,yyT+14)}
+        cx.fillText(evSub(n),lxT,yyT+14*LST)}
       cx.globalAlpha=1;return}
     if(n.t==='event'){
       cx.beginPath();
@@ -19878,13 +20121,17 @@ function draw(){
         cx.strokeStyle=/전과/.test(n.ekind||'')?'#E2635A':col;cx.lineWidth=2;cx.stroke();
       }
       if(labelOn(n)&&n.a>0.16){
-        var hot2=n.gl>.5,yy2=n.y+n.r+15*labelFontScale();
+        /* 헌재와 같은 이유로 **좌우로 뻗은 자리**에 그린다 — 위 주석 참조 */
+        var sd2=labelSide(n), LS2=labelFontScale();
+        var lx2=n.x+sd2*((n.r||8)+7*LS2), yy2=n.y-7*LS2;
+        cx.textAlign=(sd2>0)?'left':'right';
+        var hot2=n.gl>.5;
         cx.fillStyle=hot2?'#F2F4F7':'rgba(190,197,207,'+Math.min(1,n.a).toFixed(2)+')';
-        cx.font=(hot2?'500 ':'400 ')+((hot2?13:12)*labelFontScale())+"px 'Noto Sans KR',sans-serif";
-        cx.textAlign='center';cx.fillText(n.lab,n.x,yy2);
-        cx.font='400 '+(13.5*labelFontScale())+"px 'Noto Sans KR',sans-serif";
+        cx.font=(hot2?'500 ':'400 ')+((hot2?13:12)*LS2)+"px 'Noto Sans KR',sans-serif";
+        cx.fillText(mapLab(n),lx2,yy2);
+        cx.font='400 '+(13.5*LS2)+"px 'Noto Sans KR',sans-serif";
         cx.fillStyle=/전과/.test(n.ekind||'')?'rgba(226,99,90,0.85)':'rgba(120,128,140,'+Math.min(1,n.a).toFixed(2)+')';
-        cx.fillText(n.yr+' · '+(n.ekind||''),n.x,yy2+14)}
+        cx.fillText(evSub(n),lx2,yy2+14*LS2)}
       cx.globalAlpha=1;return}
     /* 법·정책은 **둥근 사각형**. 원(사람·기관)과 한눈에 갈린다. */
     if(n.t==='bill'){
@@ -19953,7 +20200,7 @@ function draw(){
       var extra=((big&&showBigDraw(n))?22*LS:0)+((n.t==='bill'&&n.yr&&n.pres)?14*LS:0);
       ly=yy-extra/2;
       cx.textAlign=(sd>0)?'left':'right';
-      cx.fillText(n.lab,lx,ly+(big?4:0));
+      cx.fillText(mapLab(n),lx,ly+(big?4:0));
       if(showBigDraw(n)){ly+=22*LS;
         cx.font='700 '+(14.5*LS)+"px 'Noto Sans KR',sans-serif";
         cx.fillStyle='rgba(227,174,85,'+Math.min(1,n.a).toFixed(2)+')';
@@ -19982,7 +20229,7 @@ function draw(){
       }}
     cx.globalAlpha=1});
   /* 도형을 다 그렸다 — 이제 담아 둔 이름표를 그 위에 얹는다 */
-  textDefer(0); textFlush();
+  wmSkip=0; textDefer(0); textFlush();
 
   /* ── 선 위 관계 라벨 — **이름표를 다 그린 뒤, 겹치지 않는 것만** ──
      읽히는 것이 먼저다. 겹쳐서 둘 다 못 읽느니 하나를 안 그린다.
@@ -19996,65 +20243,48 @@ function draw(){
   /* ── '+N 모두 보기' 배지 자리도 **먼저** 정한다 ──
      나중에 그렸더니 선 라벨이 그 자리를 모른 채 먼저 차지해
      「국립농업박물관법 ↔ +24 모두 보기」가 겹쳤다. resBadge 와 같은 처리다. */
-  edgeBadge=null;
-  if(focus&&hiddenEdges>0&&map[focus]&&isFinite(map[focus].x)){
-    var fb=map[focus];
-    var fbx=fb.x*cam.s+cam.x, fby=fb.y*cam.s+cam.y;
-    if(fbx>-60&&fbx<W+60&&fby>-40&&fby<H+40){
-      var bt0='+'+hiddenEdges+' 모두 보기';
-      var pf1=cx.font;
-      cx.font="600 11.5px 'Noto Sans KR',-apple-system,sans-serif";
-      var bw0=cx.measureText(bt0).width+14;
-      cx.font=pf1;
-      edgeBadge={t:bt0,w:bw0,h:18,x:fbx,y:fby-(fb.r||8)*cam.s-16};
-    }
-  }
-  resBadge=null;
-  if(!focus&&resCut>0){
-    var rt0='결과 '+resCut+'개는 분야를 고르면 나옵니다';
-    var pf0=cx.font;
-    cx.font="500 11.5px 'Noto Sans KR',-apple-system,sans-serif";
-    var rw0=cx.measureText(rt0).width+16, rh0=20;
-    cx.font=pf0;
-    /* **하단 버튼을 실제로 재서 그 위에** 둔다. 숫자를 박으면 버튼이 바뀔 때 또 어긋난다.
-       `offsetTop` 을 쓴다 — `getBoundingClientRect` 는 전환 잔상에 휘둘린다.
-       검사가 창을 닫은 뒤에도 타이머가 한 번 더 돌 때가 있다 — 그때 document 가 없다. */
-    var doc0=(typeof document!=='undefined'&&document&&document.querySelector)?document:null;
-    var bt0=doc0?(doc0.querySelector('.legendbtn')||doc0.querySelector('.zoomctl')):null;
-    var btT0=(bt0&&bt0.offsetHeight)?bt0.offsetTop:H;
-    var ry0=Math.max((typeof topSafePx==='function'?topSafePx():0)+rh0,
-                     Math.min(H-10-rh0/2, btT0-12-rh0/2));
-    resBadge={t:rt0,w:rw0,h:rh0,x:W/2,y:ry0};
-  }
+  /* ── 「화면이 좁아 N개는 제자리」 자리도 **먼저** 정한다 ──
+     전에는 그릴 때 자리를 잡았고, 그래서 이름표가 그 자리를 모른 채 먼저 차지했다 —
+     실측 「소득세법 ↔ 화면이 좁아 4개는 제자리」·「서울 아파트 10억 ↔ …」.
+     그리고 노드 **아래**에 그리고 있었는데 거기는 이름표·연도·역할 배지가 쓰는 자리다.
+     **위는 비어 있다** — '+N 모두 보기' 와 같은 쪽으로 올리고, 둘 다 뜨면 위로 겹쳐 쌓는다. */
   edgeLabSkip=0;
   if(edgeLab.length){
-    cx.font="500 12px 'Noto Sans KR',sans-serif";
+    /* ── 선 라벨도 **화면에서 같은 크기**여야 한다 ──
+       월드 좌표에 12px 로 그리고 있었다. 배율이 0.28 이면 **화면에서 3.4px** 이다 —
+       그리기는 그렸는데 아무도 못 읽는다. 고리 연도는 이미 `12/cam.s` 를 쓰고 있었고
+       여기만 빠져 있었다. 이름표가 `12.5*labelFontScale()` 로 화면 12.5px 를 지키는 것과 같다.
+       **한쪽에만 두면 그쪽만 맞고 반대쪽은 조용히 틀린다.** */
     cx.textAlign='center';
     var taken=labelBoxes.slice(), seenLab=Object.create(null);
+    var eS=Math.max(cam.s,0.02);
     edgeLab.sort(function(p,q){return q.al-p.al});   /* 진한 것부터 자리를 잡는다 */
     for(var ei=0;ei<edgeLab.length;ei++){
       var E=edgeLab[ei];
       /* 고리 연도는 폰트가 다르다 — 배율에 맞춰 커진다 */
-      cx.font=E.ring?((12/cam.s)+"px 'Noto Sans KR',sans-serif")
-                    :"500 12px 'Noto Sans KR',sans-serif";
+      cx.font=E.ring?((12/eS)+"px 'Noto Sans KR',sans-serif")
+                    :('500 '+(12/eS)+"px 'Noto Sans KR',sans-serif");
       var ew=cx.measureText(E.txt).width;
       /* ── 여유를 준다 ──
          이 상자로 「안 겹친다」 고 판정한 라벨이 **화면에서는 겹쳤다** (실측 「같은 주제 ↔ 같은 주제」).
          `drawnText` 는 그린 것을 그대로 담고 여기는 그리기 전에 어림잡는다 — 두 값이 갈라진다.
          **어림잡는 쪽이 넉넉해야 한다.** 덜 그리는 것은 개수를 밝히면 되지만,
          겹쳐서 둘 다 못 읽는 것은 되돌릴 방법이 없다. */
-      var eb={x:E.x, y:E.y, w:(ew/2+(E.ring?2:7))*1.6, h:(E.ring?(7/cam.s):11)*1.6};
+      /* **어림잡는 쪽이 넉넉해야 한다** — 덜 그리는 것은 개수를 밝히면 되지만,
+         겹쳐서 둘 다 못 읽는 것은 되돌릴 방법이 없다 (위 주석과 같은 정책). */
+      var eb={x:E.x, y:E.y, w:(ew/2+(E.ring?2:7)/eS)*2.0, h:(7/eS)*2.0};
       var hit=0;
       for(var ti=0;ti<taken.length;ti++){
         var T=taken[ti];
         if(Math.abs(eb.x-T.x)<(eb.w+T.w)&&Math.abs(eb.y-T.y)<(eb.h+T.h)){hit=1;break}
       }
       /* 배지는 화면 좌표라 여기서 화면으로 옮겨 견준다 */
-      if(!hit&&(resBadge||edgeBadge)){
+      if(!hit){
+        /* 화면 붙박이(워터마크·배지) — reservedScreen 주석 참조 */
         var esx=eb.x*cam.s+cam.x, esy=eb.y*cam.s+cam.y;
-        var esw=eb.w*cam.s, esh=eb.h*cam.s;
-        [resBadge,edgeBadge].forEach(function(B){ if(!B||hit)return;
-          if(Math.abs(esx-B.x)<(esw+B.w/2)&&Math.abs(esy-B.y)<(esh+B.h/2))hit=1 });
+        var esw=eb.w*cam.s, esh=eb.h*cam.s, RSE=reservedScreen();
+        for(var rk=0;rk<RSE.length;rk++){ var R3=RSE[rk];
+          if(Math.abs(esx-R3.x)<(esw+R3.w)&&Math.abs(esy-R3.y)<(esh+R3.h)){hit=1;break} }
       }
       /* ── 같은 말은 **한 번만** 그린다 ──
          초점 이웃 여섯이 전부 「같은 주제」면 같은 글자가 여섯 번 뜬다.
@@ -20064,9 +20294,9 @@ function draw(){
       if(hit){edgeLabSkip++;continue}
       taken.push(eb);
       cx.globalAlpha=E.al;
-      if(!E.ring){ cx.fillStyle='#0E0F12'; cx.fillRect(E.x-ew/2-7,E.y-9,ew+14,18) }
+      if(!E.ring){ cx.fillStyle='#0E0F12'; cx.fillRect(E.x-ew/2-7/eS,E.y-9/eS,ew+14/eS,18/eS) }
       cx.fillStyle=E.col;
-      cx.fillText(E.txt, E.x, E.y+(E.ring?0:3.5));
+      cx.fillText(E.txt, E.x, E.y+(E.ring?0:3.5/eS));
       cx.globalAlpha=1;
     }
   }
@@ -20124,23 +20354,18 @@ function draw(){
      **말없이 두면 "왜 이건 안 모였지" 가 되고, 더 나쁘게는 "이게 전부" 로 읽힌다.**
      위의 '+N 모두 보기' 와는 다른 것이다 — 저건 *안 그린 선*, 이건 *자리를 안 옮긴 것*이다.
      선은 그대로 이어져 있고 카드 목록에도 있다. 그래서 문구도 따로 쓴다. */
-  if(focus&&typeof orbCut==='number'&&orbCut>0&&map[focus]&&isFinite(map[focus].x)){
-    var fn3=map[focus];
-    var cxr=fn3.x*cam.s+cam.x, cyr=fn3.y*cam.s+cam.y;
-    if(cxr>-80&&cxr<W+80&&cyr>-40&&cyr<H+40){
-      var ct='화면이 좁아 '+orbCut+'개는 제자리';
-      cx.font="500 10.5px 'Noto Sans KR',-apple-system,sans-serif";
-      cx.textAlign='center';cx.textBaseline='middle';
-      var cw=cx.measureText(ct).width+12, ch=16;
-      var cx2=Math.max(4,Math.min(W-cw-4,cxr-cw/2)), cy2=cyr+(fn3.r||8)*cam.s+14;
-      cx.fillStyle='rgba(14,15,18,0.88)';
-      cx.beginPath();
-      if(cx.roundRect)cx.roundRect(cx2,cy2-ch/2,cw,ch,8);else cx.rect(cx2,cy2-ch/2,cw,ch);
-      cx.fill();
-      cx.strokeStyle='rgba(154,162,174,0.3)';cx.lineWidth=1;cx.stroke();
-      cx.fillStyle='#9AA2AE';
-      cx.fillText(ct,cx2+cw/2,cy2);
-    }
+  /* 자리는 위(edgeLab 앞)에서 이미 정했다. 여기서 다시 계산하면 두 벌이 되어 갈라진다. */
+  if(cutBadge){
+    var cw=cutBadge.w, ch=cutBadge.h, cy2=cutBadge.y, cx2=cutBadge.x-cw/2;
+    cx.font="500 10.5px 'Noto Sans KR',-apple-system,sans-serif";
+    cx.textAlign='center';cx.textBaseline='middle';
+    cx.fillStyle='rgba(14,15,18,0.88)';
+    cx.beginPath();
+    if(cx.roundRect)cx.roundRect(cx2,cy2-ch/2,cw,ch,8);else cx.rect(cx2,cy2-ch/2,cw,ch);
+    cx.fill();
+    cx.strokeStyle='rgba(154,162,174,0.3)';cx.lineWidth=1;cx.stroke();
+    cx.fillStyle='#9AA2AE';
+    cx.fillText(cutBadge.t,cutBadge.x,cy2);
   }
 
   /* 워터마크. 캔버스에 직접 그린다 —
@@ -20154,11 +20379,11 @@ function draw(){
      도용을 막을 수는 없다. "몰랐다" 를 못 하게 만드는 것이 목적이다. */
   cx.setTransform(DPR,0,0,DPR,0,0);
   cx.globalAlpha=1;
-  var narrowWm=W<620;
-  cx.font='500 '+(narrowWm?11:12)+"px 'Noto Sans KR',-apple-system,sans-serif";
+  var WM=wmBox();
+  cx.font='500 '+WM.fs+"px 'Noto Sans KR',-apple-system,sans-serif";
   cx.textAlign='right';cx.textBaseline='alphabetic';
   cx.fillStyle='rgba(227,174,85,0.28)';
-  cx.fillText(SITE.name+' · '+SITE.host, W-12, narrowWm?58:24);
+  cx.fillText(WM.t, WM.rx, WM.by);
 
   /* 고리 간격이 실제 시간 간격과 다르다는 것을 밝힌다.
      고리 폭을 그 시기의 항목 수에 비례해 나누므로 10년당 18~167px 로 9배까지 벌어진다.
@@ -20174,6 +20399,7 @@ function draw(){
      전에는 「고리 간격 ≠ 시간 간격」이었다. 반지름이 연도였기 때문이다.
      이제 자리를 정하는 것은 **분야** 하나다 — 그것을 그대로 적는다.
      **자리에 없는 뜻을 만들지 않는 것**이 이 문구의 목적이다. */
+  var narrowWm=W<620;
   var nL=narrowWm
     ? ['자리 = 분야']
     : ['자리는 분야가 정합니다 · 거리에는 뜻이 없습니다'];

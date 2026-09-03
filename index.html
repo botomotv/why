@@ -2693,7 +2693,12 @@ var CATMAP={
  edu:['hs_edu','hs_tuition','ix_teacher','ix_kinder','ix_gradjob','ix_edugap','ix_college','ix_hakwon','ix_hakwon_high','ix_pubedu','ix_edugdp','ix_teacher_mid','ix_collegerate','ix_youth_share','ix_childmeal','ix4_26','ix4_40','ix4_41'],
  party:['y1','y1b','y2','y3','y4','y5','y6','y7','y8','y9','y10','y11','y12','z1','c1','c3']
 };
-var C={blue:'#5B9BE5',red:'#E2635A',gov:'#8A929E',gold:'#E3AE55',other:'#8B7BD8',both:'#6FBF8E',rec:'#E2635A',pend:'#C9A55E',
+var C={blue:'#5B9BE5',red:'#E2635A',gov:'#8A929E',gold:'#E3AE55',other:'#8B7BD8',both:'#6FBF8E',/* ── 사건은 **국민의힘 빨강과 같은 색이면 안 된다** ──
+   전에는 `rec` 도 '#E2635A' 였다. 범례에 「빨강 = 국민의힘 계열」이라고 적은 뒤로는
+   「4·16세월호참사」·「제주4·3사건」이 그 색으로 그려지는 것이 **거짓 신호**가 된다.
+   사건에는 진영이 없다. 판례(청록)처럼 **종류 색**을 따로 준다 —
+   금색(결과)·파랑·빨강·보라(진영)와 겹치지 않는 따뜻한 갈색이다. */
+   rec:'#C08A5E',pend:'#C9A55E',
   /* ── 판례는 **틸(청록)** ──
      법·헌재·판례가 다 회색이라 안 갈렸다. 셋에 색을 나누되 조심할 것이 있다:
      **진영 축(파랑=민주 계열 · 빨강=국힘 계열)을 쓰면 안 된다.** 판례는 진영이 없다.
@@ -2711,7 +2716,23 @@ var C={blue:'#5B9BE5',red:'#E2635A',gov:'#8A929E',gold:'#E3AE55',other:'#8B7BD8'
   labor:'#A6AEBA', civic:'#A6AEBA'};
 /* 노드 색은 **여기 한 곳에서만** 고른다. 세 군데서 따로 고르면 갈라진다.
    판정에 id 접두사를 쓴다 — 화면 글자(ekind)는 문구가 바뀌면 조용히 깨진다. */
-function nodeCol(n){ return (n.id&&n.id.lastIndexOf('case_prec_',0)===0)?C.prec:C[n.side] }
+/* ── 법에는 **진영 색을 안 쓴다** ──
+   범례에 「파랑 = 민주당 계열」이라고 적어 놓고 법 네모를 파랗게 칠하면
+   그 법은 화면에서 **「민주당 법」**이 된다. 그건 규칙 3 이 막으려는 바로 그 변환이다
+   (「○○ 정부 때 통과된 법」 → 「○○가 밀어붙인 법」).
+
+   누가 밀어붙였는지는 **`lead` 관계선**이 말한다 — 그건 대표발의 기록이라 사실이다.
+   색으로 말하면 근거가 안 붙는다.
+
+   데이터의 `side` 는 그대로 둔다 — 진영 필터가 그 값을 쓴다. **화면만 안 쓴다.**
+
+   `C[n.side]` 가 undefined 를 돌려주면 캔버스는 **앞 노드 색을 그대로 쓴다**(에러가 안 난다).
+   실제로 「민주노총」이 옆 노드 색으로 그려진 적이 있다. 그래서 폴백을 둔다. */
+function nodeCol(n){
+  if(n.id&&n.id.lastIndexOf('case_prec_',0)===0)return C.prec;
+  if(n.t==='bill')return C.gov;
+  return C[n.side]||C.gov;
+}
 var TK={bill:'법안',person:'인물',party:'정당',org:'기관',result:'결과 수치',event:'이력'};
 /* ── 결과 카드의 '이게 무슨 숫자인가' ──
    **여기는 tools/result-easy.mjs 가 쓴다. 손으로 고치지 마라** — 다음 실행 때 덮어쓴다.
@@ -18017,7 +18038,11 @@ function setAngles(keep){
          (검사 26 한도 9%). **해시는 표본이 클 때만 고르다** — 구역당 1~3개다.
          순번을 쓰면 어느 구역에서도 고르다. 순서는 해시가 정하므로 뜻은 없다. */
       var u=(list.length===1)?0.62:(i/(list.length-1));
-      n.radT=Math.sqrt(0.20+0.80*u);   /* 0.45~1 · 넓이 등분 */
+      /* ── 안쪽 바닥을 낮춰 **가운데를 채운다** ──
+         0.20 이면 안쪽 반지름이 화면에서 115px 비어 도넛으로 보인다 (실측 1280×800).
+         0.045 로 낮추면 55px 이 된다 — 원 모양은 남고 가운데 구멍만 줄어든다.
+         반지름에는 뜻이 없으므로(구역 안에서 흩뿌린 값) 이 값은 **보기 위한 것**이다. */
+      n.radT=Math.sqrt(0.045+0.955*u);
     });
   });
   /* 분야를 모르는 것 — 원 전체에 고르게. 순서는 해시가 정하므로 뜻이 없다. */
@@ -18026,7 +18051,7 @@ function setAngles(keep){
     return d||(String(a.id)<String(b.id)?-1:1)});
   noCat.forEach(function(n,i){
     n.ang=off+(i+0.5)/noCat.length*Math.PI*2;
-    n.radT=Math.sqrt(0.20+0.80*((i%7)/6));
+    n.radT=Math.sqrt(0.045+0.955*((i%7)/6));
   });
 }
 

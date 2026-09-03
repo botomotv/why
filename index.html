@@ -2689,7 +2689,13 @@ var C={blue:'#5B9BE5',red:'#E2635A',gov:'#8A929E',gold:'#E3AE55',other:'#8B7BD8'
        · 헌재 결정 → 회색 그대로. 재미없는 게 맞다
        · 법·정책   → 발의 정당 색(이미 있다). 그건 진영이 실제로 있는 것이다
        · 판례      → 틸 #3FA9A6. 파랑(#5B9BE5)과 색상 60°, 초록(#6FBF8E)과 30° 떨어져 있다 */
-  prec:'#3FA9A6'};
+  prec:'#3FA9A6',
+  /* ── `labor`·`civic` 은 **색이 아예 없었다** ──
+     `C[n.side]` 가 undefined 를 돌려주면 `strokeStyle=undefined` 는 무시되고
+     **앞 노드의 색이 그대로 남는다.** 「민주노총」이 옆 노드 색으로 그려졌다.
+     노조·시민단체는 **정당이 아니라 진영 축에 없다** — 그래서 진영 색을 안 쓰고
+     기관(gov)보다 약간 밝은 회색을 준다. 갈라 보이되 편을 만들지 않는다. */
+  labor:'#A6AEBA', civic:'#A6AEBA'};
 /* 노드 색은 **여기 한 곳에서만** 고른다. 세 군데서 따로 고르면 갈라진다.
    판정에 id 접두사를 쓴다 — 화면 글자(ekind)는 문구가 바뀌면 조용히 깨진다. */
 function nodeCol(n){ return (n.id&&n.id.lastIndexOf('case_prec_',0)===0)?C.prec:C[n.side] }
@@ -4537,55 +4543,55 @@ var KOSIS_N=[/*AUTO-KOSIS-START*/
 ,{id:'hs_lonely',t:'result',auto:1,side:'gold',lab:'고독사 3,661명',big:'3,661명',cap:'2023년 3,661명 · 2019년에는 2,949명이었습니다 — 4년 만에 1.24배. 5개 해를 보건복지부 고독사 실태조사 표에서 그대로 옮겼습니다.',yr:'2023',keys:['고독사'],cats:['birth'],hand:1,tip:'2023년 3,661명 · 2019년에는 2,949명이었습니다 — 4년 만에 1.24배. 5개 해를 보건복지부 고독사 실태조사 표에서 그대로 옮겼습니다.',body:'2023년 3,661명 · 2019년에는 2,949명이었습니다 — 4년 만에 1.24배. 5개 해를 보건복지부 고독사 실태조사 표에서 그대로 옮겼습니다.',src:'출처 · 보건복지부 고독사 실태조사 · 보건복지부 보도자료 · 고독사 실태조사',url:'https://www.mohw.go.kr/board.es?mid=a10503010100&bid=0027&tag=%EA%B3%A0%EB%8F%85%EC%82%AC',series:[['2019','2949'],['2020','3279'],['2021','3378'],['2022','3559'],['2023','3661']]}
 /*AUTO-KOSIS-END*/];
 var CASE_N=[/*AUTO-AFTER-N-START*/
-{id:'evt_의문사',t:'event',auto:1,side:'rec',lab:'의문사',title:'의문사',yr:'2000',ekind:'2000년 · 사건',tip:'2000년에 있었던 일입니다.',body:'이 사건의 이름이 법 이름에 그대로 들어 있습니다 — 국회가 그렇게 이름 붙였습니다. 그 법을 아래에 이어 두었습니다.',src:'출처 · 국회 의안정보시스템 (공포된 법률의 이름)',url:'https://likms.assembly.go.kr/bill/main.do',cats:[]}
+{id:'evt_의문사',t:'event',auto:1,side:'rec',lab:'의문사',title:'의문사',yr:'2000',ekind:'사건',tip:'2000년에 있었던 일입니다.',body:'이 사건의 이름이 법 이름에 그대로 들어 있습니다 — 국회가 그렇게 이름 붙였습니다. 그 법을 아래에 이어 두었습니다.',src:'출처 · 국회 의안정보시스템 (공포된 법률의 이름)',url:'https://likms.assembly.go.kr/bill/main.do',cats:[]}
 ,{id:'aft_의문사진상규명에관한특별법_1',t:'bill',auto:1,side:'gov',kind:'법률',st:'공포',lab:'의문사 진상규명법',title:'의문사진상규명에관한특별법',yr:'2009',off:'2000~2009년 · 5번 고침',tip:'의문사진상규명에관한특별법입니다.',body:'국회를 통과해 공포된 법입니다. 2000년부터 2009년까지 5번 고쳤습니다.',src:'출처 · 국회 의안정보시스템',url:'https://www.law.go.kr/%EB%B2%95%EB%A0%B9/%EC%9D%98%EB%AC%B8%EC%82%AC%EC%A7%84%EC%83%81%EA%B7%9C%EB%AA%85%EC%97%90%EA%B4%80%ED%95%9C%ED%8A%B9%EB%B3%84%EB%B2%95',cats:[]}
-,{id:'evt_일제강점하강제동원피해',t:'event',auto:1,side:'rec',lab:'일제강점하강제동원피해',title:'일제강점하강제동원피해',yr:'2004',ekind:'2004년 · 사건',tip:'2004년에 있었던 일입니다.',body:'이 사건의 이름이 법 이름에 그대로 들어 있습니다 — 국회가 그렇게 이름 붙였습니다. 그 법을 아래에 이어 두었습니다.',src:'출처 · 국회 의안정보시스템 (공포된 법률의 이름)',url:'https://likms.assembly.go.kr/bill/main.do',cats:[]}
+,{id:'evt_일제강점하강제동원피해',t:'event',auto:1,side:'rec',lab:'일제강점하강제동원피해',title:'일제강점하강제동원피해',yr:'2004',ekind:'사건',tip:'2004년에 있었던 일입니다.',body:'이 사건의 이름이 법 이름에 그대로 들어 있습니다 — 국회가 그렇게 이름 붙였습니다. 그 법을 아래에 이어 두었습니다.',src:'출처 · 국회 의안정보시스템 (공포된 법률의 이름)',url:'https://likms.assembly.go.kr/bill/main.do',cats:[]}
 ,{id:'aft_일제강점하강제동원피해진상규명등에관한특별법_2',t:'bill',auto:1,side:'gov',kind:'법률',st:'공포',lab:'일제강점하강제동원피해 진상규명법',title:'일제강점하강제동원피해진상규명등에관한특별법',yr:'2007',off:'2004~2007년 · 2번 고침',tip:'일제강점하강제동원피해진상규명등에관한특별법입니다.',body:'국회를 통과해 공포된 법입니다. 2004년부터 2007년까지 2번 고쳤습니다.',src:'출처 · 국회 의안정보시스템',url:'https://www.law.go.kr/%EB%B2%95%EB%A0%B9/%EC%9D%BC%EC%A0%9C%EA%B0%95%EC%A0%90%ED%95%98%EA%B0%95%EC%A0%9C%EB%8F%99%EC%9B%90%ED%94%BC%ED%95%B4%EC%A7%84%EC%83%81%EA%B7%9C%EB%AA%85%EB%93%B1%EC%97%90%EA%B4%80%ED%95%9C%ED%8A%B9%EB%B3%84%EB%B2%95',cats:[]}
-,{id:'evt_노근리사건',t:'event',auto:1,side:'rec',lab:'노근리사건',title:'노근리사건',yr:'2004',ekind:'2004년 · 사건',tip:'2004년에 있었던 일입니다.',body:'이 사건의 이름이 법 이름에 그대로 들어 있습니다 — 국회가 그렇게 이름 붙였습니다. 그 법을 아래에 이어 두었습니다.',src:'출처 · 국회 의안정보시스템 (공포된 법률의 이름)',url:'https://likms.assembly.go.kr/bill/main.do',cats:[]}
+,{id:'evt_노근리사건',t:'event',auto:1,side:'rec',lab:'노근리사건',title:'노근리사건',yr:'2004',ekind:'사건',tip:'2004년에 있었던 일입니다.',body:'이 사건의 이름이 법 이름에 그대로 들어 있습니다 — 국회가 그렇게 이름 붙였습니다. 그 법을 아래에 이어 두었습니다.',src:'출처 · 국회 의안정보시스템 (공포된 법률의 이름)',url:'https://likms.assembly.go.kr/bill/main.do',cats:[]}
 ,{id:'aft_노근리사건진상규명및희생자명예회복에관한특별_3',t:'bill',auto:1,side:'gov',kind:'법률',st:'공포',lab:'노근리사건 진상규명법',title:'노근리사건진상규명및희생자명예회복에관한특별법',yr:'2004',off:'2004년 공포',tip:'노근리사건진상규명및희생자명예회복에관한특별법입니다.',body:'국회를 통과해 공포된 법입니다. 2004년에 만들어졌습니다.',src:'출처 · 국회 의안정보시스템',url:'https://www.law.go.kr/%EB%B2%95%EB%A0%B9/%EB%85%B8%EA%B7%BC%EB%A6%AC%EC%82%AC%EA%B1%B4%EC%A7%84%EC%83%81%EA%B7%9C%EB%AA%85%EB%B0%8F%ED%9D%AC%EC%83%9D%EC%9E%90%EB%AA%85%EC%98%88%ED%9A%8C%EB%B3%B5%EC%97%90%EA%B4%80%ED%95%9C%ED%8A%B9%EB%B3%84%EB%B2%95',cats:[]}
 ,{id:'aft_노근리사건희생자심사및명예회복에관한특별법_4',t:'bill',auto:1,side:'gov',kind:'법률',st:'공포',lab:'노근리사건 명예회복법',title:'노근리사건 희생자 심사 및 명예회복에 관한 특별법',yr:'2021',off:'2007~2021년 · 2번 고침',tip:'노근리사건 희생자 심사 및 명예회복에 관한 특별법입니다.',body:'국회를 통과해 공포된 법입니다. 2007년부터 2021년까지 2번 고쳤습니다.',src:'출처 · 국회 의안정보시스템',url:'https://www.law.go.kr/%EB%B2%95%EB%A0%B9/%EB%85%B8%EA%B7%BC%EB%A6%AC%EC%82%AC%EA%B1%B4%20%ED%9D%AC%EC%83%9D%EC%9E%90%20%EC%8B%AC%EC%82%AC%20%EB%B0%8F%20%EB%AA%85%EC%98%88%ED%9A%8C%EB%B3%B5%EC%97%90%20%EA%B4%80%ED%95%9C%20%ED%8A%B9%EB%B3%84%EB%B2%95',cats:[]}
-,{id:'evt_군의문사',t:'event',auto:1,side:'rec',lab:'군의문사',title:'군의문사',yr:'2005',ekind:'2005년 · 사건',tip:'2005년에 있었던 일입니다.',body:'이 사건의 이름이 법 이름에 그대로 들어 있습니다 — 국회가 그렇게 이름 붙였습니다. 그 법을 아래에 이어 두었습니다.',src:'출처 · 국회 의안정보시스템 (공포된 법률의 이름)',url:'https://likms.assembly.go.kr/bill/main.do',cats:[]}
+,{id:'evt_군의문사',t:'event',auto:1,side:'rec',lab:'군의문사',title:'군의문사',yr:'2005',ekind:'사건',tip:'2005년에 있었던 일입니다.',body:'이 사건의 이름이 법 이름에 그대로 들어 있습니다 — 국회가 그렇게 이름 붙였습니다. 그 법을 아래에 이어 두었습니다.',src:'출처 · 국회 의안정보시스템 (공포된 법률의 이름)',url:'https://likms.assembly.go.kr/bill/main.do',cats:[]}
 ,{id:'aft_군의문사진상규명등에관한특별법_5',t:'bill',auto:1,side:'gov',kind:'법률',st:'공포',lab:'군의문사 진상규명법',title:'군의문사 진상규명 등에 관한 특별법',yr:'2008',off:'2005~2008년 · 2번 고침',tip:'군의문사 진상규명 등에 관한 특별법입니다.',body:'국회를 통과해 공포된 법입니다. 2005년부터 2008년까지 2번 고쳤습니다.',src:'출처 · 국회 의안정보시스템',url:'https://www.law.go.kr/%EB%B2%95%EB%A0%B9/%EA%B5%B0%EC%9D%98%EB%AC%B8%EC%82%AC%20%EC%A7%84%EC%83%81%EA%B7%9C%EB%AA%85%20%EB%93%B1%EC%97%90%20%EA%B4%80%ED%95%9C%20%ED%8A%B9%EB%B3%84%EB%B2%95',cats:[]}
-,{id:'evt_한센인피해사건',t:'event',auto:1,side:'rec',lab:'한센인피해사건',title:'한센인피해사건',yr:'2007',ekind:'2007년 · 사건',tip:'2007년에 있었던 일입니다.',body:'이 사건의 이름이 법 이름에 그대로 들어 있습니다 — 국회가 그렇게 이름 붙였습니다. 그 법을 아래에 이어 두었습니다.',src:'출처 · 국회 의안정보시스템 (공포된 법률의 이름)',url:'https://likms.assembly.go.kr/bill/main.do',cats:[]}
+,{id:'evt_한센인피해사건',t:'event',auto:1,side:'rec',lab:'한센인피해사건',title:'한센인피해사건',yr:'2007',ekind:'사건',tip:'2007년에 있었던 일입니다.',body:'이 사건의 이름이 법 이름에 그대로 들어 있습니다 — 국회가 그렇게 이름 붙였습니다. 그 법을 아래에 이어 두었습니다.',src:'출처 · 국회 의안정보시스템 (공포된 법률의 이름)',url:'https://likms.assembly.go.kr/bill/main.do',cats:[]}
 ,{id:'aft_한센인피해사건의진상규명및피해자생활지원등에_6',t:'bill',auto:1,side:'gov',kind:'법률',st:'공포',lab:'한센인피해사건 진상규명법',title:'한센인피해사건의 진상규명 및 피해자생활지원 등에 관한 법률',yr:'2015',off:'2007~2015년 · 2번 고침',tip:'한센인피해사건의 진상규명 및 피해자생활지원 등에 관한 법률입니다.',body:'국회를 통과해 공포된 법입니다. 2007년부터 2015년까지 2번 고쳤습니다.',src:'출처 · 국회 의안정보시스템',url:'https://www.law.go.kr/%EB%B2%95%EB%A0%B9/%ED%95%9C%EC%84%BC%EC%9D%B8%ED%94%BC%ED%95%B4%EC%82%AC%EA%B1%B4%EC%9D%98%20%EC%A7%84%EC%83%81%EA%B7%9C%EB%AA%85%20%EB%B0%8F%20%ED%94%BC%ED%95%B4%EC%9E%90%EC%83%9D%ED%99%9C%EC%A7%80%EC%9B%90%20%EB%93%B1%EC%97%90%20%EA%B4%80%ED%95%9C%20%EB%B2%95%EB%A5%A0',cats:[]}
-,{id:'evt_제주43사건',t:'event',auto:1,side:'rec',lab:'제주4·3사건',title:'제주4·3사건',yr:'2007',ekind:'2007년 · 사건',tip:'2007년에 있었던 일입니다.',body:'이 사건의 이름이 법 이름에 그대로 들어 있습니다 — 국회가 그렇게 이름 붙였습니다. 그 법을 아래에 이어 두었습니다.',src:'출처 · 국회 의안정보시스템 (공포된 법률의 이름)',url:'https://likms.assembly.go.kr/bill/main.do',cats:[]}
+,{id:'evt_제주43사건',t:'event',auto:1,side:'rec',lab:'제주4·3사건',title:'제주4·3사건',yr:'2007',ekind:'사건',tip:'2007년에 있었던 일입니다.',body:'이 사건의 이름이 법 이름에 그대로 들어 있습니다 — 국회가 그렇게 이름 붙였습니다. 그 법을 아래에 이어 두었습니다.',src:'출처 · 국회 의안정보시스템 (공포된 법률의 이름)',url:'https://likms.assembly.go.kr/bill/main.do',cats:[]}
 ,{id:'aft_제주43사건진상규명및희생자명예회복에관한특_7',t:'bill',auto:1,side:'gov',kind:'법률',st:'공포',lab:'제주4·3사건 진상규명법',title:'제주4·3사건 진상규명 및 희생자 명예회복에 관한 특별법',yr:'2024',off:'2007~2024년 · 8번 고침',tip:'제주4·3사건 진상규명 및 희생자 명예회복에 관한 특별법입니다.',body:'국회를 통과해 공포된 법입니다. 2007년부터 2024년까지 8번 고쳤습니다.',src:'출처 · 국회 의안정보시스템',url:'https://www.law.go.kr/%EB%B2%95%EB%A0%B9/%EC%A0%9C%EC%A3%BC4%C2%B73%EC%82%AC%EA%B1%B4%20%EC%A7%84%EC%83%81%EA%B7%9C%EB%AA%85%20%EB%B0%8F%20%ED%9D%AC%EC%83%9D%EC%9E%90%20%EB%AA%85%EC%98%88%ED%9A%8C%EB%B3%B5%EC%97%90%20%EA%B4%80%ED%95%9C%20%ED%8A%B9%EB%B3%84%EB%B2%95',cats:[]}
-,{id:'evt_태평양전쟁전후국외강제동원',t:'event',auto:1,side:'rec',lab:'태평양전쟁 전후 국외 강제동원',title:'태평양전쟁 전후 국외 강제동원',yr:'2007',ekind:'2007년 · 사건',tip:'2007년에 있었던 일입니다.',body:'이 사건의 이름이 법 이름에 그대로 들어 있습니다 — 국회가 그렇게 이름 붙였습니다. 그 법을 아래에 이어 두었습니다.',src:'출처 · 국회 의안정보시스템 (공포된 법률의 이름)',url:'https://likms.assembly.go.kr/bill/main.do',cats:[]}
+,{id:'evt_태평양전쟁전후국외강제동원',t:'event',auto:1,side:'rec',lab:'태평양전쟁 전후 국외 강제동원',title:'태평양전쟁 전후 국외 강제동원',yr:'2007',ekind:'사건',tip:'2007년에 있었던 일입니다.',body:'이 사건의 이름이 법 이름에 그대로 들어 있습니다 — 국회가 그렇게 이름 붙였습니다. 그 법을 아래에 이어 두었습니다.',src:'출처 · 국회 의안정보시스템 (공포된 법률의 이름)',url:'https://likms.assembly.go.kr/bill/main.do',cats:[]}
 ,{id:'aft_태평양전쟁전후국외강제동원희생자등지원에관한_8',t:'bill',auto:1,side:'gov',kind:'법률',st:'공포',lab:'태평양전쟁 전후 국외 강제동원 명예회복법',title:'태평양전쟁 전후 국외 강제동원희생자 등 지원에 관한 법률',yr:'2007',off:'2007년 공포',tip:'태평양전쟁 전후 국외 강제동원희생자 등 지원에 관한 법률입니다.',body:'국회를 통과해 공포된 법입니다. 2007년에 만들어졌습니다.',src:'출처 · 국회 의안정보시스템',url:'https://www.law.go.kr/%EB%B2%95%EB%A0%B9/%ED%83%9C%ED%8F%89%EC%96%91%EC%A0%84%EC%9F%81%20%EC%A0%84%ED%9B%84%20%EA%B5%AD%EC%99%B8%20%EA%B0%95%EC%A0%9C%EB%8F%99%EC%9B%90%ED%9D%AC%EC%83%9D%EC%9E%90%20%EB%93%B1%20%EC%A7%80%EC%9B%90%EC%97%90%20%EA%B4%80%ED%95%9C%20%EB%B2%95%EB%A5%A0',cats:[]}
-,{id:'evt_대일항쟁기강제동원피해조사및국외강제동원',t:'event',auto:1,side:'rec',lab:'대일항쟁기 강제동원 피해조사 및 국외강제동원',title:'대일항쟁기 강제동원 피해조사 및 국외강제동원',yr:'2010',ekind:'2010년 · 사건',tip:'2010년에 있었던 일입니다.',body:'이 사건의 이름이 법 이름에 그대로 들어 있습니다 — 국회가 그렇게 이름 붙였습니다. 그 법을 아래에 이어 두었습니다.',src:'출처 · 국회 의안정보시스템 (공포된 법률의 이름)',url:'https://likms.assembly.go.kr/bill/main.do',cats:[]}
+,{id:'evt_대일항쟁기강제동원피해조사및국외강제동원',t:'event',auto:1,side:'rec',lab:'대일항쟁기 강제동원 피해조사 및 국외강제동원',title:'대일항쟁기 강제동원 피해조사 및 국외강제동원',yr:'2010',ekind:'사건',tip:'2010년에 있었던 일입니다.',body:'이 사건의 이름이 법 이름에 그대로 들어 있습니다 — 국회가 그렇게 이름 붙였습니다. 그 법을 아래에 이어 두었습니다.',src:'출처 · 국회 의안정보시스템 (공포된 법률의 이름)',url:'https://likms.assembly.go.kr/bill/main.do',cats:[]}
 ,{id:'aft_대일항쟁기강제동원피해조사및국외강제동원희생_9',t:'bill',auto:1,side:'gov',kind:'법률',st:'공포',lab:'대일항쟁기 강제동원 피해조사 및 국…',title:'대일항쟁기 강제동원 피해조사 및 국외강제동원 희생자 등 지원에 관한 특별법',yr:'2018',off:'2010~2018년 · 6번 고침',tip:'대일항쟁기 강제동원 피해조사 및 국외강제동원 희생자 등 지원에 관한 특별법입니다.',body:'국회를 통과해 공포된 법입니다. 2010년부터 2018년까지 6번 고쳤습니다.',src:'출처 · 국회 의안정보시스템',url:'https://www.law.go.kr/%EB%B2%95%EB%A0%B9/%EB%8C%80%EC%9D%BC%ED%95%AD%EC%9F%81%EA%B8%B0%20%EA%B0%95%EC%A0%9C%EB%8F%99%EC%9B%90%20%ED%94%BC%ED%95%B4%EC%A1%B0%EC%82%AC%20%EB%B0%8F%20%EA%B5%AD%EC%99%B8%EA%B0%95%EC%A0%9C%EB%8F%99%EC%9B%90%20%ED%9D%AC%EC%83%9D%EC%9E%90%20%EB%93%B1%20%EC%A7%80%EC%9B%90%EC%97%90%20%EA%B4%80%ED%95%9C%20%ED%8A%B9%EB%B3%84%EB%B2%95',cats:[]}
-,{id:'evt_625전쟁납북피해',t:'event',auto:1,side:'rec',lab:'6·25전쟁 납북피해',title:'6·25전쟁 납북피해',yr:'2018',ekind:'2018년 · 사건',tip:'2018년에 있었던 일입니다.',body:'이 사건의 이름이 법 이름에 그대로 들어 있습니다 — 국회가 그렇게 이름 붙였습니다. 그 법을 아래에 이어 두었습니다.',src:'출처 · 국회 의안정보시스템 (공포된 법률의 이름)',url:'https://likms.assembly.go.kr/bill/main.do',cats:[]}
+,{id:'evt_625전쟁납북피해',t:'event',auto:1,side:'rec',lab:'6·25전쟁 납북피해',title:'6·25전쟁 납북피해',yr:'2018',ekind:'사건',tip:'2018년에 있었던 일입니다.',body:'이 사건의 이름이 법 이름에 그대로 들어 있습니다 — 국회가 그렇게 이름 붙였습니다. 그 법을 아래에 이어 두었습니다.',src:'출처 · 국회 의안정보시스템 (공포된 법률의 이름)',url:'https://likms.assembly.go.kr/bill/main.do',cats:[]}
 ,{id:'aft_625전쟁납북피해진상규명및납북피해자명예회_10',t:'bill',auto:1,side:'gov',kind:'법률',st:'공포',lab:'6.25전쟁 납북피해법',title:'6.25전쟁 납북피해 진상규명 및 납북피해자 명예회복에 관한 법률',yr:'2010',off:'2010년 공포',tip:'6.25전쟁 납북피해 진상규명 및 납북피해자 명예회복에 관한 법률입니다.',body:'국회를 통과해 공포된 법입니다. 2010년에 만들어졌습니다.',src:'출처 · 국회 의안정보시스템',url:'https://www.law.go.kr/%EB%B2%95%EB%A0%B9/6.25%EC%A0%84%EC%9F%81%20%EB%82%A9%EB%B6%81%ED%94%BC%ED%95%B4%20%EC%A7%84%EC%83%81%EA%B7%9C%EB%AA%85%20%EB%B0%8F%20%EB%82%A9%EB%B6%81%ED%94%BC%ED%95%B4%EC%9E%90%20%EB%AA%85%EC%98%88%ED%9A%8C%EB%B3%B5%EC%97%90%20%EA%B4%80%ED%95%9C%20%EB%B2%95%EB%A5%A0',cats:[]}
-,{id:'evt_동의대사건등',t:'event',auto:1,side:'rec',lab:'동의대 사건 등',title:'동의대 사건 등',yr:'2012',ekind:'2012년 · 사건',tip:'2012년에 있었던 일입니다.',body:'이 사건의 이름이 법 이름에 그대로 들어 있습니다 — 국회가 그렇게 이름 붙였습니다. 그 법을 아래에 이어 두었습니다.',src:'출처 · 국회 의안정보시스템 (공포된 법률의 이름)',url:'https://likms.assembly.go.kr/bill/main.do',cats:[]}
+,{id:'evt_동의대사건등',t:'event',auto:1,side:'rec',lab:'동의대 사건 등',title:'동의대 사건 등',yr:'2012',ekind:'사건',tip:'2012년에 있었던 일입니다.',body:'이 사건의 이름이 법 이름에 그대로 들어 있습니다 — 국회가 그렇게 이름 붙였습니다. 그 법을 아래에 이어 두었습니다.',src:'출처 · 국회 의안정보시스템 (공포된 법률의 이름)',url:'https://likms.assembly.go.kr/bill/main.do',cats:[]}
 ,{id:'aft_동의대사건등희생자의명예회복및보상에관한법률_11',t:'bill',auto:1,side:'gov',kind:'법률',st:'공포',lab:'동의대 사건 등 명예회복법',title:'동의대 사건 등 희생자의 명예회복 및 보상에 관한 법률',yr:'2012',off:'2012년 공포',tip:'동의대 사건 등 희생자의 명예회복 및 보상에 관한 법률입니다.',body:'국회를 통과해 공포된 법입니다. 2012년에 만들어졌습니다.',src:'출처 · 국회 의안정보시스템',url:'https://www.law.go.kr/%EB%B2%95%EB%A0%B9/%EB%8F%99%EC%9D%98%EB%8C%80%20%EC%82%AC%EA%B1%B4%20%EB%93%B1%20%ED%9D%AC%EC%83%9D%EC%9E%90%EC%9D%98%20%EB%AA%85%EC%98%88%ED%9A%8C%EB%B3%B5%20%EB%B0%8F%20%EB%B3%B4%EC%83%81%EC%97%90%20%EA%B4%80%ED%95%9C%20%EB%B2%95%EB%A5%A0',cats:[]}
-,{id:'evt_지뢰',t:'event',auto:1,side:'rec',lab:'지뢰',title:'지뢰',yr:'2014',ekind:'2014년 · 사건',tip:'2014년에 있었던 일입니다.',body:'이 사건의 이름이 법 이름에 그대로 들어 있습니다 — 국회가 그렇게 이름 붙였습니다. 그 법을 아래에 이어 두었습니다.',src:'출처 · 국회 의안정보시스템 (공포된 법률의 이름)',url:'https://likms.assembly.go.kr/bill/main.do',cats:[]}
+,{id:'evt_지뢰',t:'event',auto:1,side:'rec',lab:'지뢰',title:'지뢰',yr:'2014',ekind:'사건',tip:'2014년에 있었던 일입니다.',body:'이 사건의 이름이 법 이름에 그대로 들어 있습니다 — 국회가 그렇게 이름 붙였습니다. 그 법을 아래에 이어 두었습니다.',src:'출처 · 국회 의안정보시스템 (공포된 법률의 이름)',url:'https://likms.assembly.go.kr/bill/main.do',cats:[]}
 ,{id:'aft_지뢰피해자지원에관한특별법_12',t:'bill',auto:1,side:'gov',kind:'법률',st:'공포',lab:'지뢰 피해자지원법',title:'지뢰피해자 지원에 관한 특별법',yr:'2019',off:'2014~2019년 · 3번 고침',tip:'지뢰피해자 지원에 관한 특별법입니다.',body:'국회를 통과해 공포된 법입니다. 2014년부터 2019년까지 3번 고쳤습니다.',src:'출처 · 국회 의안정보시스템',url:'https://www.law.go.kr/%EB%B2%95%EB%A0%B9/%EC%A7%80%EB%A2%B0%ED%94%BC%ED%95%B4%EC%9E%90%20%EC%A7%80%EC%9B%90%EC%97%90%20%EA%B4%80%ED%95%9C%20%ED%8A%B9%EB%B3%84%EB%B2%95',cats:[]}
-,{id:'evt_416세월호참사',t:'event',auto:1,side:'rec',lab:'4·16세월호참사',title:'4·16세월호참사',yr:'2014',ekind:'2014년 · 사건',tip:'2014년에 있었던 일입니다.',body:'이 사건의 이름이 법 이름에 그대로 들어 있습니다 — 국회가 그렇게 이름 붙였습니다. 그 법을 아래에 이어 두었습니다.',src:'출처 · 국회 의안정보시스템 (공포된 법률의 이름)',url:'https://likms.assembly.go.kr/bill/main.do',cats:[]}
+,{id:'evt_416세월호참사',t:'event',auto:1,side:'rec',lab:'4·16세월호참사',title:'4·16세월호참사',yr:'2014',ekind:'사건',tip:'2014년에 있었던 일입니다.',body:'이 사건의 이름이 법 이름에 그대로 들어 있습니다 — 국회가 그렇게 이름 붙였습니다. 그 법을 아래에 이어 두었습니다.',src:'출처 · 국회 의안정보시스템 (공포된 법률의 이름)',url:'https://likms.assembly.go.kr/bill/main.do',cats:[]}
 ,{id:'aft_416세월호참사피해구제및지원등을위한특별법_13',t:'bill',auto:1,side:'gov',kind:'법률',st:'공포',lab:'4·16세월호참사 피해구제법',title:'4·16세월호참사 피해구제 및 지원 등을 위한 특별법',yr:'2024',off:'2015~2024년 · 6번 고침',tip:'4·16세월호참사 피해구제 및 지원 등을 위한 특별법입니다.',body:'국회를 통과해 공포된 법입니다. 2015년부터 2024년까지 6번 고쳤습니다.',src:'출처 · 국회 의안정보시스템',url:'https://www.law.go.kr/%EB%B2%95%EB%A0%B9/4%C2%B716%EC%84%B8%EC%9B%94%ED%98%B8%EC%B0%B8%EC%82%AC%20%ED%94%BC%ED%95%B4%EA%B5%AC%EC%A0%9C%20%EB%B0%8F%20%EC%A7%80%EC%9B%90%20%EB%93%B1%EC%9D%84%20%EC%9C%84%ED%95%9C%20%ED%8A%B9%EB%B3%84%EB%B2%95',cats:[]}
 ,{id:'aft_416세월호참사진상규명및안전사회건설등을위_14',t:'bill',auto:1,side:'gov',kind:'법률',st:'공포',lab:'4·16세월호참사 진상규명법',title:'4·16세월호참사 진상규명 및 안전사회 건설 등을 위한 특별법',yr:'2014',off:'2014년 공포',tip:'4·16세월호참사 진상규명 및 안전사회 건설 등을 위한 특별법입니다.',body:'국회를 통과해 공포된 법입니다. 2014년에 만들어졌습니다.',src:'출처 · 국회 의안정보시스템',url:'https://www.law.go.kr/%EB%B2%95%EB%A0%B9/4%C2%B716%EC%84%B8%EC%9B%94%ED%98%B8%EC%B0%B8%EC%82%AC%20%EC%A7%84%EC%83%81%EA%B7%9C%EB%AA%85%20%EB%B0%8F%20%EC%95%88%EC%A0%84%EC%82%AC%ED%9A%8C%20%EA%B1%B4%EC%84%A4%20%EB%93%B1%EC%9D%84%20%EC%9C%84%ED%95%9C%20%ED%8A%B9%EB%B3%84%EB%B2%95',cats:[]}
-,{id:'evt_한국인원자폭탄',t:'event',auto:1,side:'rec',lab:'한국인 원자폭탄',title:'한국인 원자폭탄',yr:'2016',ekind:'2016년 · 사건',tip:'2016년에 있었던 일입니다.',body:'이 사건의 이름이 법 이름에 그대로 들어 있습니다 — 국회가 그렇게 이름 붙였습니다. 그 법을 아래에 이어 두었습니다.',src:'출처 · 국회 의안정보시스템 (공포된 법률의 이름)',url:'https://likms.assembly.go.kr/bill/main.do',cats:[]}
+,{id:'evt_한국인원자폭탄',t:'event',auto:1,side:'rec',lab:'한국인 원자폭탄',title:'한국인 원자폭탄',yr:'2016',ekind:'사건',tip:'2016년에 있었던 일입니다.',body:'이 사건의 이름이 법 이름에 그대로 들어 있습니다 — 국회가 그렇게 이름 붙였습니다. 그 법을 아래에 이어 두었습니다.',src:'출처 · 국회 의안정보시스템 (공포된 법률의 이름)',url:'https://likms.assembly.go.kr/bill/main.do',cats:[]}
 ,{id:'aft_한국인원자폭탄피해자지원을위한특별법_15',t:'bill',auto:1,side:'gov',kind:'법률',st:'공포',lab:'한국인 원자폭탄 피해자지원법',title:'한국인 원자폭탄 피해자 지원을 위한 특별법',yr:'2019',off:'2016~2019년 · 2번 고침',tip:'한국인 원자폭탄 피해자 지원을 위한 특별법입니다.',body:'국회를 통과해 공포된 법입니다. 2016년부터 2019년까지 2번 고쳤습니다.',src:'출처 · 국회 의안정보시스템',url:'https://www.law.go.kr/%EB%B2%95%EB%A0%B9/%ED%95%9C%EA%B5%AD%EC%9D%B8%20%EC%9B%90%EC%9E%90%ED%8F%AD%ED%83%84%20%ED%94%BC%ED%95%B4%EC%9E%90%20%EC%A7%80%EC%9B%90%EC%9D%84%20%EC%9C%84%ED%95%9C%20%ED%8A%B9%EB%B3%84%EB%B2%95',cats:[]}
-,{id:'evt_가습기살균제',t:'event',auto:1,side:'rec',lab:'가습기살균제',title:'가습기살균제',yr:'2017',ekind:'2017년 · 사건',tip:'2017년에 있었던 일입니다.',body:'이 사건의 이름이 법 이름에 그대로 들어 있습니다 — 국회가 그렇게 이름 붙였습니다. 그 법을 아래에 이어 두었습니다.',src:'출처 · 국회 의안정보시스템 (공포된 법률의 이름)',url:'https://likms.assembly.go.kr/bill/main.do',cats:[]}
+,{id:'evt_가습기살균제',t:'event',auto:1,side:'rec',lab:'가습기살균제',title:'가습기살균제',yr:'2017',ekind:'사건',tip:'2017년에 있었던 일입니다.',body:'이 사건의 이름이 법 이름에 그대로 들어 있습니다 — 국회가 그렇게 이름 붙였습니다. 그 법을 아래에 이어 두었습니다.',src:'출처 · 국회 의안정보시스템 (공포된 법률의 이름)',url:'https://likms.assembly.go.kr/bill/main.do',cats:[]}
 ,{id:'aft_가습기살균제피해구제를위한특별법_16',t:'bill',auto:1,side:'gov',kind:'법률',st:'공포',lab:'가습기살균제 피해구제법',title:'가습기살균제 피해구제를 위한 특별법',yr:'2026',off:'2018~2026년 · 3번 고침',tip:'가습기살균제 피해구제를 위한 특별법입니다.',body:'국회를 통과해 공포된 법입니다. 2018년부터 2026년까지 3번 고쳤습니다.',src:'출처 · 국회 의안정보시스템',url:'https://www.law.go.kr/%EB%B2%95%EB%A0%B9/%EA%B0%80%EC%8A%B5%EA%B8%B0%EC%82%B4%EA%B7%A0%EC%A0%9C%20%ED%94%BC%ED%95%B4%EA%B5%AC%EC%A0%9C%EB%A5%BC%20%EC%9C%84%ED%95%9C%20%ED%8A%B9%EB%B3%84%EB%B2%95',cats:[]}
-,{id:'evt_현대중공업아르곤가스질식사망사고',t:'event',auto:1,side:'rec',lab:'현대중공업 아르곤 가스 질식 사망사고',title:'현대중공업 아르곤 가스 질식 사망사고',yr:'2017',ekind:'2017년 · 사건',tip:'2017년 8월 조선소에서 일하던 노동자가 아르곤 가스에 질식해 숨졌습니다.',body:'이 사건이 법제처 제·개정이유에 적혀 있습니다. 정부가 이 사건을 들어 그 법을 만들거나 고쳤다고 스스로 적은 것입니다. 그 법을 아래에 이어 두었습니다.',src:'출처 · 법제처 「중대재해 처벌 등에 관한 법률」 제정이유',url:'https://likms.assembly.go.kr/bill/main.do',cats:[]}
-,{id:'evt_518민주화운동',t:'event',auto:1,side:'rec',lab:'5·18민주화운동',title:'5·18민주화운동',yr:'2018',ekind:'2018년 · 사건',tip:'2018년에 있었던 일입니다.',body:'이 사건의 이름이 법 이름에 그대로 들어 있습니다 — 국회가 그렇게 이름 붙였습니다. 그 법을 아래에 이어 두었습니다.',src:'출처 · 국회 의안정보시스템 (공포된 법률의 이름)',url:'https://likms.assembly.go.kr/bill/main.do',cats:[]}
+,{id:'evt_현대중공업아르곤가스질식사망사고',t:'event',auto:1,side:'rec',lab:'현대중공업 아르곤 가스 질식 사망사고',title:'현대중공업 아르곤 가스 질식 사망사고',yr:'2017',ekind:'사건',tip:'2017년 8월 조선소에서 일하던 노동자가 아르곤 가스에 질식해 숨졌습니다.',body:'이 사건이 법제처 제·개정이유에 적혀 있습니다. 정부가 이 사건을 들어 그 법을 만들거나 고쳤다고 스스로 적은 것입니다. 그 법을 아래에 이어 두었습니다.',src:'출처 · 법제처 「중대재해 처벌 등에 관한 법률」 제정이유',url:'https://likms.assembly.go.kr/bill/main.do',cats:[]}
+,{id:'evt_518민주화운동',t:'event',auto:1,side:'rec',lab:'5·18민주화운동',title:'5·18민주화운동',yr:'2018',ekind:'사건',tip:'2018년에 있었던 일입니다.',body:'이 사건의 이름이 법 이름에 그대로 들어 있습니다 — 국회가 그렇게 이름 붙였습니다. 그 법을 아래에 이어 두었습니다.',src:'출처 · 국회 의안정보시스템 (공포된 법률의 이름)',url:'https://likms.assembly.go.kr/bill/main.do',cats:[]}
 ,{id:'aft_518민주화운동진상규명을위한특별법_17',t:'bill',auto:1,side:'gov',kind:'법률',st:'공포',lab:'5·18민주화운동 진상규명법',title:'5·18민주화운동 진상규명을 위한 특별법',yr:'2023',off:'2018~2023년 · 5번 고침',tip:'5·18민주화운동 진상규명을 위한 특별법입니다.',body:'국회를 통과해 공포된 법입니다. 2018년부터 2023년까지 5번 고쳤습니다.',src:'출처 · 국회 의안정보시스템',url:'https://www.law.go.kr/%EB%B2%95%EB%A0%B9/5%C2%B718%EB%AF%BC%EC%A3%BC%ED%99%94%EC%9A%B4%EB%8F%99%20%EC%A7%84%EC%83%81%EA%B7%9C%EB%AA%85%EC%9D%84%20%EC%9C%84%ED%95%9C%20%ED%8A%B9%EB%B3%84%EB%B2%95',cats:[]}
 ,{id:'aft_625전쟁납북피해진상규명및납북피해자명예회_18',t:'bill',auto:1,side:'gov',kind:'법률',st:'공포',lab:'6·25전쟁 납북피해법',title:'6·25전쟁 납북피해 진상규명 및 납북피해자 명예회복에 관한 법률',yr:'2026',off:'2018~2026년 · 3번 고침',tip:'6·25전쟁 납북피해 진상규명 및 납북피해자 명예회복에 관한 법률입니다.',body:'국회를 통과해 공포된 법입니다. 2018년부터 2026년까지 3번 고쳤습니다.',src:'출처 · 국회 의안정보시스템',url:'https://www.law.go.kr/%EB%B2%95%EB%A0%B9/6%C2%B725%EC%A0%84%EC%9F%81%20%EB%82%A9%EB%B6%81%ED%94%BC%ED%95%B4%20%EC%A7%84%EC%83%81%EA%B7%9C%EB%AA%85%20%EB%B0%8F%20%EB%82%A9%EB%B6%81%ED%94%BC%ED%95%B4%EC%9E%90%20%EB%AA%85%EC%98%88%ED%9A%8C%EB%B3%B5%EC%97%90%20%EA%B4%80%ED%95%9C%20%EB%B2%95%EB%A5%A0',cats:[]}
-,{id:'evt_태안화력발전소압사사고',t:'event',auto:1,side:'rec',lab:'태안화력발전소 압사사고',title:'태안화력발전소 압사사고',yr:'2018',ekind:'2018년 · 사건',tip:'2018년 12월 태안화력발전소에서 하청 노동자가 컨베이어벨트에 끼여 숨졌습니다.',body:'이 사건이 법제처 제·개정이유에 적혀 있습니다. 정부가 이 사건을 들어 그 법을 만들거나 고쳤다고 스스로 적은 것입니다. 그 법을 아래에 이어 두었습니다.',src:'출처 · 법제처 「중대재해 처벌 등에 관한 법률」 제정이유',url:'https://likms.assembly.go.kr/bill/main.do',cats:[]}
-,{id:'evt_포항지진',t:'event',auto:1,side:'rec',lab:'포항지진',title:'포항지진',yr:'2019',ekind:'2019년 · 사건',tip:'2019년에 있었던 일입니다.',body:'이 사건의 이름이 법 이름에 그대로 들어 있습니다 — 국회가 그렇게 이름 붙였습니다. 그 법을 아래에 이어 두었습니다.',src:'출처 · 국회 의안정보시스템 (공포된 법률의 이름)',url:'https://likms.assembly.go.kr/bill/main.do',cats:[]}
+,{id:'evt_태안화력발전소압사사고',t:'event',auto:1,side:'rec',lab:'태안화력발전소 압사사고',title:'태안화력발전소 압사사고',yr:'2018',ekind:'사건',tip:'2018년 12월 태안화력발전소에서 하청 노동자가 컨베이어벨트에 끼여 숨졌습니다.',body:'이 사건이 법제처 제·개정이유에 적혀 있습니다. 정부가 이 사건을 들어 그 법을 만들거나 고쳤다고 스스로 적은 것입니다. 그 법을 아래에 이어 두었습니다.',src:'출처 · 법제처 「중대재해 처벌 등에 관한 법률」 제정이유',url:'https://likms.assembly.go.kr/bill/main.do',cats:[]}
+,{id:'evt_포항지진',t:'event',auto:1,side:'rec',lab:'포항지진',title:'포항지진',yr:'2019',ekind:'사건',tip:'2019년에 있었던 일입니다.',body:'이 사건의 이름이 법 이름에 그대로 들어 있습니다 — 국회가 그렇게 이름 붙였습니다. 그 법을 아래에 이어 두었습니다.',src:'출처 · 국회 의안정보시스템 (공포된 법률의 이름)',url:'https://likms.assembly.go.kr/bill/main.do',cats:[]}
 ,{id:'aft_포항지진의진상조사및피해구제등을위한특별법_19',t:'bill',auto:1,side:'gov',kind:'법률',st:'공포',lab:'포항지진 진상조사법',title:'포항지진의 진상조사 및 피해구제 등을 위한 특별법',yr:'2021',off:'2019~2021년 · 2번 고침',tip:'포항지진의 진상조사 및 피해구제 등을 위한 특별법입니다.',body:'국회를 통과해 공포된 법입니다. 2019년부터 2021년까지 2번 고쳤습니다.',src:'출처 · 국회 의안정보시스템',url:'https://www.law.go.kr/%EB%B2%95%EB%A0%B9/%ED%8F%AC%ED%95%AD%EC%A7%80%EC%A7%84%EC%9D%98%20%EC%A7%84%EC%83%81%EC%A1%B0%EC%82%AC%20%EB%B0%8F%20%ED%94%BC%ED%95%B4%EA%B5%AC%EC%A0%9C%20%EB%93%B1%EC%9D%84%20%EC%9C%84%ED%95%9C%20%ED%8A%B9%EB%B3%84%EB%B2%95',cats:[]}
-,{id:'evt_물류창고건설현장화재사고',t:'event',auto:1,side:'rec',lab:'물류창고 건설현장 화재사고',title:'물류창고 건설현장 화재사고',yr:'2020',ekind:'2020년 · 사건',tip:'2020년 4월 이천 물류창고 건설현장에서 불이 나 38명이 숨졌습니다.',body:'이 사건이 법제처 제·개정이유에 적혀 있습니다. 정부가 이 사건을 들어 그 법을 만들거나 고쳤다고 스스로 적은 것입니다. 그 법을 아래에 이어 두었습니다.',src:'출처 · 법제처 「중대재해 처벌 등에 관한 법률」 제정이유',url:'https://likms.assembly.go.kr/bill/main.do',cats:[]}
-,{id:'evt_여수순천1019사건',t:'event',auto:1,side:'rec',lab:'여수ㆍ순천 10ㆍ19사건',title:'여수ㆍ순천 10ㆍ19사건',yr:'2023',ekind:'2023년 · 사건',tip:'2023년에 있었던 일입니다.',body:'이 사건의 이름이 법 이름에 그대로 들어 있습니다 — 국회가 그렇게 이름 붙였습니다. 그 법을 아래에 이어 두었습니다.',src:'출처 · 국회 의안정보시스템 (공포된 법률의 이름)',url:'https://likms.assembly.go.kr/bill/main.do',cats:[]}
+,{id:'evt_물류창고건설현장화재사고',t:'event',auto:1,side:'rec',lab:'물류창고 건설현장 화재사고',title:'물류창고 건설현장 화재사고',yr:'2020',ekind:'사건',tip:'2020년 4월 이천 물류창고 건설현장에서 불이 나 38명이 숨졌습니다.',body:'이 사건이 법제처 제·개정이유에 적혀 있습니다. 정부가 이 사건을 들어 그 법을 만들거나 고쳤다고 스스로 적은 것입니다. 그 법을 아래에 이어 두었습니다.',src:'출처 · 법제처 「중대재해 처벌 등에 관한 법률」 제정이유',url:'https://likms.assembly.go.kr/bill/main.do',cats:[]}
+,{id:'evt_여수순천1019사건',t:'event',auto:1,side:'rec',lab:'여수ㆍ순천 10ㆍ19사건',title:'여수ㆍ순천 10ㆍ19사건',yr:'2023',ekind:'사건',tip:'2023년에 있었던 일입니다.',body:'이 사건의 이름이 법 이름에 그대로 들어 있습니다 — 국회가 그렇게 이름 붙였습니다. 그 법을 아래에 이어 두었습니다.',src:'출처 · 국회 의안정보시스템 (공포된 법률의 이름)',url:'https://likms.assembly.go.kr/bill/main.do',cats:[]}
 ,{id:'aft_여수순천1019사건진상규명및희생자명예회복_20',t:'bill',auto:1,side:'gov',kind:'법률',st:'공포',lab:'여수·순천 10·19사건 진상규명법',title:'여수·순천 10·19사건 진상규명 및 희생자 명예회복에 관한 특별법',yr:'2021',off:'2021년 공포',tip:'여수·순천 10·19사건 진상규명 및 희생자 명예회복에 관한 특별법입니다.',body:'국회를 통과해 공포된 법입니다. 2021년에 만들어졌습니다.',src:'출처 · 국회 의안정보시스템',url:'https://www.law.go.kr/%EB%B2%95%EB%A0%B9/%EC%97%AC%EC%88%98%C2%B7%EC%88%9C%EC%B2%9C%2010%C2%B719%EC%82%AC%EA%B1%B4%20%EC%A7%84%EC%83%81%EA%B7%9C%EB%AA%85%20%EB%B0%8F%20%ED%9D%AC%EC%83%9D%EC%9E%90%20%EB%AA%85%EC%98%88%ED%9A%8C%EB%B3%B5%EC%97%90%20%EA%B4%80%ED%95%9C%20%ED%8A%B9%EB%B3%84%EB%B2%95',cats:[]}
-,{id:'evt_천안함피격사건',t:'event',auto:1,side:'rec',lab:'천안함 피격사건',title:'천안함 피격사건',yr:'2024',ekind:'2024년 · 사건',tip:'2024년에 있었던 일입니다.',body:'이 사건의 이름이 법 이름에 그대로 들어 있습니다 — 국회가 그렇게 이름 붙였습니다. 그 법을 아래에 이어 두었습니다.',src:'출처 · 국회 의안정보시스템 (공포된 법률의 이름)',url:'https://likms.assembly.go.kr/bill/main.do',cats:[]}
+,{id:'evt_천안함피격사건',t:'event',auto:1,side:'rec',lab:'천안함 피격사건',title:'천안함 피격사건',yr:'2024',ekind:'사건',tip:'2024년에 있었던 일입니다.',body:'이 사건의 이름이 법 이름에 그대로 들어 있습니다 — 국회가 그렇게 이름 붙였습니다. 그 법을 아래에 이어 두었습니다.',src:'출처 · 국회 의안정보시스템 (공포된 법률의 이름)',url:'https://likms.assembly.go.kr/bill/main.do',cats:[]}
 ,{id:'aft_천안함피격사건피해구제및지원등을위한특별법_21',t:'bill',auto:1,side:'gov',kind:'법률',st:'공포',lab:'천안함 피격사건 피해구제법',title:'천안함 피격사건 피해구제 및 지원 등을 위한 특별법',yr:'2024',off:'2024년 공포',tip:'천안함 피격사건 피해구제 및 지원 등을 위한 특별법입니다.',body:'국회를 통과해 공포된 법입니다. 2024년에 만들어졌습니다.',src:'출처 · 국회 의안정보시스템',url:'https://www.law.go.kr/%EB%B2%95%EB%A0%B9/%EC%B2%9C%EC%95%88%ED%95%A8%20%ED%94%BC%EA%B2%A9%EC%82%AC%EA%B1%B4%20%ED%94%BC%ED%95%B4%EA%B5%AC%EC%A0%9C%20%EB%B0%8F%20%EC%A7%80%EC%9B%90%20%EB%93%B1%EC%9D%84%20%EC%9C%84%ED%95%9C%20%ED%8A%B9%EB%B3%84%EB%B2%95',cats:[]}
-,{id:'evt_1029이태원참사',t:'event',auto:1,side:'rec',lab:'10·29이태원참사',title:'10·29이태원참사',yr:'2024',ekind:'2024년 · 사건',tip:'2024년에 있었던 일입니다.',body:'이 사건의 이름이 법 이름에 그대로 들어 있습니다 — 국회가 그렇게 이름 붙였습니다. 그 법을 아래에 이어 두었습니다.',src:'출처 · 국회 의안정보시스템 (공포된 법률의 이름)',url:'https://likms.assembly.go.kr/bill/main.do',cats:[]}
+,{id:'evt_1029이태원참사',t:'event',auto:1,side:'rec',lab:'10·29이태원참사',title:'10·29이태원참사',yr:'2024',ekind:'사건',tip:'2024년에 있었던 일입니다.',body:'이 사건의 이름이 법 이름에 그대로 들어 있습니다 — 국회가 그렇게 이름 붙였습니다. 그 법을 아래에 이어 두었습니다.',src:'출처 · 국회 의안정보시스템 (공포된 법률의 이름)',url:'https://likms.assembly.go.kr/bill/main.do',cats:[]}
 ,{id:'aft_1029이태원참사피해자권리보장과진상규명및_22',t:'bill',auto:1,side:'gov',kind:'법률',st:'공포',lab:'10·29이태원참사 피해자지원법',title:'10·29이태원참사 피해자 권리보장과 진상규명 및 재발방지를 위한 특별법',yr:'2026',off:'2024~2026년 · 2번 고침',tip:'10·29이태원참사 피해자 권리보장과 진상규명 및 재발방지를 위한 특별법입니다.',body:'국회를 통과해 공포된 법입니다. 2024년부터 2026년까지 2번 고쳤습니다.',src:'출처 · 국회 의안정보시스템',url:'https://www.law.go.kr/%EB%B2%95%EB%A0%B9/10%C2%B729%EC%9D%B4%ED%83%9C%EC%9B%90%EC%B0%B8%EC%82%AC%20%ED%94%BC%ED%95%B4%EC%9E%90%20%EA%B6%8C%EB%A6%AC%EB%B3%B4%EC%9E%A5%EA%B3%BC%20%EC%A7%84%EC%83%81%EA%B7%9C%EB%AA%85%20%EB%B0%8F%20%EC%9E%AC%EB%B0%9C%EB%B0%A9%EC%A7%80%EB%A5%BC%20%EC%9C%84%ED%95%9C%20%ED%8A%B9%EB%B3%84%EB%B2%95',cats:[]}
-,{id:'evt_간토대학살사건',t:'event',auto:1,side:'rec',lab:'간토 대학살사건',title:'간토 대학살사건',yr:'2025',ekind:'2025년 · 사건',tip:'2025년에 있었던 일입니다.',body:'이 사건의 이름이 법 이름에 그대로 들어 있습니다 — 국회가 그렇게 이름 붙였습니다. 그 법을 아래에 이어 두었습니다.',src:'출처 · 국회 의안정보시스템 (공포된 법률의 이름)',url:'https://likms.assembly.go.kr/bill/main.do',cats:[]}
+,{id:'evt_간토대학살사건',t:'event',auto:1,side:'rec',lab:'간토 대학살사건',title:'간토 대학살사건',yr:'2025',ekind:'사건',tip:'2025년에 있었던 일입니다.',body:'이 사건의 이름이 법 이름에 그대로 들어 있습니다 — 국회가 그렇게 이름 붙였습니다. 그 법을 아래에 이어 두었습니다.',src:'출처 · 국회 의안정보시스템 (공포된 법률의 이름)',url:'https://likms.assembly.go.kr/bill/main.do',cats:[]}
 ,{id:'aft_간토대학살사건진상규명및피해자명예회복에관한_23',t:'bill',auto:1,side:'gov',kind:'법률',st:'공포',lab:'간토 대학살사건 진상규명법',title:'간토 대학살사건 진상규명 및 피해자 명예회복에 관한 특별법',yr:'2025',off:'2025년 공포',tip:'간토 대학살사건 진상규명 및 피해자 명예회복에 관한 특별법입니다.',body:'국회를 통과해 공포된 법입니다. 2025년에 만들어졌습니다.',src:'출처 · 국회 의안정보시스템',url:'https://www.law.go.kr/%EB%B2%95%EB%A0%B9/%EA%B0%84%ED%86%A0%20%EB%8C%80%ED%95%99%EC%82%B4%EC%82%AC%EA%B1%B4%20%EC%A7%84%EC%83%81%EA%B7%9C%EB%AA%85%20%EB%B0%8F%20%ED%94%BC%ED%95%B4%EC%9E%90%20%EB%AA%85%EC%98%88%ED%9A%8C%EB%B3%B5%EC%97%90%20%EA%B4%80%ED%95%9C%20%ED%8A%B9%EB%B3%84%EB%B2%95',cats:[]}
-,{id:'evt_1229여객기참사',t:'event',auto:1,side:'rec',lab:'12·29여객기참사',title:'12·29여객기참사',yr:'2025',ekind:'2025년 · 사건',tip:'2025년에 있었던 일입니다.',body:'이 사건의 이름이 법 이름에 그대로 들어 있습니다 — 국회가 그렇게 이름 붙였습니다. 그 법을 아래에 이어 두었습니다.',src:'출처 · 국회 의안정보시스템 (공포된 법률의 이름)',url:'https://likms.assembly.go.kr/bill/main.do',cats:[]}
+,{id:'evt_1229여객기참사',t:'event',auto:1,side:'rec',lab:'12·29여객기참사',title:'12·29여객기참사',yr:'2025',ekind:'사건',tip:'2025년에 있었던 일입니다.',body:'이 사건의 이름이 법 이름에 그대로 들어 있습니다 — 국회가 그렇게 이름 붙였습니다. 그 법을 아래에 이어 두었습니다.',src:'출처 · 국회 의안정보시스템 (공포된 법률의 이름)',url:'https://likms.assembly.go.kr/bill/main.do',cats:[]}
 ,{id:'aft_1229여객기참사피해구제및지원등을위한특별_24',t:'bill',auto:1,side:'gov',kind:'법률',st:'공포',lab:'12·29여객기참사 피해구제법',title:'12·29여객기참사 피해구제 및 지원 등을 위한 특별법',yr:'2026',off:'2025~2026년 · 2번 고침',tip:'12·29여객기참사 피해구제 및 지원 등을 위한 특별법입니다.',body:'국회를 통과해 공포된 법입니다. 2025년부터 2026년까지 2번 고쳤습니다.',src:'출처 · 국회 의안정보시스템',url:'https://www.law.go.kr/%EB%B2%95%EB%A0%B9/12%C2%B729%EC%97%AC%EA%B0%9D%EA%B8%B0%EC%B0%B8%EC%82%AC%20%ED%94%BC%ED%95%B4%EA%B5%AC%EC%A0%9C%20%EB%B0%8F%20%EC%A7%80%EC%9B%90%20%EB%93%B1%EC%9D%84%20%EC%9C%84%ED%95%9C%20%ED%8A%B9%EB%B3%84%EB%B2%95',cats:[]}
-,{id:'evt_경북경남울산초대형산불',t:'event',auto:1,side:'rec',lab:'경북·경남·울산 초대형산불',title:'경북·경남·울산 초대형산불',yr:'2025',ekind:'2025년 · 사건',tip:'2025년에 있었던 일입니다.',body:'이 사건의 이름이 법 이름에 그대로 들어 있습니다 — 국회가 그렇게 이름 붙였습니다. 그 법을 아래에 이어 두었습니다.',src:'출처 · 국회 의안정보시스템 (공포된 법률의 이름)',url:'https://likms.assembly.go.kr/bill/main.do',cats:[]}
+,{id:'evt_경북경남울산초대형산불',t:'event',auto:1,side:'rec',lab:'경북·경남·울산 초대형산불',title:'경북·경남·울산 초대형산불',yr:'2025',ekind:'사건',tip:'2025년에 있었던 일입니다.',body:'이 사건의 이름이 법 이름에 그대로 들어 있습니다 — 국회가 그렇게 이름 붙였습니다. 그 법을 아래에 이어 두었습니다.',src:'출처 · 국회 의안정보시스템 (공포된 법률의 이름)',url:'https://likms.assembly.go.kr/bill/main.do',cats:[]}
 ,/*AUTO-AFTER-N-END*/
 /*AUTO-CASE-N-START*/
 {id:'case_detc_20273',t:'event',auto:1,side:'gov',lab:'2011헌바357  구 소득세법 제104조 제1항 제2의7호…',title:'2011헌바357  구 소득세법 제104조 제1항 제2의7호 등 위헌소원',yr:'2012',ekind:'2012년 · 헌법재판소 결정',off:'헌법재판소 결정 · 2011헌바357',tip:'헌법재판소 결정입니다. 사건번호는 2011헌바357입니다.',body:'무슨 판단을 했는지는 아래 원문 링크에서 볼 수 있습니다.',src:'출처 · 법제처 국가법령정보 공동활용 (헌법재판소 결정)',url:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=detc&ID=20273&type=HTML',cats:[]}
@@ -16660,14 +16666,26 @@ var MAP_N=Number((location.search.match(/[?&]mn=(\d+)/)||[])[1]||30);
 /* 폰은 24개였다. 그런데 결과 몫을 0.75 → 0.4 로 낮추자 **이어지지 않아 빠지는 것**이 늘어
    화면에 18개만 남았다 (검사 26·28 이 「빈 화면으로 보인다」 고 잡았다).
    원이 작아져 자리도 생겼으므로 32개로 올린다. */
+/* ── 실측 (1440×786) — 이름표가 읽히는 선에서 최대한 ──
+   | fn | 노드 | 이름표 | 겹침 | 배율 |
+   |---:|---:|---:|---:|---:|
+   | 45 | 38 | 25 | 2 | 0.44 |
+   | 70 | 62 | 28 | 0 | 0.36 |
+   | 90 | 80 | 28 | 1 | 0.32 |
+   | **110** | **98** | **32** | **0** | 0.30 |
+   | 130 | 118 | 36 | 3 | 0.28 |
+
+   **노드를 늘려도 이름표는 25 → 36 개밖에 안 는다** — 화면 넓이가 상한이다.
+   그래도 노드를 늘리면 화면이 풍성해지고 종류·진영이 모양과 색으로 읽힌다.
+   110 은 **겹침이 0 이면서 이름표가 가장 많은** 값이다. */
 var FIRST_N=Number((location.search.match(/[?&]fn=(\d+)/)||[])[1]||
-  ((typeof innerWidth==='number'&&innerWidth<620)?32:45));
+  ((typeof innerWidth==='number'&&innerWidth<620)?60:110));
 /* ── 첫 화면에서 빼는 결과 (db/result_quiet.json) ──
    「식중독 환자」·「용지 부족 투표소 50곳」·「1인당 병원 방문」처럼
    **그 숫자가 바뀌어도 삶이 안 바뀌고 정치적 논쟁도 없는 것**은 첫 화면에서 뺀다.
    지우는 게 아니라 옮기는 것이다 — 분야를 고르거나 검색하면 그대로 나온다.
    **애매하면 남긴다.** 빼는 것 자체가 편집이므로 의심스러우면 안 빼는 쪽으로 기운다. */
-var QUIET={'ix_food':1,'q3':1,'ix_hospital':1,'ix_dust':1,'ix_sport':1,'ix_culture':1,'ix_water':1,'ix_sewer':1,'ix_119':1,'ix_internet':1,'ix_car':1,'ix_park':1,'ix_household':1,'ix_binge':1,'ix_health':1,'ix_trust':1};
+var QUIET={'ix_food':1,'q3':1,'ix_hospital':1,'ix_dust':1,'ix_sport':1,'ix_culture':1,'ix_water':1,'ix_sewer':1,'ix_119':1,'ix_internet':1,'ix_car':1,'ix_park':1,'ix_household':1,'ix_binge':1,'ix_health':1,'ix_trust':1,'ix_trainacc':1,'ix_localtax':1,'ix_sportpart':1,'ix_travel':1,'ix_tourist':1,'ix_accdeath':1};
 var QUIET_ON=!/[?&]quiet=0/.test(location.search);
 /* `?big=1` 이면 첫 화면에도 숫자 줄을 그린다 (비교용) */
 var BIG_LINE_OFF=!/[?&]big=1/.test(location.search);
@@ -16701,7 +16719,12 @@ var resCut=0;
    나머지 11개는 작은 점이라 "노란 점만 있는 밋밋한 화면" 이 됐다.
    0.4 로 낮추고, 남은 자리를 **종류별로 돌아가며** 채운다 (아래 planMap).
    결과는 여전히 가장 많다 — 지도의 입구이기 때문이다. */
-var RES_SHARE=Number((location.search.match(/[?&]rr=([\d.]+)/)||[])[1]||0.4);
+/* ── 결과 몫은 **손으로 넣은 결과 수**에 맞춘다 ──
+   0.4 × 110 = 44 자리인데 손 결과가 38개라 6자리를 자동이 채웠다.
+   그 자동을 「조용한 것」으로 빼면 **다음 자동이 그 자리를 채운다** — 끝이 없다.
+   283개를 하나씩 판정할 수는 없다. 자리 수를 손 결과 수에 맞추면 그 일이 안 생긴다.
+   손 결과가 늘면 이 값도 같이 올린다. */
+var RES_SHARE=Number((location.search.match(/[?&]rr=([\d.]+)/)||[])[1]||0.345);
 function resLimit(){ return (cat&&cat!=='all')?1e9:Math.max(4,Math.round(FIRST_N*RES_SHARE)) }
 var resQuiet=0;
 var mapSet=null, mapKey='', focusNb=null;
@@ -17942,10 +17965,29 @@ N.forEach(function(n){
        | **11** | **16px** | **0쌍** | **점으로 읽히고 이름표가 산다** |
        |  7 | 10px | 0쌍 | 결과가 법과 구별이 안 된다 |
      **크기는 순위를 보여주는 것이지 화면을 먹으라는 게 아니다.** */
-  var grow=Math.sqrt(deg)*(n.t==='result'?2.1:n.prez?1.0:1.1);
-  var GROW_CAP=(n.t==='result')?8:5;
+  /* ── 사람·정당은 **빈 원**이라 크기가 있어야 보인다 ──
+     법(사각형 4.5px)과 같은 크기로 그렸더니 「더불어민주당」·「윤석열」이
+     법과 구별되지 않았다. 속이 빈 도형은 같은 크기라도 눈에 덜 띈다 —
+     테두리만 있고 채운 넓이가 없기 때문이다. **더 크게 그린다.** */
+  var isWho=(n.t==='person'||n.t==='party'||n.t==='org');
+  /* ── 첫 화면을 45 → 110 개로 늘리면서 **전부 1.47배** 키웠다 ──
+     노드가 많아지면 고리가 커지고 배율이 0.44 → 0.30 으로 준다.
+     크기를 그대로 두면 화면에서 사람 원이 7 → 4px 이 되어 다시 안 보인다.
+     1/0.68 ≒ 1.47 을 곱해 **화면상 크기를 지킨다.** */
+  var grow=Math.sqrt(deg)*(n.t==='result'?3.1:n.prez?2.4:isWho?2.2:1.6);
+  var GROW_CAP=(n.t==='result')?12:isWho?10:7;
   if(grow>GROW_CAP)grow=GROW_CAP;
-  n.r0=(n.t==='post'?8:n.t==='event'?6:n.t==='result'?11:n.prez?7:n.t==='bill'?4.5:4)+grow;
+  /* 실측 (1440×786 · 배율 0.45): 화면상 반지름
+       isWho 8  → 4~6px   법(4.5)과 구별이 안 된다
+       isWho 13 → 7~9px   갈라 보인다
+       isWho 16 → 9~11px  결과(노란 원)와 헷갈린다
+     빈 원이라 같은 화면 크기에서도 채운 도형보다 덜 띈다 — 13 을 쓴다. */
+  /* 실측 (1440×786 · fn=110 · 배율 0.30): 화면상 반지름
+       결과 16+cap12 → 4.8~8.4px   노란 원이 주인공으로 읽힌다
+       사람 19+cap10 → 5.7~8.7px   법(사각형)과 확실히 갈린다
+       법   6.6      → 2.0px       가로로 누운 사각형이라 넓이가 있다
+     사람이 결과와 비슷한 크기인 것은 맞다 — 빈 원이라 같은 크기에서 덜 띈다. */
+  n.r0=(n.t==='post'?14:n.t==='event'?8.8:n.t==='result'?16:n.prez?23:isWho?19:n.t==='bill'?6.6:6)+grow;
   n.r=n.r0;n.lw=60});
 
 /* 좁은 화면에서는 점을 줄인다. 같은 배율이면 폰에서 점이 화면을 더 많이 먹고,
@@ -18136,7 +18178,7 @@ var LABEL_PX=12;                 /* 화면상 글자 크기. 배율이 변해도
 var LABEL_FAR=0.62;              /* 이 배율 미만이면 결과 숫자만 이름을 단다 */
 /* 지도에 올린 노드가 이보다 적으면 **멀리서도 전부 이름표 후보**다.
    첫 화면(45개 상한)이 여기 들어온다. */
-var LABEL_ALL_N=60;
+var LABEL_ALL_N=140;
 /* LABEL_FAR 은 첫 화면 배율의 하한이기도 하다.
    1.0 이면 이름은 크지만 화면에 노드가 14/171 개뿐이라 첫인상이 "텅 빈 화면에 점 하나" 다.
    0.62 로 내리면 훨씬 많이 보이고 이름표도 늘어난다.
@@ -19834,12 +19876,23 @@ function draw(){
         cx.drawImage(pim,n.x-iw*sc/2,n.y-ih*sc/2-n.r*0.06,iw*sc,ih*sc);
         cx.restore();
       }else{
-        cx.globalAlpha=Math.max(0,Math.min(1,n.a))*(n.prez?0.55:0.30);cx.fillStyle=col;cx.fill();
-        cx.globalAlpha=Math.max(0,Math.min(1,n.a));
+        /* ── 속을 **배경과 미리 섞은 불투명 색**으로 채운다 ──
+           알파 0.30 으로 칠했더니 어두운 배경에서 그냥 검게 보였다 —
+           이 파일이 이미 겪은 일이다(「어두운 배경에서 옅게 칠하기는 검게 칠하는 것」).
+           그리고 `globalAlpha` 가 이미 `n.a` 인데 거기 또 곱해서 두 번 흐려졌다. */
+        cx.fillStyle=mixWithBg(col,n.prez?0.42:0.30);cx.fill();
       }
-      cx.strokeStyle=col;cx.lineWidth=n.prez?2.6:2.1;cx.stroke();
-      if(n.prez){cx.beginPath();cx.arc(n.x,n.y,n.r+4.5,0,7);
-        cx.strokeStyle=col;cx.lineWidth=1.1;cx.globalAlpha=Math.max(0,Math.min(1,n.a))*0.65;cx.stroke();
+      /* ── 테두리 두께는 **화면 기준**이다 ──
+         `lineWidth` 는 월드 단위라 배율을 탄다. 배율 0.28 에서 2.9 는 **화면 0.8px** 이다 —
+         빈 원이 안 보이는 진짜 이유가 이것이었다. 도형을 키워도 테두리가 실오라기면
+         눈에 안 띈다. 이름표 글자가 배율과 무관하게 12.5px 인 것과 같은 이유로
+         **화면상 두께를 지킨다.** 「이건 누구인가」 는 배율과 무관한 정보다. */
+      cx.strokeStyle=col;
+      cx.lineWidth=Math.max(n.prez?3.4:2.9, (n.prez?3.2:2.6)/Math.max(cam.s,0.05));
+      cx.stroke();
+      if(n.prez){cx.beginPath();cx.arc(n.x,n.y,n.r+4.5/Math.max(cam.s,0.05)*0.35,0,7);
+        cx.strokeStyle=col;cx.lineWidth=Math.max(1.1,1.4/Math.max(cam.s,0.05));
+        cx.globalAlpha=Math.max(0,Math.min(1,n.a))*0.65;cx.stroke();
         cx.globalAlpha=Math.max(0,Math.min(1,n.a))}}
     }
     if(focus&&ring[n.id]===1&&roles[n.id]&&n.a>0.4){

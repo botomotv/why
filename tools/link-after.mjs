@@ -167,7 +167,9 @@ for (const [e, v] of [...events].sort((a, b) => a[1].yr - b[1].yr)) {
   const eid = 'evt_' + slug(e);
   nodes.set(eid, {
     id: eid, lab: e.length > 26 ? e.slice(0, 25) + '…' : e, title: e, yr: String(v.yr),
-    ekind: `${v.yr}년 · 사건`,
+    /* 화면은 `n.yr + ' · ' + n.ekind` 로 그린다 — 여기에 연도를 또 넣으면
+       「2018 · 2018년 · 사건」 이 된다. 실제로 그렇게 나왔다. 연도는 화면이 붙인다. */
+    ekind: '사건',
     tip: v.tip || `${v.yr}년에 있었던 일입니다.`,
     /* 카드는 마크다운을 렌더하지 않는다 — `**` 를 쓰면 별표가 그대로 보인다.
        그리고 tip 을 body 앞에 또 붙이면 같은 말이 두 번 나온다 (dropLead 가 앞부분만 뗀다). */

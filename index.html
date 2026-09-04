@@ -16718,8 +16718,21 @@ var MAP_N=Number((location.search.match(/[?&]mn=(\d+)/)||[])[1]||30);
    **노드를 늘려도 이름표는 25 → 36 개밖에 안 는다** — 화면 넓이가 상한이다.
    그래도 노드를 늘리면 화면이 풍성해지고 종류·진영이 모양과 색으로 읽힌다.
    110 은 **겹침이 0 이면서 이름표가 가장 많은** 값이다. */
+/* ── 힘 배치로 바꾸면서 **훨씬 많이 올린다** ──
+   「결과 261개가 분야를 골라야 나온다. 첫 화면에 훨씬 많이 보여줘라」 가 그 요구였다.
+   격자 배치에서는 110 이 상한이었다 — 그보다 많으면 이름표가 서로 지웠다.
+   힘 배치는 이어진 것끼리 뭉치고 아닌 것은 멀어져서 **빈 곳이 생긴다.**
+   그 빈 곳에 이름표가 들어간다.
+
+   실측 (1280×800, 그린 글자 겹침은 모두 0):
+   | fn | 노드 | 결과 | 이름표 | 배율 | 배치 |
+   |---:|---:|---:|---:|---:|---:|
+   | 110 | 101 | 38 | 32 | 0.48 | 12ms |
+   | 200 | 195 | 69 | 42 | 0.38 | 32ms |
+   | **320** | **315** | **110** | **48** | 0.35 | 55ms |
+   그리기는 어느 값에서도 1.4ms 다 — 화면 밖을 안 그리기 때문이다. */
 var FIRST_N=Number((location.search.match(/[?&]fn=(\d+)/)||[])[1]||
-  ((typeof innerWidth==='number'&&innerWidth<620)?60:110));
+  ((typeof innerWidth==='number'&&innerWidth<620)?140:320));
 /* ── 첫 화면에서 빼는 결과 (db/result_quiet.json) ──
    「식중독 환자」·「용지 부족 투표소 50곳」·「1인당 병원 방문」처럼
    **그 숫자가 바뀌어도 삶이 안 바뀌고 정치적 논쟁도 없는 것**은 첫 화면에서 뺀다.
@@ -18034,16 +18047,97 @@ function setAngles(keep){
   /* ① 먼저 **전체**에 자리를 준다 — 초점을 켜서 새 노드가 올라와도 제자리가 있게 */
   grid(pool.slice().sort(byHash));
 
-  /* ② 그다음 **화면에 올라온 것**만 다시 고르게 나눈다.
-     ①만 하면 100개를 뽑았을 때 그 100개가 고르다는 보장이 없다 —
-     부분집합은 뭉친다. 화면이 고른 것이 목적이므로 화면 기준으로 한 번 더 나눈다.
+  /* ② 그다음 **화면에 올라온 것**은 힘으로 배치한다 —
+     선이 당기고, 노드끼리 밀어내고, 가운데로 모인다 (옵시디언 그래프 뷰).
+     격자는 고르긴 한데 **기계적으로** 보이고 무엇이 무엇과 이어졌는지 안 보인다.
      초점 중에는 위에서 이미 돌아가지 않는다(keep). */
   if(A&&A.length>1){
     var vis=A.filter(function(n){
       if(n.ghost)return false;
       return !(n.id&&n.id.lastIndexOf('case_prec_',0)===0)});
-    if(vis.length>1)grid(vis.sort(byHash));
+    vis.sort(byHash);
+    if(vis.length>1&&!forceLayout(vis,bw,ey,put))grid(vis);
   }
+}
+/* ── 힘으로 배치한다 (옵시디언 그래프 뷰) ──
+   세 가지 힘뿐이다:
+     ① **밀어내기** — 모든 쌍이 서로 민다. 이게 없으면 한 점에 뭉친다
+     ② **선이 당긴다** — 이어진 것끼리 가깝고 아닌 건 멀다
+     ③ **가운데로** — 화면 비율대로 당긴다. 가로로 넓은 화면이면 가로로 넓게 모인다
+
+   ── 전에 링크 스프링을 버렸던 이유와 무엇이 다른가 ──
+   예전에는 **물리가 매 프레임 도는 중에** 링크 스프링이 작용했다. 허브가 세게 당겨
+   첫 화면이 부채꼴로 쏠렸고, 반지름(=연도)이 거짓말이 됐다.
+   지금은 다르다 —
+     · 반지름에 뜻이 없다. 링크가 자리를 정해도 잃을 뜻이 없다
+     · **여기서 한 번만 돌려 자리를 정하고**, 화면 물리는 그 자리로 이징만 한다.
+       매 프레임 당기지 않으므로 흔들리지 않는다
+     · 밀어내기가 있어 허브가 다 끌어당기지 못한다 (그때는 없었다)
+
+   ── 실행마다 같은 값이 나와야 한다 ──
+   씨앗은 id 해시, 되풀이 횟수는 고정, `Math.random` 은 안 쓴다.
+
+   되풀이 안에서 O(n²) 을 돈다 — 첫 화면 100개면 5,050쌍 × 260번이라 20ms 남짓이다.
+   **너무 많으면 안 한다**(false 를 돌려주고 격자로 떨어진다) — 화면이 멈추면 안 된다. */
+function forceLayout(list,bw,eh,put){
+  var n=list.length;
+  if(n<2||n>700)return false;
+  var i,j,k;
+  var X=new Float64Array(n), Y=new Float64Array(n);
+  var idx=Object.create(null);
+  for(i=0;i<n;i++){ var o=list[i]; idx[o.id]=i;
+    /* 씨앗은 원반 위에 고르게 — √ 는 안쪽에 몰리지 않게 하려는 것이다 */
+    var a=angHash('fa:'+o.id)*Math.PI*2, r=Math.sqrt(angHash('fr:'+o.id));
+    X[i]=Math.cos(a)*r*0.5*bw; Y[i]=Math.sin(a)*r*0.5*eh; }
+  /* 선은 **지도에 그리는 것**만 본다 (AL) — 안 그리는 선이 자리를 정하면
+     화면에서 왜 가까운지 알 수 없다 */
+  var ea=[], eb=[];
+  for(k=0;k<AL.length;k++){
+    var s0=idx[AL[k][0]], t0=idx[AL[k][1]];
+    if(s0===undefined||t0===undefined||s0===t0)continue;
+    ea.push(s0); eb.push(t0); }
+  var FX=new Float64Array(n), FY=new Float64Array(n);
+  var REST=Math.sqrt(bw*eh/n)*0.85;      /* 이웃 사이 목표 거리 */
+  var REP=REST*REST*0.9;
+  var GX=REST*0.9/(bw*0.5), GY=REST*0.9/(eh*0.5);
+  var ITER=260;
+  for(var it=0; it<ITER; it++){
+    FX.fill(0); FY.fill(0);
+    for(i=0;i<n;i++)for(j=i+1;j<n;j++){
+      var dx=X[i]-X[j], dy=Y[i]-Y[j];
+      var d2=dx*dx+dy*dy; if(d2<4)d2=4;
+      var d=Math.sqrt(d2), f=REP/d2;
+      var ux=dx/d, uy=dy/d;
+      FX[i]+=ux*f; FY[i]+=uy*f; FX[j]-=ux*f; FY[j]-=uy*f;
+    }
+    for(k=0;k<ea.length;k++){
+      var s=ea[k], t=eb[k];
+      var ax=X[t]-X[s], ay=Y[t]-Y[s];
+      var ad=Math.sqrt(ax*ax+ay*ay)||1;
+      var af=(ad-REST)*0.055;
+      FX[s]+=ax/ad*af; FY[s]+=ay/ad*af; FX[t]-=ax/ad*af; FY[t]-=ay/ad*af;
+    }
+    for(i=0;i<n;i++){ FX[i]-=X[i]*GX; FY[i]-=Y[i]*GY }
+    var step=REST*0.55*(1-it/ITER)+1;
+    for(i=0;i<n;i++){
+      var m=Math.sqrt(FX[i]*FX[i]+FY[i]*FY[i]);
+      if(!(m>0))continue;
+      var mv=m<step?m:step;
+      X[i]+=FX[i]/m*mv; Y[i]+=FY[i]/m*mv;
+    }
+  }
+  /* ── 가운데로 옮기고 **화면에 맞춰 늘린다** ──
+     힘이 정하는 것은 **모양**이고 크기는 우리가 정한다.
+     가로·세로를 따로 늘리면 모양이 찌그러지므로 **같은 배율**로 늘린다. */
+  var x0=1e9,x1=-1e9,y0=1e9,y1=-1e9;
+  for(i=0;i<n;i++){ if(X[i]<x0)x0=X[i]; if(X[i]>x1)x1=X[i];
+                    if(Y[i]<y0)y0=Y[i]; if(Y[i]>y1)y1=Y[i] }
+  var cx0=(x0+x1)/2, cy0=(y0+y1)/2;
+  var sw=Math.max(1,x1-x0), sh=Math.max(1,y1-y0);
+  var sc=Math.min(bw/sw, eh/sh);
+  if(!isFinite(sc)||sc<=0)return false;
+  for(i=0;i<n;i++)put(list[i], (X[i]-cx0)*sc, (Y[i]-cy0)*sc);
+  return true;
 }
 
 
@@ -18162,6 +18256,27 @@ function mapLab(n){ return (n&&n.labMap)||(n&&n.lab)||'' }
 function reservedScreen(){
   var out=[];
   try{ var w=wmBox(); out.push({x:w.x,y:w.y,w:w.w,h:w.h}) }catch(e){}
+  /* ── 가운데 섬(검색창·범례·뒤로/처음으로) ──
+     띠로는 안 잡지만(위 updateTopSafe 주석) **글자는 그 뒤로 가면 안 된다.**
+     캔버스 좌표로 옮겨 담는다 — `offsetTop` 은 페이지 좌표다. */
+  try{
+    /* `.lgd`(범례)는 `.search` 보다 넓고(최대 880px) `transform:translateX(-50%)` 로
+       놓인다. `offsetLeft` 는 **변환 전 · offsetParent 기준**이라 실제 자리가 아니다 —
+       그래서 범례 옆에 이름표가 들어와 겹쳐 보였다.
+       이 상자들은 전환(transition)이 없으므로 `getBoundingClientRect` 가 맞는 값을 준다.
+       (이 파일이 경계하는 것은 **전환 잔상**이지 rect 자체가 아니다.) */
+    var cvb=cv.getBoundingClientRect();
+    ['.search','.undo','.lgd'].forEach(function(sel){
+      var e=document.querySelector(sel);
+      if(!e||e.hidden||!e.offsetHeight||!e.offsetWidth)return;
+      var r=e.getBoundingClientRect();
+      if(!(r.width>0&&r.height>0))return;
+      var cyc=r.top-cvb.top+r.height/2;
+      if(cyc>H*0.5)return;
+      out.push({x:r.left-cvb.left+r.width/2, y:cyc,
+                w:r.width/2+6, h:r.height/2+6});
+    });
+  }catch(e){}
   [typeof edgeBadge!=='undefined'?edgeBadge:null,
    typeof cutBadge!=='undefined'?cutBadge:null,
    typeof resBadge!=='undefined'?resBadge:null].forEach(function(B){
@@ -18312,12 +18427,23 @@ function updateTopSafe(force){
   if(!force&&key===__tsKey)return;
   __tsKey=key;
   var safe=0, hh=innerHeight||H||0;
+  var ww=innerWidth||W||0;
   TOP_UI.forEach(function(sel){
     var e=document.querySelector(sel);
     if(!e||e.hidden)return;
     var h=e.offsetHeight; if(!(h>0))return;
     var top=e.offsetTop, bot=top+h;
     if(hh&&top>hh*0.5)return;            /* 아래쪽에 사는 것은 위쪽 UI 가 아니다 */
+    /* ── **가운데 섬은 띠가 아니다** ──
+       검색창 묶음(.search)은 560px 이고 화면은 1280px 이다. 그 높이만큼 위를 통째로
+       비웠더니 지도가 쓸 수 있는 세로가 686 → 453 으로 줄어 **가운데 띠**가 됐다.
+       좌우 360px 씩은 그 높이에서도 비어 있다 — 거기엔 노드가 가도 된다.
+       하단 UI 에 쓴 것과 **같은 규칙**이다: 화면 폭의 45% 도 안 덮으면 띠가 아니다.
+       그 대신 `reservedScreen()` 에 넣어 **이름표가 그 자리를 피한다.** */
+    /* **폭을 못 재면 띠로 본다.** jsdom 은 `offsetWidth` 가 0 이다 —
+       0 < 45% 라서 상단 UI 가 통째로 꺼졌고 `--topsafe` 가 아예 안 정해졌다(검사 41).
+       모르면 안전한 쪽으로 — 띠로 잡아 그 아래에만 노드를 둔다. */
+    if(ww&&e.offsetWidth>0&&e.offsetWidth<ww*0.45)return;
     if(bot>safe)safe=bot;
   });
   /* ── 범례가 **폰에서만** 위로 올라간다 ──

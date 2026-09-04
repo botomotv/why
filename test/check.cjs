@@ -1330,6 +1330,24 @@ const TKN = { result:'결과', bill:'법·정책', person:'인물', party:'정�
           nn.push(best);
         }
         nn.sort(function(p,q){return p-q});
+        /* ── 사분면 균형 ──
+           동그란 덩어리는 **모서리가 비는 것이 정상**이다. 그걸 격자 변동계수로 재면
+           없는 문제를 잡는다. 「한쪽에 몰리면 안 된다」 는 사분면으로 재야 맞다. */
+        var q=[0,0,0,0];
+        vis.forEach(function(n){
+          var sx=n.x*cam.s+cam.x-MR.x0, sy=n.y*cam.s+cam.y-top;
+          if(sx<0||sx>mw||sy<0||sy>mh)return;
+          q[(sy>mh/2?2:0)+(sx>mw/2?1:0)]++;
+        });
+        /* ── 이어진 것끼리 가깝고 아닌 건 먼가 (옵시디언 그래프 뷰의 성질) ── */
+        var lset=Object.create(null);
+        for(var li=0;li<AL.length;li++)lset[AL[li][0]+'|'+AL[li][1]]=1;
+        var lkd=[], und=[];
+        for(var i4=0;i4<vis.length;i4++)for(var j4=i4+1;j4<vis.length;j4++){
+          var d4=Math.hypot((vis[i4].x-vis[j4].x)*cam.s,(vis[i4].y-vis[j4].y)*cam.s);
+          if(lset[vis[i4].id+'|'+vis[j4].id]||lset[vis[j4].id+'|'+vis[i4].id])lkd.push(d4);
+          else und.push(d4);
+        }
         /* 분야가 자리를 정하지 **않는가** — 같은 분야 쌍과 다른 분야 쌍의 거리 중앙값 */
         var same=[],diff=[];
         for(var i3=0;i3<vis.length;i3++)for(var j3=i3+1;j3<vis.length;j3++){
@@ -1351,8 +1369,9 @@ const TKN = { result:'결과', bill:'법·정책', person:'인물', party:'정�
           for(k=0;k<yrs.length;k++){var dy=yrs[k]-my,dr=rad[k]-mr;sxy+=dy*dr;sx+=dy*dy;sy+=dr*dr}
           corr=(sx&&sy)?sxy/Math.sqrt(sx*sy):0;
         }
-        return {n:vis.length, g:g, useW:useW, useH:useH,
+        return {n:vis.length, g:g, useW:useW, useH:useH, q:q,
           nnMin:nn[0], nnMed:nn[nn.length>>1],
+          lk:med(lkd), un:med(und), lkN:lkd.length,
           same:med(same), diff:med(diff), corr:+corr.toFixed(2), yrN:yrs.length};
       })()`);
       d25.window.close();
@@ -1366,6 +1385,9 @@ const TKN = { result:'결과', bill:'법·정책', person:'인물', party:'정�
       g.txt.forEach(t => console.log(`                    [ ${t} ]`));
       console.log(`25. 화면 쓴 비율    가로 ${(r.useW*100).toFixed(0)}% · 세로 ${(r.useH*100).toFixed(0)}% · ` +
         `가장 가까운 이웃 최소 ${Math.round(r.nnMin)}px · 중앙 ${Math.round(r.nnMed)}px`);
+      console.log(`25. 사분면            ${r.q.join(' / ')} (왼위/오위/왼아래/오아래)`);
+      console.log(`25. 선이 당기나      이어진 쌍 ${Math.round(r.lk)}px : 안 이어진 쌍 ${Math.round(r.un)}px ` +
+        `(이어진 쌍 ${r.lkN}개 — 작을수록 이어진 것끼리 가깝다)`);
       console.log(`25. 분야가 자리를 정하나  같은 분야 거리 ${Math.round(r.same)}px : 다른 분야 ${Math.round(r.diff)}px ` +
         `(1 에 가까울수록 자리에 분야가 안 남았다)`);
       console.log(`25. 반지름 ↔ 연도   상관 ${r.corr} (연도를 없앴으므로 0 에 가까워야 한다 · 잰 노드 ${r.yrN}개)`);
@@ -1373,19 +1395,26 @@ const TKN = { result:'결과', bill:'법·정책', person:'인물', party:'정�
       /* ── **가운데가 비면 FAIL.** 「가운데가 비면 안 된다」 가 그 요구였다 ── */
       if (g.innerEmpty)
         F(`25. ${nm} — 화면 안쪽 격자 ${g.inner}칸 중 ${g.innerEmpty}칸이 비었다. 가운데가 비면 안 된다`);
-      /* 가장자리는 맞춤 여백이 걸쳐 있다 — 절반 넘게 비면 배치가 화면을 안 쓰는 것이다 */
-      else if (g.edgeEmpty > (g.cells - g.inner) * 0.5)
-        F(`25. ${nm} — 가장자리 ${g.cells - g.inner}칸 중 ${g.edgeEmpty}칸이 비었다. 화면 전체를 고르게 써야 한다`);
-      /* ── **한쪽에 몰리면 FAIL.** 변동계수는 노드 수와 무관하다 —
-             절대값(표준편차)으로 박으면 데이터가 늘 때마다 흔들린다. 이 파일이 세 번 겪었다. ── */
-      else if (g.cv > 0.75)
-        F(`25. ${nm} — 칸마다 개수가 너무 다르다 (변동계수 ${g.cv.toFixed(2)}, 한도 0.75). 한쪽에 몰렸다`);
+      /* ── **한쪽에 몰리면 FAIL — 사분면으로 잰다** ──
+             격자 변동계수로 재면 안 된다. 동그란 덩어리는 **모서리가 비는 것이 정상**이고
+             (「동그랗게 만들어라」 가 요구였다) 그때 변동계수가 0.97 까지 올라간다.
+             없는 문제를 잡는 검사는 거짓 경보다. 사분면은 모양과 무관하게 쏠림만 잰다. */
+      const qmin = Math.min(...r.q), qmax = Math.max(...r.q);
+      if (qmax > 0 && qmin / qmax < 0.45)
+        F(`25. ${nm} — 사분면이 ${r.q.join('/')} 로 한쪽에 몰렸다 (가장 적은 칸이 가장 많은 칸의 ` +
+          `${Math.round(qmin/qmax*100)}%, 한도 45%)`);
       /* ── **화면을 안 쓰면 FAIL.** 전에는 가로를 39% 만 썼다 ── */
       if (r.useW < 0.6 || r.useH < 0.6)
         F(`25. ${nm} — 화면을 가로 ${(r.useW*100).toFixed(0)}% · 세로 ${(r.useH*100).toFixed(0)}% 만 쓴다 (한도 60%)`);
       /* ── **너무 붙으면 WARN.** 겹침은 검사 34 가 글자로 따로 잡는다 ── */
       if (r.nnMin < 12)
         W(`25. ${nm} — 가장 가까운 두 노드가 ${Math.round(r.nnMin)}px 다. 너무 붙었다`);
+      /* ── **이어진 것끼리 가까워야 한다** ── 옵시디언 그래프 뷰의 성질이자
+             「선으로 이어진 것끼리 가깝고 아닌 건 멀다」 는 요구다.
+             힘 배치를 격자로 되돌리면 이 값이 1 에 가까워진다 — 그때 FAIL 이 난다. */
+      if (r.lkN >= 20 && r.lk > 0 && r.un > 0 && r.lk > r.un * 0.85)
+        F(`25. ${nm} — 이어진 쌍(${Math.round(r.lk)}px)이 안 이어진 쌍(${Math.round(r.un)}px)보다 ` +
+          `안 가깝다. 선이 자리를 안 당기고 있다`);
       /* ── **분야가 자리를 정하면 FAIL.** 그게 뭉쳐 보이던 원인이다.
              같은 분야가 다른 분야보다 뚜렷이 가까우면 자리에 분야가 남은 것이다 ── */
       if (r.same > 0 && r.diff > 0 && r.same < r.diff * 0.6)
@@ -3192,15 +3221,23 @@ const TKN = { result:'결과', bill:'법·정책', person:'인물', party:'정�
         var t=0; while(alpha>LAY_STOP&&t<600){tick();t++}
         if(typeof fade!=='function')return {no:'fade 가 없다'};
         cam.s=cam.ts;cam.x=cam.tx;cam.y=cam.ty;
-        /* 노드가 없는 자리를 찾는다 — 노드를 잡으면 카메라가 아니라 노드가 움직인다 */
-        var ex=null;
-        for(var y=H-60;y>60&&!ex;y-=20)for(var x=40;x<W-40;x+=20){ if(!at(x,y)){ex=[x,y];break} }
+        /* ── 빈 자리는 **끌 때마다 다시 찾는다** ──
+           한 번만 찾아 두었더니, 화면을 민 뒤에는 그 점에 노드가 와 있었다.
+           그러면 카메라가 아니라 **노드를 끈다** — 카메라는 0px 움직이고
+           검사는 「막힌다」 고 FAIL 한다. 실측(폰 133개): 위로 0%, 그런데 막은 코드는 없었다.
+           **없는 문제를 잡는 검사는 거짓 경보다.** */
+        function empty(){
+          for(var y=H-60;y>60;y-=20)for(var x=40;x<W-40;x+=20){ if(!at(x,y))return [x,y] }
+          return null;
+        }
+        var ex=empty();
         if(!ex)return {no:'빈 자리를 못 찾았다'};
         var out={ex:ex};
         function pull(dx,dy,name,n){
+          var e=empty(); if(!e)return;
           var t0={tx:cam.tx,ty:cam.ty};
-          down(ex[0],ex[1]);
-          var px=ex[0],py=ex[1];
+          down(e[0],e[1]);
+          var px=e[0],py=e[1];
           for(var i=0;i<n;i++){ px+=dx;py+=dy; move(px,py); tick(); fade() }
           up();
           for(var i=0;i<30;i++){ tick(); fade();

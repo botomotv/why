@@ -42,6 +42,9 @@ node tools/link-after.mjs
 node tools/result-easy.mjs 2>/dev/null || echo '  (result-easy 건너뜀)'
 node tools/node-url.mjs
 node tools/hand-law-url.mjs
+# 첫 화면을 무엇으로 골랐나 — db/public_concern.json 을 index.html 로 내보낸다.
+# **결과 노드가 다 만들어진 뒤에** 돌린다: 없는 id 를 만나면 멈춘다.
+node tools/concern.mjs
 node tools/result-roster.mjs
 echo
 echo '다음: node tools/link-check.mjs (링크 전수) → npm test'

@@ -4149,6 +4149,83 @@ const TKN = { result:'결과', bill:'법·정책', person:'인물', party:'정�
     }
   }
 
+  /* ── 66. 첫 화면을 무엇으로 골랐나 — **근거가 있고 화면에 나오나** ──
+     「내가 고르면 내 관심사가 들어간다. 사람들이 찾는 걸 넣으면 그게 줄어든다.
+      무엇을 근거로 골랐는지 기록해라」 가 요구였다.
+
+     기록만 하고 화면에 안 나오면 없는 것과 같다 — 형량이 창고에만 있던 것과 같은 종류다.
+     그래서 (a) 근거가 갖춰졌나 (b) 그 결과가 실제로 첫 화면에 오나
+     (c) 카드가 그 근거를 그리나 (d) **못 찾은 것을 밝히나** 를 함께 본다. */
+  {
+    const CJ = JSON.parse(fs.readFileSync(path.join(ROOT, 'db', 'public_concern.json'), 'utf8'));
+    const srcIds = new Set(CJ.sources.map(s => s.id));
+    /* (a) 근거의 형식 — 출처·시기·표본·주소가 다 있나 */
+    for (const s of CJ.sources) {
+      if (!/^https?:\/\//.test(s.url || ''))
+        F(`66. 조사 「${s.title}」 에 열리는 주소가 없다. 출처 없는 근거는 근거가 아니다 (규칙 7)`);
+      if (!s.org || !s.date || !s.sample)
+        F(`66. 조사 「${s.title}」 에 기관·시기·표본 중 빠진 것이 있다`);
+      if (!(s.findings || []).length)
+        F(`66. 조사 「${s.title}」 에 조사 결과(findings)가 없다`);
+    }
+    for (const c of CJ.concerns) {
+      const m = /^(\w+)\s*[—-]\s*(.+)$/.exec(c.why || '');
+      if (!m || !srcIds.has(m[1]))
+        F(`66. 관심사 「${c.concern}」 의 근거가 어느 조사인지 안 적혀 있다 (why: ${c.why})`);
+      if (!(c.nodes || []).length)
+        F(`66. 관심사 「${c.concern}」 에 이어진 결과가 없다. 이을 게 없으면 notFound 에 적어야 한다`);
+    }
+    /* (d) 못 찾은 것에 **이유**가 있나 — 비운 것이 아니라 이유 없이 비운 것을 잡는다 */
+    for (const x of (CJ.notFound || []))
+      if (!x.why || x.why.length < 20)
+        F(`66. 못 찾은 것 「${x.want}」 에 이유가 없다. 말없이 비우면 「없었다」 와 「안 했다」 가 구별되지 않는다`);
+
+    const d66 = boot(1440, 900);
+    await new Promise(r => setTimeout(r, 1400));
+    const r = d66.window.eval(`(function(){
+      if(typeof CONCERN!=='object')return {no:'CONCERN 이 없다 — tools/concern.mjs 를 안 돌렸다'};
+      var ids=Object.keys(CONCERN);
+      var miss=ids.filter(function(id){return !map[id]||map[id].t!=='result'});
+      var bad=ids.filter(function(id){var c=CONCERN[id];
+        return !c.c||!c.e||!c.s||!/^https?:/.test(c.u||'')});
+      if(typeof resetAllView==='function')resetAllView();
+      var t=0; while(alpha>LAY_STOP&&t<600){tick();t++}
+      var onScreen=ids.filter(function(id){return A.some(function(n){return n.id===id})});
+      /* 카드가 근거를 그리나 — 하나를 실제로 눌러 본다 */
+      var drew=0, lab='';
+      if(ids.length){ setFocus(ids[0]); lab=(map[ids[0]]||{}).lab||'';
+        var e=document.querySelector('.cnc');
+        drew=e?String(e.textContent||'').length:0; closePop() }
+      /* '보는 법' 서랍이 목록과 못 찾은 것을 채우나 */
+      var lst=document.getElementById('cncList'), msg=document.getElementById('cncMiss');
+      return {n:ids.length, miss:miss, bad:bad, on:onScreen.length, res:A.filter(function(n){return n.t==='result'}).length,
+        drew:drew, lab:lab, list:lst?lst.children.length:-1, missUI:msg?msg.children.length:-1,
+        nMiss:(typeof CONCERN_MISS!=='undefined')?CONCERN_MISS.length:-1};
+    })()`);
+    d66.window.close();
+    if (!r) F('66. 못 쟀다');
+    else if (r.no) F(`66. ${r.no}`);
+    else {
+      console.log(`66. 첫 화면을 무엇으로 골랐나  조사 ${CJ.sources.length}건 · 관심사 ${CJ.concerns.length}개 · ` +
+        `근거가 붙은 결과 ${r.n}개 (첫 화면에 ${r.on}/${r.n} · 전체 결과 ${r.res}개) · ` +
+        `못 찾은 것 ${r.nMiss}건 · 서랍 목록 ${r.list}줄 · 카드 근거 ${r.drew}자 「${r.lab}」`);
+      if (r.miss.length)
+        F(`66. 근거는 적었는데 그런 결과 노드가 없다: ${r.miss.join(', ')}`);
+      if (r.bad.length)
+        F(`66. 근거에 관심사·문장·출처·주소 중 빠진 것이 있다: ${r.bad.join(', ')}`);
+      /* **기록만 하고 화면에 안 나오면 없는 것과 같다** */
+      if (r.n && r.on < r.n * 0.8)
+        F(`66. 근거를 적은 결과 ${r.n}개 중 ${r.on}개만 첫 화면에 온다. ` +
+          `근거를 적어 놓고 안 보여주면 고른 뜻이 없다`);
+      if (!r.drew)
+        F('66. 카드에 「국민 관심 근거」 가 안 그려진다. 기록만 하고 화면에 안 내보내면 없는 것과 같다');
+      if (r.list <= 0)
+        F("66. '보는 법' 서랍에 관심사 목록이 안 그려진다");
+      if (r.missUI !== r.nMiss)
+        F(`66. 못 찾은 것 ${r.nMiss}건 중 화면에 ${r.missUI}건만 나온다. 말없이 비우면 안 된다`);
+    }
+  }
+
   /* ── 요약 ── */
   console.log('\n' + '─'.repeat(50));
   console.log('노드 진영 분포:', JSON.stringify(bySide));

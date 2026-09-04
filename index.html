@@ -613,6 +613,21 @@ body.popfull .pexp .pex-i{transform:rotate(180deg)}
   border-right:6px solid transparent;border-bottom:11px solid #8A929E}
 .lg-prec{transform:rotate(45deg);width:9px;height:9px;background:#3FA9A6}
 .lg-per{border-radius:50%;background:transparent;border:1.8px solid #7FB2EE}
+/* 국민 관심 근거 — 「왜 이걸 보고 있나」 에 대한 답이라 제목 바로 아래다 */
+.cnclist{list-style:none;margin:8px 0 10px;padding:0;display:flex;flex-direction:column;gap:6px}
+.cnclist li{font-size:12.5px;color:var(--t2);line-height:1.5}
+.cnclist b{color:#E6EBF2;font-weight:600}
+.cnclist a{color:#7FB2EE}
+.cncmiss{list-style:none;margin:6px 0 0;padding:0;display:flex;flex-direction:column;gap:6px}
+.cncmiss li{font-size:12px;color:var(--t3,#8A929E);line-height:1.5}
+.cncmiss b{color:var(--t2);font-weight:600}
+.cnc{margin:10px 0;padding:9px 12px;border-radius:9px;
+  background:rgba(127,178,238,.09);border:1px solid rgba(127,178,238,.30)}
+.cnc-l{font-size:11px;letter-spacing:.04em;color:#7FB2EE;margin:0 0 3px}
+.cnc-c{font-size:14px;font-weight:700;color:#E6EBF2;margin:0;line-height:1.4}
+.cnc-e{font-size:12.5px;color:var(--t2);margin:3px 0 0;line-height:1.5}
+.cnc-s{font-size:11.5px;margin:4px 0 0}
+.cnc-s a{color:#7FB2EE}
 /* 확정 판결 — 헌재 결론 배지(.vd)와 같은 자리·같은 무게다 */
 .pen{margin:12px 0;padding:11px 13px;border-radius:10px;
   background:rgba(192,138,94,.10);border:1px solid rgba(192,138,94,.38)}
@@ -1260,6 +1275,20 @@ body.hasundo .rolebar{top:232px;width:calc(100vw - 24px);max-height:96px;overflo
       <b>보라는 그 밖의 정당</b>(정의당·조국혁신당·개혁신당)입니다. 금색은 결과 숫자입니다.
       법·헌재·판례는 진영이 없어 회색이고 모양으로만 갈립니다.
       노조·시민단체도 진영 축에 없어 회색입니다 — 어느 편이라고 우리가 정하지 않습니다.</p>
+  </details>
+  <!-- ── 첫 화면을 무엇으로 골랐나 ──
+       「내가 고르면 내 관심사가 들어간다」 에 대한 답을 한 곳에 모아 둔다.
+       고른 근거와 **못 찾은 것**을 같이 적는다 — 말없이 비우면
+       「이을 게 없었다」 와 「우리가 안 이었다」 가 구별되지 않는다. -->
+  <details class="railcard cnccard">
+    <summary class="raillab">첫 화면을 무엇으로 골랐나</summary>
+    <p class="linesub">첫 화면에 먼저 보이는 숫자는 <b>밖에서 조사한 것</b>으로 골랐습니다 —
+      정부·통계청·여론조사기관이 「국민이 무엇을 불안해하는가」 를 물어 발표한 값입니다.
+      만든 사람이 고르면 만든 사람의 관심사가 들어갑니다.
+      <b>값은 안 건드립니다</b> — 무엇을 먼저 보여줄지만 정하고 숫자는 통계에서 그대로 옵니다.</p>
+    <ul class="cnclist" id="cncList"></ul>
+    <p class="linesub"><b>재고 싶었는데 못 찾은 것</b>입니다. 없는 것을 지어내지 않습니다.</p>
+    <ul class="cncmiss" id="cncMiss"></ul>
   </details>
   <details class="railcard linecard">
     <summary class="raillab">선이 뜻하는 것</summary>
@@ -16823,11 +16852,72 @@ function byDeg0(a,b){
    119 구조·열차사고)는 **전부 자동**이다. 갈래가 그대로 가른다.
 
    같은 갈래 안에서는 연결 수 — 그건 사실이고, 갈래가 같으면 근거의 세기도 같다. */
+/* ── 첫 화면에 무엇을 올릴지 **밖에서 조사한 것**으로 고른다 ──
+   주인이 고르면 주인의 관심사가 들어간다. 그걸 줄이려고 정부·통계청·여론조사기관이
+   발표한 「국민이 무엇을 불안해하는가」 를 쓴다 — 우리가 만든 값이 아니다.
+
+   **값은 안 건드린다.** 무엇을 먼저 보여줄지만 정하고, 숫자는 통계에서 그대로 온다.
+   근거는 카드에 그대로 나온다 (어느 조사·언제·몇 %).
+
+   원본은 `db/public_concern.json` 이고 `tools/concern.mjs` 가 여기에 쓴다.
+   **손으로 고치지 마라** — 다음 실행 때 덮어쓴다. */
+var CONCERN={/*AUTO-CONCERN-START*/
+ r6:{c:'부동산 · 주거 불안정',e:'「가장 심각한 문제」 1위 (국민 25.7% · 청년 27.8%)',s:'기획예산처 「국민·청년 인식조사」 · 2026-06-23~29',u:'https://www.youthdaily.co.kr/news/article.html?no=224074'},
+ r7:{c:'부동산 · 주거 불안정',e:'「가장 심각한 문제」 1위 (국민 25.7% · 청년 27.8%)',s:'기획예산처 「국민·청년 인식조사」 · 2026-06-23~29',u:'https://www.youthdaily.co.kr/news/article.html?no=224074'},
+ hs_seoulapt:{c:'부동산 · 주거 불안정',e:'「가장 심각한 문제」 1위 (국민 25.7% · 청년 27.8%)',s:'기획예산처 「국민·청년 인식조사」 · 2026-06-23~29',u:'https://www.youthdaily.co.kr/news/article.html?no=224074'},
+ hs_permit:{c:'부동산 · 주거 불안정',e:'「가장 심각한 문제」 1위 (국민 25.7% · 청년 27.8%)',s:'기획예산처 「국민·청년 인식조사」 · 2026-06-23~29',u:'https://www.youthdaily.co.kr/news/article.html?no=224074'},
+ ix_rentburden:{c:'부동산 · 주거 불안정',e:'「가장 심각한 문제」 1위 (국민 25.7% · 청년 27.8%)',s:'기획예산처 「국민·청년 인식조사」 · 2026-06-23~29',u:'https://www.youthdaily.co.kr/news/article.html?no=224074'},
+ hs_youthhome:{c:'부동산 · 주거 불안정',e:'「가장 심각한 문제」 1위 (국민 25.7% · 청년 27.8%)',s:'기획예산처 「국민·청년 인식조사」 · 2026-06-23~29',u:'https://www.youthdaily.co.kr/news/article.html?no=224074'},
+ ix_minhouse:{c:'부동산 · 주거 불안정',e:'「가장 심각한 문제」 1위 (국민 25.7% · 청년 27.8%)',s:'기획예산처 「국민·청년 인식조사」 · 2026-06-23~29',u:'https://www.youthdaily.co.kr/news/article.html?no=224074'},
+ ix_cpi:{c:'주거비 · 생활비 부담',e:'국민이 일상에서 가장 불안한 것 1위 (24.0%)',s:'기획예산처 「국민·청년 인식조사」 · 2026-06-23~29',u:'https://www.youthdaily.co.kr/news/article.html?no=224074'},
+ hs_debt:{c:'주거비 · 생활비 부담',e:'국민이 일상에서 가장 불안한 것 1위 (24.0%)',s:'기획예산처 「국민·청년 인식조사」 · 2026-06-23~29',u:'https://www.youthdaily.co.kr/news/article.html?no=224074'},
+ m5:{c:'주거비 · 생활비 부담',e:'국민이 일상에서 가장 불안한 것 1위 (24.0%)',s:'기획예산처 「국민·청년 인식조사」 · 2026-06-23~29',u:'https://www.youthdaily.co.kr/news/article.html?no=224074'},
+ hs_youth_unemp:{c:'일자리 · 사업 불안정',e:'청년이 일상에서 가장 불안한 것 1위 (36.4%)',s:'기획예산처 「국민·청년 인식조사」 · 2026-06-23~29',u:'https://www.youthdaily.co.kr/news/article.html?no=224074'},
+ hs_selfemp:{c:'일자리 · 사업 불안정',e:'청년이 일상에서 가장 불안한 것 1위 (36.4%)',s:'기획예산처 「국민·청년 인식조사」 · 2026-06-23~29',u:'https://www.youthdaily.co.kr/news/article.html?no=224074'},
+ hs_nonreg:{c:'일자리 · 사업 불안정',e:'청년이 일상에서 가장 불안한 것 1위 (36.4%)',s:'기획예산처 「국민·청년 인식조사」 · 2026-06-23~29',u:'https://www.youthdaily.co.kr/news/article.html?no=224074'},
+ ix_unemploy:{c:'일자리 · 사업 불안정',e:'청년이 일상에서 가장 불안한 것 1위 (36.4%)',s:'기획예산처 「국민·청년 인식조사」 · 2026-06-23~29',u:'https://www.youthdaily.co.kr/news/article.html?no=224074'},
+ ix_youth_employ:{c:'일자리 · 사업 불안정',e:'청년이 일상에서 가장 불안한 것 1위 (36.4%)',s:'기획예산처 「국민·청년 인식조사」 · 2026-06-23~29',u:'https://www.youthdaily.co.kr/news/article.html?no=224074'},
+ m3:{c:'인구구조 변화',e:'미래를 좌우할 핵심 불확실 요인 1위 (국민 47.8% · 청년 43.8%)',s:'기획예산처 「국민·청년 인식조사」 · 2026-06-23~29',u:'https://www.youthdaily.co.kr/news/article.html?no=224074'},
+ hs_births:{c:'인구구조 변화',e:'미래를 좌우할 핵심 불확실 요인 1위 (국민 47.8% · 청년 43.8%)',s:'기획예산처 「국민·청년 인식조사」 · 2026-06-23~29',u:'https://www.youthdaily.co.kr/news/article.html?no=224074'},
+ p05:{c:'인구구조 변화',e:'미래를 좌우할 핵심 불확실 요인 1위 (국민 47.8% · 청년 43.8%)',s:'기획예산처 「국민·청년 인식조사」 · 2026-06-23~29',u:'https://www.youthdaily.co.kr/news/article.html?no=224074'},
+ hs_single:{c:'인구구조 변화',e:'미래를 좌우할 핵심 불확실 요인 1위 (국민 47.8% · 청년 43.8%)',s:'기획예산처 「국민·청년 인식조사」 · 2026-06-23~29',u:'https://www.youthdaily.co.kr/news/article.html?no=224074'},
+ hs_marriage:{c:'인구구조 변화',e:'미래를 좌우할 핵심 불확실 요인 1위 (국민 47.8% · 청년 43.8%)',s:'기획예산처 「국민·청년 인식조사」 · 2026-06-23~29',u:'https://www.youthdaily.co.kr/news/article.html?no=224074'},
+ ix_dep:{c:'인구구조 변화',e:'미래를 좌우할 핵심 불확실 요인 1위 (국민 47.8% · 청년 43.8%)',s:'기획예산처 「국민·청년 인식조사」 · 2026-06-23~29',u:'https://www.youthdaily.co.kr/news/article.html?no=224074'},
+ ix_crimerate:{c:'범죄',e:'우리 사회의 가장 큰 불안 요인 1위 (17.9%)',s:'통계청 (현 국가데이터처) 「2024년 사회조사 결과」 · 2024-11-12 발표',u:'https://kostat.go.kr/board.es?mid=a10301010000&bid=219&act=view&list_no=433638'},
+ ix_crime:{c:'범죄',e:'우리 사회의 가장 큰 불안 요인 1위 (17.9%)',s:'통계청 (현 국가데이터처) 「2024년 사회조사 결과」 · 2024-11-12 발표',u:'https://kostat.go.kr/board.es?mid=a10301010000&bid=219&act=view&list_no=433638'},
+ ix_arrest:{c:'범죄',e:'우리 사회의 가장 큰 불안 요인 1위 (17.9%)',s:'통계청 (현 국가데이터처) 「2024년 사회조사 결과」 · 2024-11-12 발표',u:'https://kostat.go.kr/board.es?mid=a10301010000&bid=219&act=view&list_no=433638'},
+ ix_violent:{c:'범죄',e:'우리 사회의 가장 큰 불안 요인 1위 (17.9%)',s:'통계청 (현 국가데이터처) 「2024년 사회조사 결과」 · 2024-11-12 발표',u:'https://kostat.go.kr/board.es?mid=a10301010000&bid=219&act=view&list_no=433638'},
+ ix_growth:{c:'경제적 위험',e:'불안 요인 2위 (16.5%)',s:'통계청 (현 국가데이터처) 「2024년 사회조사 결과」 · 2024-11-12 발표',u:'https://kostat.go.kr/board.es?mid=a10301010000&bid=219&act=view&list_no=433638'},
+ hs_natdebt:{c:'경제적 위험',e:'불안 요인 2위 (16.5%)',s:'통계청 (현 국가데이터처) 「2024년 사회조사 결과」 · 2024-11-12 발표',u:'https://kostat.go.kr/board.es?mid=a10301010000&bid=219&act=view&list_no=433638'},
+ ix_gini:{c:'경제적 위험',e:'불안 요인 2위 (16.5%)',s:'통계청 (현 국가데이터처) 「2024년 사회조사 결과」 · 2024-11-12 발표',u:'https://kostat.go.kr/board.es?mid=a10301010000&bid=219&act=view&list_no=433638'},
+ r3:{c:'국가 안보',e:'불안 요인 3위 (16.2%)',s:'통계청 (현 국가데이터처) 「2024년 사회조사 결과」 · 2024-11-12 발표',u:'https://kostat.go.kr/board.es?mid=a10301010000&bid=219&act=view&list_no=433638'},
+ q5:{c:'국가 안보',e:'불안 요인 3위 (16.2%)',s:'통계청 (현 국가데이터처) 「2024년 사회조사 결과」 · 2024-11-12 발표',u:'https://kostat.go.kr/board.es?mid=a10301010000&bid=219&act=view&list_no=433638'},
+ r8:{c:'국가 안보',e:'불안 요인 3위 (16.2%)',s:'통계청 (현 국가데이터처) 「2024년 사회조사 결과」 · 2024-11-12 발표',u:'https://kostat.go.kr/board.es?mid=a10301010000&bid=219&act=view&list_no=433638'},
+ ix_dust:{c:'환경오염',e:'불안 요인 4위 (10.0%)',s:'통계청 (현 국가데이터처) 「2024년 사회조사 결과」 · 2024-11-12 발표',u:'https://kostat.go.kr/board.es?mid=a10301010000&bid=219&act=view&list_no=433638'},
+ ix_ghg:{c:'환경오염',e:'불안 요인 4위 (10.0%)',s:'통계청 (현 국가데이터처) 「2024년 사회조사 결과」 · 2024-11-12 발표',u:'https://kostat.go.kr/board.es?mid=a10301010000&bid=219&act=view&list_no=433638'},
+ ix_airpollut:{c:'환경오염',e:'불안 요인 4위 (10.0%)',s:'통계청 (현 국가데이터처) 「2024년 사회조사 결과」 · 2024-11-12 발표',u:'https://kostat.go.kr/board.es?mid=a10301010000&bid=219&act=view&list_no=433638'},
+ ix_trust:{c:'사회 신뢰 · 세대갈등',e:'세대갈등이 심각하다 83%',s:'한국리서치 「2026 세대인식조사 · 세대갈등 현황」 · 2026',u:'https://hrcopinion.co.kr/archives/35659'},
+ ix_trust_inst:{c:'사회 신뢰 · 세대갈등',e:'세대갈등이 심각하다 83%',s:'한국리서치 「2026 세대인식조사 · 세대갈등 현황」 · 2026',u:'https://hrcopinion.co.kr/archives/35659'},
+ ix_lifesat:{c:'사회 신뢰 · 세대갈등',e:'세대갈등이 심각하다 83%',s:'한국리서치 「2026 세대인식조사 · 세대갈등 현황」 · 2026',u:'https://hrcopinion.co.kr/archives/35659'}
+/*AUTO-CONCERN-END*/};
+/* 「이건 재고 싶었는데 통계가 없다」 — 말없이 비우면 「이을 게 없었다」 와
+   「우리가 안 이었다」 가 구별되지 않는다. '보는 법' 서랍이 이걸 그대로 보여준다. */
+var CONCERN_MISS=[/*AUTO-CONCERN-MISS-START*/
+ {w:'「우리 사회가 안전하다」 응답률 (2014 9.5% → 2024 28.9%)',y:'통계청 사회조사의 값인데 지표누리·창고에 그 통계표가 없다. 보도자료 본문에만 있어 시계열을 우리가 옮겨 적어야 하는데, 그건 값을 손으로 만드는 것이라 안 한다 (규칙 2).'},
+ {w:'야간보행 안전도 (밤에 혼자 걸을 때 두려움)',y:'창고에 통계표가 있고 값도 2001~2022년 10개가 있다 (idx:8051). 그런데 지표누리 페이지가 **서비스 중지**라 근거 링크가 죽는다 (stat_alive=0). 출처를 못 대는 값은 안 올린다 (규칙 7).'},
+ {w:'세대갈등을 재는 국가 통계',y:'여론조사(한국리서치)에는 있으나 국가 통계에는 시계열이 없다. 대신 대인신뢰도·기관신뢰도를 이었다 — 같은 것이 아니라는 것을 여기 적어 둔다.'},
+ {w:'네이버·구글 검색어 트렌드 순위',y:'네이버 데이터랩·구글 트렌드는 **상대 지수**만 주고 순위 목록을 공개 API 로 안 준다. 화면을 긁어 순위를 만들면 우리가 만든 값이 된다. 안 했다.'},
+ {w:'국민동의청원 동의 수 상위 목록',y:'열린국회정보 Open API 에 청원 서비스가 없다 (PETITION 등 네 이름을 시도해 전부 Bad Request). 국회 청원 목록 페이지는 값을 자바스크립트로 불러와 정적 수집이 안 된다.'},
+ {w:'언론사 「많이 본 기사」 순위',y:'매체마다 집계 방식이 다르고 공개 API 가 없다. 그리고 조회수는 사건 하나에 몰려 **정책 관심사**와 다르다.'}
+/*AUTO-CONCERN-MISS-END*/];
 function srcRank(n){
   var id=String(n.id||'');
   /* **손원본과 손통계는 같은 등급이다.** 둘 다 사람이 「이건 궁금해한다」 고 판단해
      하나씩 확인해 넣었다. 갈라 두었더니 손원본 19개가 자리를 다 먹어
      최저임금·자살률·청년실업률(손통계)이 하나도 안 나왔다. */
+  /* **국민 관심 근거가 있으면 첫 화면 등급이다.** 자동으로 들어온 통계라도
+     「조사에서 국민이 불안 1위로 꼽은 것」 이면 주인이 고른 것보다 근거가 세다. */
+  if(CONCERN[id])return 0;
   if(id.lastIndexOf('hs_',0)===0)return 0;     /* 손 · 부처 통계에서 값을 확인해 넣음 */
   if(id.lastIndexOf('ix4_',0)===0)return 3;    /* 자동 4차 · 표 이름으로 대량 선정 */
   if(id.lastIndexOf('ix_',0)===0)return 2;     /* 자동 1차 · 후보를 하나씩 보고 고름 */
@@ -21570,6 +21660,15 @@ function render(id){
     html='<div class="c-head"><div class="meta"><span class="year">'+n.yr+'</span>'+
       '<span class="badge b-res">결과 수치</span></div><h2 class="title">'+n.lab+'</h2></div>'+
       (rz.w?'<p class="rez-what">'+rz.w+'</p>':'')+
+      /* ── 이 숫자를 **왜 첫 화면에 올렸나** ──
+         「내가 고르면 내 관심사가 들어간다」 에 대한 답이다. 고른 근거를 그대로 적는다 —
+         어느 기관이 언제 무엇을 물어 몇 %가 나왔는지. 우리가 만든 값이 아니다.
+         **접어 넣지 않는다.** 이건 우리 사정이 아니라 **왜 이걸 보고 있는지**에 대한 답이다. */
+      (CONCERN[id]?'<div class="cnc"><p class="cnc-l">국민 관심 근거</p>'+
+        '<p class="cnc-c">'+esc(CONCERN[id].c)+'</p>'+
+        '<p class="cnc-e">'+esc(CONCERN[id].e)+'</p>'+
+        '<p class="cnc-s"><a href="'+esc(CONCERN[id].u)+'" target="_blank" rel="noopener">'+
+        esc(CONCERN[id].s)+'</a></p></div>':'')+
       '<div class="big"><p class="big-n">'+n.big+'</p>'+
         '<p class="big-c">'+(rz.m||n.cap)+'</p>'+
         (rz.c?'<p class="rez-chg">'+rz.c+'</p>':'')+rzLine+'</div>'+
@@ -22276,6 +22375,22 @@ if(typeof updateTopSafe==='function')updateTopSafe();
 window.addEventListener('keydown',function(e){
   if(e.key==='Escape'&&activeFilterLabel())resetAllView()});
 
+/* ── '보는 법' 서랍의 「첫 화면을 무엇으로 골랐나」 를 채운다 ──
+   근거는 `CONCERN`(관심사별 결과)과 `CONCERN_MISS`(못 찾은 것) 두 곳에만 있다.
+   화면이 그 둘을 그대로 읽는다 — 문구를 따로 적어 두면 두 벌이 되어 갈라진다. */
+(function(){
+  var ul=document.getElementById('cncList'), um=document.getElementById('cncMiss');
+  if(ul){
+    var by={};
+    Object.keys(CONCERN).forEach(function(id){
+      var c=CONCERN[id]; (by[c.c]||(by[c.c]={e:c.e,s:c.s,u:c.u,n:[]})).n.push(id) });
+    ul.innerHTML=Object.keys(by).map(function(k){ var v=by[k];
+      return '<li><b>'+esc(k)+'</b> — '+esc(v.e)+' · 숫자 '+v.n.length+'개'+
+        ' <a href="'+esc(v.u)+'" target="_blank" rel="noopener">출처</a></li>' }).join('');
+  }
+  if(um)um.innerHTML=CONCERN_MISS.map(function(x){
+    return '<li><b>'+esc(x.w)+'</b> — '+esc(x.y)+'</li>' }).join('');
+})();
 mountMYN();setAngles();
 
 /* 첫 화면 — 아무것도 고르지 않은 전체 보기.

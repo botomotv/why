@@ -4226,6 +4226,188 @@ const TKN = { result:'결과', bill:'법·정책', person:'인물', party:'정�
     }
   }
 
+  /* ── 67. 법 · 정책 · 자동 · 사람확인을 **모양으로** 가르나 ──
+     「회색 사각형이 두 가지다. 무엇이 다른지 말해라」 가 요구였다. 두 축이 겹쳐 있었다:
+       ① 무엇인가   — 법(국회) vs 정책(정부). 그때는 **같은 모양**이었다
+       ② 근거의 세기 — 자동 vs 사람 확인. 그때는 **채움 밝기**로만 갈랐다
+     「색만으로 가르지 마라」 이므로 둘 다 모양(실루엣·테두리)으로 가르고,
+     **범례에 그 구분이 있어야 한다** — 뜻을 안 밝히면 모양이 그냥 장식이 된다. */
+  {
+    const d67 = boot(1440, 900);
+    await new Promise(r => setTimeout(r, 1300));
+    const r = d67.window.eval(`(function(){
+      if(typeof isPolicy!=='function')return {no:'isPolicy 가 없다'};
+      var bills=N.filter(function(n){return n.t==='bill'});
+      var pol=bills.filter(isPolicy), law=bills.filter(function(n){return !isPolicy(n)});
+      if(!pol.length||!law.length)return {no:'법 또는 정책 노드가 없다'};
+      /* 그리는 **경로**를 받아 적어 견준다 — 색이 아니라 모양이 다른지 본다 */
+      function trace(n){
+        var ops=[], keep={};
+        ['beginPath','moveTo','lineTo','roundRect','rect','arc','closePath'].forEach(function(k){
+          keep[k]=cx[k];
+          cx[k]=function(){ ops.push(k+'('+[].slice.call(arguments).map(function(v){
+            return (typeof v==='number')?v.toFixed(1):String(v)}).join(',')+')');
+            return keep[k]&&keep[k].apply(cx,arguments) };
+        });
+        try{ shapePath(n,0) }catch(e){}
+        Object.keys(keep).forEach(function(k){ cx[k]=keep[k] });
+        return ops.join(' ');
+      }
+      /* **같은 크기·같은 자리**에서 견줘야 모양만 남는다 */
+      var a=pol[0], b=law[0];
+      var sv=[a.x,a.y,a.r,b.x,b.y,b.r];
+      a.x=b.x=0; a.y=b.y=0; a.r=b.r=10;
+      var pa=trace(a), pb=trace(b);
+      a.x=sv[0];a.y=sv[1];a.r=sv[2]; b.x=sv[3];b.y=sv[4];b.r=sv[5];
+      /* 자동 / 사람 확인이 **채움 말고 다른 것**으로도 갈리나 —
+         점선(setLineDash)과 테두리(stroke)를 실제로 부르는지 본다 */
+      function paint(fn){
+        var dash=0, strokes=0, fills=0;
+        var kd=cx.setLineDash, ks=cx.stroke, kf=cx.fill;
+        cx.setLineDash=function(v){ if(v&&v.length)dash++; return kd&&kd.apply(cx,arguments) };
+        cx.stroke=function(){ strokes++; return ks&&ks.apply(cx,arguments) };
+        cx.fill=function(){ fills++; return kf&&kf.apply(cx,arguments) };
+        try{ fn() }catch(e){}
+        cx.setLineDash=kd; cx.stroke=ks; cx.fill=kf;
+        return {dash:dash, stroke:strokes, fill:fills};
+      }
+      var au=paint(function(){ autoFill(law[0],'#8A929E') });
+      var ha=paint(function(){ handFill(law[0],'#8A929E') });
+      /* 범례 · 서랍에 그 구분이 적혀 있나 — 화면 글자로 본다 */
+      var txt=(document.body.textContent||'');
+      var css=(document.querySelector('style')||{}).textContent||'';
+      return {pol:pol.length, law:law.length, pa:pa, pb:pb, same:(pa===pb),
+        au:au, ha:ha,
+        lgPol:/정부가 정한 정책/.test(txt), lgLaw:/국회가 만든 법/.test(txt),
+        /* 템플릿 리터럴 안에서는 정규식 이스케이프가 삼켜진다 —
+           역슬래시 s 가 그냥 s 가 되어 「점선s*=s*자동」 을 찾게 됐고,
+           범례에 글자가 멀쩡히 있는데도 없다고 FAIL 했다.
+           문법 오류가 안 나서 조용히 달라진다. 이스케이프를 아예 안 쓴다. */
+        lgAuto:txt.indexOf('점선 = 자동으로 이음')>=0,
+        lgHand:txt.indexOf('흰 테두리 = 사람이 확인')>=0,
+        cssPol:css.indexOf('.lg-pol{')>=0&&css.indexOf('.sg-pol{')>=0};
+    })()`);
+    d67.window.close();
+    if (!r) F('67. 못 쟀다');
+    else if (r.no) F(`67. ${r.no}`);
+    else {
+      console.log(`67. 법·정책 모양   법 ${r.law}개 · 정책 ${r.pol}개 · 같은 자리·같은 크기에서 ` +
+        `경로가 ${r.same ? '같다' : '다르다'}`);
+      console.log(`                   정책 ${r.pa.slice(0, 76)}`);
+      console.log(`                   법   ${r.pb.slice(0, 76)}`);
+      console.log(`67. 자동/사람확인   자동 [점선 ${r.au.dash} · 테두리 ${r.au.stroke} · 채움 ${r.au.fill}] · ` +
+        `사람 [점선 ${r.ha.dash} · 테두리 ${r.ha.stroke} · 채움 ${r.ha.fill}]`);
+      console.log(`67. 범례            국회가 만든 법 ${r.lgLaw ? '○' : '✗'} · 정부가 정한 정책 ${r.lgPol ? '○' : '✗'} · ` +
+        `점선=자동 ${r.lgAuto ? '○' : '✗'} · 흰 테두리=사람 ${r.lgHand ? '○' : '✗'} · 모양 CSS ${r.cssPol ? '○' : '✗'}`);
+      /* **모양이 같으면 FAIL.** 색만으로 가르지 말라는 것이 요구였다 */
+      if (r.same)
+        F('67. 법과 정책이 같은 모양으로 그려진다. 「탈원전 선언」은 정책이지 법이 아니다 — 모양으로 갈라야 한다');
+      /* **자동/사람이 채움 말고 다른 축으로도 갈려야 한다** */
+      if (!r.au.dash)
+        F('67. 자동으로 이은 것에 점선 테두리가 없다. 채움 밝기만으로는 한눈에 안 갈린다');
+      if (!r.ha.stroke)
+        F('67. 사람이 확인한 것에 테두리가 없다. 채움 밝기만으로는 한눈에 안 갈린다');
+      if (r.ha.dash)
+        F('67. 사람이 확인한 것에도 점선을 쓴다. 그러면 자동과 안 갈린다');
+      /* **뜻을 안 밝히면 모양이 장식이 된다** */
+      if (!r.lgLaw || !r.lgPol)
+        F('67. 범례에 법과 정책의 구분이 없다. 모양을 갈라 놓고 뜻을 안 밝히면 그냥 다른 그림이다');
+      if (!r.lgAuto || !r.lgHand)
+        F('67. 범례에 자동/사람 확인의 구분이 없다');
+      if (!r.cssPol)
+        W('67. 범례·서랍의 정책 모양 CSS(.lg-pol · .sg-pol)가 없다 — 화면 도형과 다른 그림이 나간다');
+    }
+  }
+
+  /* ── 68. 누르면 **한눈에 이해되나** ──
+     「네모 두 개가 나란히 있을 뿐이다. 아 문재인이 탈원전 했는데 윤석열이 뒤집었구나 가
+      보여야 한다」 가 요구였다. 넷을 잰다:
+       (a) 「같은 주제」 배지·라벨이 사라졌나 — 여섯 번 반복되면 정보가 아니라 소음이다
+       (b) 근거가 센 것이 **가까이** 오나 (tierOf — 선 굵기가 쓰는 값 그대로)
+       (c) 정반대인 것에 「정반대」 가 **글자로** 그려지나
+       (d) 「연도 · 누구 정부」 가 이름보다 작지 않게 그려지나 */
+  {
+    const d68 = boot(1440, 900);
+    await new Promise(r => setTimeout(r, 1400));
+    const r = d68.window.eval(`(function(){
+      if(typeof orbTier!=='function')return {no:'orbTier 가 없다'};
+      if(typeof resetAllView==='function')resetAllView();
+      var t=0; while(alpha>LAY_STOP&&t<600){tick();t++}
+      /* against 가 붙은 결과·정책을 찾아 누른다 — 있는 것으로 잰다 */
+      var oppIds={};
+      L.forEach(function(l){ if(l[3]==='against'){oppIds[l[0]]=1;oppIds[l[1]]=1} });
+      var target=A.filter(function(n){return oppIds[n.id]})[0]
+              || A.filter(function(n){return (adj[n.id]||[]).length>3})[0];
+      if(!target)return {no:'누를 노드를 못 찾았다'};
+      setFocus(target.id); size();
+      for(var f=0;f<800;f++){ if(typeof orbStep==='function')orbStep();
+        if(typeof fade==='function')fade(); tick() }
+      cam.s=cam.ts;cam.x=cam.tx;cam.y=cam.ty;
+      labelSet=null;labelKey='';
+      var txts=drawnText();
+      var all=txts.map(function(o){return o.t});
+      /* (b) tier 별 거리 */
+      var self=map[focus];
+      var nb=A.filter(function(n){return n.orb&&!n.__orbOut});
+      var dist={};
+      nb.forEach(function(n){ var tr=orbTier(n);
+        (dist[tr]||(dist[tr]=[])).push(Math.hypot(n.x-self.x,n.y-self.y)*cam.s) });
+      var avg=function(v){ if(!v||!v.length)return 0;
+        return v.reduce(function(a,b){return a+b},0)/v.length };
+      /* (d) 이름 글꼴 대 「연도 · 정부」 글꼴 — 그린 것에서 직접 읽는다 */
+      var subH=0, labH=0;
+      for(var i=0;i<txts.length;i++){
+        if(txts[i].t.slice(-3)===' 정부'&&txts[i].h>subH)subH=txts[i].h;
+      }
+      var bn=nb.filter(function(n){return n.t==='bill'&&billSub(n)})[0];
+      if(bn)for(var j=0;j<txts.length;j++)
+        if(txts[j].t===mapLab(bn))labH=txts[j].h;
+      var oppN=0;
+      L.forEach(function(l){ if(l[3]==='against'&&
+        (l[0]===focus||l[1]===focus))oppN++ });
+      return {lab:self.lab, n:nb.length,
+        topicBadge:all.filter(function(x){return x==='같은 주제'}).length,
+        oppDrawn:all.filter(function(x){return x==='정반대'}).length, oppN:oppN,
+        d1:Math.round(avg(dist[1])), d2:Math.round(avg(dist[2])), d3:Math.round(avg(dist[3])),
+        c1:(dist[1]||[]).length, c3:(dist[3]||[]).length,
+        subH:+subH.toFixed(1), labH:+labH.toFixed(1),
+        /* 정규식 이스케이프는 템플릿 리터럴이 삼킨다 (위 67번 주석) — 글자로 본다 */
+        subDrawn:all.filter(function(x){
+          return x.length>8 && x.slice(-3)===' 정부' && String(+x.slice(0,4))===x.slice(0,4) }).length,
+        ov:textOverlap(txts,[])};
+    })()`);
+    d68.window.close();
+    if (!r) F('68. 못 쟀다');
+    else if (r.no) F(`68. ${r.no}`);
+    else {
+      console.log(`68. 누르면 읽히나  「${r.lab}」 이웃 ${r.n}개 · ` +
+        `「같은 주제」 배지 ${r.topicBadge}개 · 「정반대」 ${r.oppDrawn}/${r.oppN}개 · ` +
+        `「연도 · 정부」 ${r.subDrawn}개(글자 ${r.subH}px, 이름 ${r.labH}px) · 글자겹침 ${r.ov}`);
+      console.log(`68. 근거가 셀수록 가까이  손확인 ${r.d1}px(${r.c1}개) · 조문 ${r.d2}px · ` +
+        `자동 ${r.d3}px(${r.c3}개)`);
+      /* (a) 「같은 주제」 는 무엇이 다른지 말해 주지 않는다 — 지도에 안 나와야 한다 */
+      if (r.topicBadge)
+        F(`68. 「같은 주제」 배지가 ${r.topicBadge}개 그려진다. 같은 글자가 여러 번 뜨는 것은 정보가 아니다`);
+      /* (b) 근거가 센 것이 가까워야 한다 */
+      /* **한도에 딱 붙으면 아무것도 안 잡는다.** 거리를 끄고 주입했더니 136 대 137 로
+         1px 차이로 통과했다 — 그건 「가깝다」 가 아니다. 실제 값은 110 대 157(0.70)이라
+         0.9 를 요구해도 여유가 크다. */
+      if (r.c1 && r.c3 && r.d1 >= r.d3 * 0.9)
+        F(`68. 손으로 확인한 이웃(${r.d1}px)이 자동으로 이은 이웃(${r.d3}px)보다 뚜렷이 안 가깝다 ` +
+          `(90% 아래여야 한다). 관련이 강한 것과 약한 것이 갈려야 한다`);
+      /* (c) 정반대는 글자로 말해야 한다 */
+      if (r.oppN && !r.oppDrawn)
+        F(`68. 정반대인 관계가 ${r.oppN}개인데 화면에 「정반대」 가 안 그려진다. ` +
+          `붉은 점선만으로는 보는 사람이 모른다`);
+      /* (d) 「누가 언제 했나」 가 이름보다 작으면 안 보인다 */
+      if (r.subDrawn && r.labH && r.subH < r.labH * 0.9)
+        F(`68. 「연도 · 정부」 가 ${r.subH}px 로 이름(${r.labH}px)보다 많이 작다. ` +
+          `누가 언제 했는지가 한눈에 보여야 한다`);
+      if (r.ov)
+        F(`68. 누른 뒤 글자가 ${r.ov}쌍 겹친다`);
+    }
+  }
+
   /* ── 요약 ── */
   console.log('\n' + '─'.repeat(50));
   console.log('노드 진영 분포:', JSON.stringify(bySide));

@@ -17615,6 +17615,7 @@ function orbSet(cx,cy,list){
   var pp=orbPlace(cx,cy,list,plan.R,plan.zig);
   list.forEach(function(o,i){
     if(!isFinite(o.x)||!isFinite(o.y))return;
+    if(o.fixed)return;   /* 놓아 굳힌 것은 원에 안 세운다 — orbStep 주석 참조 */
     if(!isFinite(pp[i][0])||!isFinite(pp[i][1]))return;   /* 갈 곳이 NaN 이면 안 옮긴다 */
     /* 누르기 직전 자리 — 닫으면 그리로 돌아간다.
        **다시 계획할 때 덮어쓰지 않는다.** 덮어쓰면 이미 옮겨진 자리가 '원래 자리' 가 된다. */
@@ -17669,7 +17670,13 @@ function orbBack(){
 function orbStep(){
   var moving=0;
   A.forEach(function(o){
-    if(!o.orb||o===drag||o.__pulling)return;
+    /* ── **사람이 놓아 굳힌 것은 안 옮긴다** ──
+       `drag`·`__pulling` 예외는 있었는데 `fixed` 만 빠져 있었다.
+       그래서 끌어다 놓은 노드가 다시 계획할 때마다 원으로 끌려갔고,
+       '뒤로' 로 자리를 되돌려도 그다음 틱에 또 끌려갔다 (검사 64, 550px).
+       「자동을 지키는 제한이 사람 손도 막는다」 의 반대짝이다 —
+       자동이 사람이 한 일을 **무르고 있었다.** */
+    if(!o.orb||o===drag||o.__pulling||o.fixed)return;
     var dx=o.orb[0]-o.x, dy=o.orb[1]-o.y, d=Math.hypot(dx,dy);
     if(d<ORBIT_SNAP){ o.x=o.orb[0]; o.y=o.orb[1];
       if(orbActive===2){ delete o.orb } return }
@@ -17926,139 +17933,117 @@ function catIndex(n){
     if(o!==undefined&&(best<0||o<best))best=o }
   return best;
 }
+/* ── 자리는 **화면 전체에 고르게** 퍼뜨린다 ──
+   전에는 각도 = 분야 구역이었다. 「어디를 보면 뭐가 있다」 를 만들려던 것인데,
+   실제로는 **같은 분야가 한군데 뭉쳐** 보였다 — 「주거」 넷이 붙어 있었다.
+   분야마다 노드 수가 다르니 뭉치는 정도도 제각각이라 손으로 못 맞춘다.
+
+   그래서 분야를 자리에서 **뺐다.** 자리에는 이제 아무 뜻이 없다 —
+   화면을 고르게 쓰는 것만이 목적이다. 분야는 분야 단추와 카드가 말한다.
+
+   ── 어떻게 고르게 하나 ──
+   해시로 흩뿌리면 **표본이 작을 때 뭉친다** (이 파일이 두 번 겪었다).
+   그래서 **칸을 나눠 한 칸에 하나씩** 넣는다(격자 + 칸 안 흔들기).
+   고른 것이 우연이 아니라 **구조로** 보장된다 — 빈 곳도, 뭉친 곳도 안 생긴다.
+
+   ── 모양은 화면을 따라간다 ──
+   원이면 넓은 화면에서 좌우가 남는다. 지도가 쓸 수 있는 자리의 가로세로 비를
+   그대로 쓴다 — 폰에서는 세로로 길고 노트북에서는 가로로 넓다.
+   「동그랗지 않아도 된다. 화면 전체를 고르게 써라」 가 그 요구였다.
+
+   ── 왜 ang·radT 로 되돌려 넣나 ──
+   물리·초점·되돌리기가 전부 `cos(ang)*ringR` 로 목표를 구한다. 그 길을 바꾸면
+   손댈 곳이 여덟 군데다. **자리를 정하는 방법만 바꾸고 담는 그릇은 그대로 둔다.**
+   `ringR` 은 `RIN+(ROUT-RIN)*radT` 라 어떤 반지름도 되돌려 담을 수 있다. */
 function setAngles(keep){
-  /* ── 각도는 **화면에 올라온 것 기준으로 고르게** 나눈다 ──
-     전에는 고리(연도)별로 묶어 id 해시로 뿌렸다. 그런데 실측해 보니
-     **목표 각도 자체가 12방향에 0~18개**로 쏠려 있었다 (2·3시 방향에 45%).
-     물리는 잘못이 없었다 — 반지름 어긋남 0, 목표에서 벗어난 거리 중앙값 36px.
-     **해시는 표본이 클 때만 고르다.** 한 고리에 한두 개씩이면 어디로 갈지 모른다.
-
-     그래서 지도에 올라온 것(A)을 통째로 각도 순으로 세우고 균등하게 나눈다.
-     순서는 해시가 정하므로 뜻이 없고, 간격만 고르다.
-
-     ── `A` 를 써도 되나 ──
-     예전에 "A 로 자리를 정하면 안 된다" 고 적었다. 필터를 바꿀 때마다 배치가 달라져
-     '처음으로' 가 471px 어긋났기 때문이다. **그 제약은 풀렸다** —
-     검사 63 이 이제 '데이터가 정한 자리' 가 아니라 **'처음 화면의 자리'** 와 견준다.
-     첫 화면이 동그란 것이 우선이고, 되돌리기는 처음 화면을 기준으로 재면 된다. */
-  /* ── 자리는 **데이터가 정한다.** `A`(화면에 올라온 것)로 정하면 안 된다 ──
-     A 로 구역을 나눴더니 **초점을 켤 때마다 구역과 순번이 다시 정해져** 반지름이 153px 씩
-     달라졌다 (검사 49). 닫아도 원래 자리로 안 돌아온다 — 접은 게 아니라 잃은 것이다.
-     화면에 무엇이 올라왔는지는 데이터가 아니다. `N` 전체로 구역을 나눈다. */
+  /* ── 초점 중에는 자리를 안 흔든다 ──
+     `refilter()` 가 `setAngles(!!focus)` 로 부르는데 **이 인자를 쓰지 않고 있었다.**
+     문서에는 「초점을 켜고 끌 때는 자리를 안 흔든다」 고 적혀 있었는데 코드는 안 그랬다.
+     N 으로 자리를 정할 때는 티가 안 났다 — 이제 A 를 쓰므로 실제로 지켜야 한다. */
+  if(keep)return;
   var pool=N.filter(function(n){
     if(n.ghost)return false;
     return !(n.id&&n.id.lastIndexOf('case_prec_',0)===0)});
   if(!pool.length)return;
-  /* ── 순서는 **분야**, 간격은 **균등** ──
-     「어디를 보면 뭐가 있다」 가 생기려면 같은 분야가 모여야 한다.
-     그런데 분야마다 각도 칸을 고정으로 나눠 줬더니(섹터 방식) 쏠렸다 —
-     분야마다 노드 수가 다르기 때문이다. 무리중심이 10~11% 어긋나고 끌기까지 막혔다.
 
-     **순서만 분야로 하고 간격은 균등하게 나누면** 둘 다 산다:
-       · 같은 분야가 이웃해 붙는다 (부동산은 이쪽, 노동은 저쪽)
-       · 12방향에 고르게 퍼진다 (표준편차 0.5 아래)
-     간격에는 뜻이 없고 **순서에만** 뜻이 있다 — ORBIT 에서 쓴 것과 같은 원칙이다.
-     같은 분야 안에서는 해시 순이라 뜻이 없다. */
-  /* ── 반지름은 이제 **연도가 아니다** ──
-     전에는 반지름 = 연도였다(동심원). 그걸 없앴다 — 이제 자리를 정하는 것은 **분야** 하나다.
-       · 각도  = 분야. 분야마다 각도 구역을 갖는다 (「부동산은 이쪽, 노동은 저쪽」)
-       · 반지름 = 그 구역 안에서 흩뿌린 값. **뜻이 없다**
-     구역 크기는 **그 분야의 노드 수에 비례**한다. 고정으로 나누면 노드가 적은 분야가
-     넓은 부채꼴을 혼자 차지해 무리중심이 10~11% 어긋났다 (전에 실측).
+  /* 분야 순서는 자리와 무관해졌지만 `planMap` 의 라운드로빈이 아직 쓴다 —
+     실행마다 같은 순서면 된다. 자리에는 이제 아무 영향이 없다. */
+  var seen=Object.create(null), ord=[];
+  pool.forEach(function(n){ var c=catIndex(n);
+    if(c>=0&&!seen[c]){seen[c]=1;ord.push(c)} });
+  ord.sort(function(x,y){ var d=angHash('sector:'+x)-angHash('sector:'+y); return d||(x-y) });
+  catOrder=ord.slice();
 
-     ── 무엇을 잃나 ──
-     시간 축이 지도에서 사라진다. 「언제 일어난 일인지」는 카드가 연도로 보여준다.
-     고리 연도 눈금·시간 방향 버튼·「안쪽이 최근」 안내는 함께 뺐다. */
-  var g={}, ord=[], noCat=[];
-  arr_sort(pool);
-  function arr_sort(list){
-    /* ── **분야를 모르는 것은 한 구역에 몰지 않는다** ──
-       전에는 전부 999 구역에 넣었다. 그러면 「분야를 모른다」가 「같은 분야」가 된다 —
-       실제로 그 9개가 7시 방향에 뭉쳐 흔들림 0.51 이 나왔다.
-       모르는 것은 뜻이 없으므로 **원 전체에 흩뿌린다.** */
-    list.forEach(function(n){
-      var c=catIndex(n);
-      if(c<0){ noCat.push(n); return }
-      if(!g[c]){g[c]=[];ord.push(c)}
-      g[c].push(n)});
-    /* ── 구역 **순서**는 흩뿌리되, 첫 화면이 고르게 퍼지도록 **번갈아** 놓는다 ──
-       CATS 차례대로면 이웃한 분야가 함께 뽑혀 7시 방향에 7개가 몰렸다 (흔들림 0.46).
-       해시로 흩뿌려도 0.54~0.58 이 남았다. 원인은 다른 데 있었다 —
-       **첫 화면 결과는 사람이 넣은 38개에서 나오는데 그 분야가 12개뿐**이라
-       구역 20개 중 8개가 통째로 빈다. 빈 구역이 몰려 있으면 그쪽이 텅 빈다.
+  /* ── 채울 넓이 ──
+     넓이는 예전 고리와 같게 둔다(π·0.93·(ROUT²−RIN²)). 그래야 밀도가 안 바뀌어
+     이름표 겹침·무리중심 검사가 같은 잣대로 잰다. 모양만 화면 비율로 바꾼다. */
+  /* **화면이 실제로 쓸 수 있는 자리**의 비율을 쓴다 — 위(검색창)와 아래(버튼)를 뺀 것.
+     `H-topSafe` 만 쓰면 아래 버튼 자리까지 세로로 치므로 세로로 길게 잡히고,
+     맞춤이 그 세로에 묶여 **가로가 남는다** (실측 폰 가로 60%). */
+  var MRa=(typeof mapRect==='function')?mapRect():{x0:0,x1:W,y0:0,y1:H};
+  var vw=Math.max(80,MRa.x1-MRa.x0), vh=Math.max(80,MRa.y1-MRa.y0);
+  var ar=vw/vh; if(!(ar>0)||!isFinite(ar))ar=1.6;
+  ar=Math.max(0.55,Math.min(2.8,ar));
+  var S=Math.PI*0.93*(ROUT*ROUT-RIN*RIN);
+  /* ── **맞춤 여백을 미리 빼고 비율을 정한다** ──
+     `fit()` 은 노드 상자에 가로 130 · 세로 110 (월드) 을 더해서 담는다.
+     그 여백은 배치 크기와 무관한 **고정값**이라, 좁은 화면(폰)에서는 그 몫이 커서
+     가로가 먼저 꽉 찬다 — 그러면 세로가 남는다. 실측: 세로를 62% 만 썼다.
+     그래서 「여백을 더한 상자」 가 화면 비율이 되도록 푼다:
+       (bw+2Px)/(bh+2Py) = ar ,  bw·bh = S
+     한 번 풀면 되는 2차식이다. 폰 세로 62% → 87%. */
+  var Px=130, Py=110;
+  var qb=2*ar*Py-2*Px;
+  var bh=(-qb+Math.sqrt(qb*qb+4*ar*S))/(2*ar);
+  var bw=S/bh;                               /* 화면에 그려질 가로·세로 */
+  /* `y=sin(ang)*R*0.86` 이라 담을 때는 세로를 0.86 으로 나눠 둔다 */
+  var ey=bh/0.86;
 
-       그래서 **손으로 넣은 결과가 있는 분야와 없는 분야를 번갈아** 놓는다.
-       12개가 쓰여도 원 전체에 고르게 퍼진다.
-       분야마다 **고정된 자리**를 갖는 것은 그대로다 — 「부동산은 늘 이쪽」이 성립한다.
-       순서에는 뜻이 없으므로(원래 해시였다) 이렇게 바꿔도 새 주장이 생기지 않는다. */
-    var handCat=Object.create(null);
-    N.forEach(function(n){
-      if(n.t!=='result'||n.ghost)return;
-      var id=String(n.id||'');
-      if(id.lastIndexOf('ix_',0)===0||id.lastIndexOf('ix4_',0)===0)return;
-      var c=catIndex(n); if(c>=0)handCat[c]=1;
-    });
-    var byHash=function(a,b){
-      var d=angHash('sector:'+a)-angHash('sector:'+b);
-      return d||(a-b)};
-    var hasHand=ord.filter(function(c){return handCat[c]}).sort(byHash);
-    var noHand =ord.filter(function(c){return !handCat[c]}).sort(byHash);
-    ord.length=0;
-    /* **하나씩 번갈아 놓으면 남는 것이 뒤에 몰린다.** 12 : 8 이면 앞 8쌍만 번갈고
-       뒤에 4개가 붙어 그 방향이 두꺼워졌다 (흔들림 0.48).
-       비율대로 흩는다 — 자리 i 에서 「지금까지 놓아야 할 hasHand 수」가 늘면 그것을 놓는다. */
-    var hi=0, ni=0, tot=hasHand.length+noHand.length;
-    for(var oi=0;oi<tot;oi++){
-      var want=Math.round((oi+1)*hasHand.length/tot);
-      if(hi<want&&hi<hasHand.length)ord.push(hasHand[hi++]);
-      else if(ni<noHand.length)ord.push(noHand[ni++]);
-      else if(hi<hasHand.length)ord.push(hasHand[hi++]);
-    }
-    /* 원 둘레 순서를 밖에서도 쓴다 — 첫 화면 결과를 **이 순서대로** 뽑아야
-       뽑힌 것들이 원 전체에 고르게 퍼진다 (planMap 참조). */
-    catOrder=ord.slice();
-    ord.forEach(function(c){ g[c].sort(function(a,b){
-      var d=angHash('a:'+a.id)-angHash('a:'+b.id);
-      return d||(String(a.id)<String(b.id)?-1:1)}) });
+  /* 좌표 하나를 ang·radT 로 담는다 */
+  function put(n,x,y){
+    var r=Math.hypot(x,y);
+    n.ang=Math.atan2(y,x);
+    n.radT=(r-RIN)/(ROUT-RIN);
   }
-  /* ── 구역은 **분야마다 같은 크기**다 ──
-     노드 수에 비례해 나눴더니 첫 화면(38개)이 한쪽으로 몰렸다 — 흔들림 0.57 (한도 0.45).
-     창고에는 판례가 붙은 법이 많아 몇몇 분야가 원의 대부분을 차지하는데,
-     첫 화면은 결과 위주라 그 구역들이 거의 비기 때문이다.
-     **부분집합을 뽑아도 고르려면 구역이 고르게 나뉘어야 한다.**
-     분야 하나가 노드 하나뿐이어도 같은 몫을 갖는다 — 「어디를 보면 뭐가 있다」 는
-     그 분야에 몇 개가 있느냐와 상관없이 성립해야 한다. */
-  var nz=ord.length||1, acc=0;
-  var off=angHash('map0')*Math.PI*2;
-  ord.forEach(function(c){
-    var list=g[c], share=1/nz;
-    var a0=off+acc*Math.PI*2, span=share*Math.PI*2;
-    acc+=share;
-    /* 구역 안에서 각도는 균등, 반지름은 **넓이 등분**으로 흩뿌린다.
-       √ 를 쓰는 것은 안쪽에 몰리지 않게 하려는 것이지 뜻이 있어서가 아니다. */
+  /* ── 칸을 나눠 한 칸에 하나씩 ──
+     `cols×rows ≥ 수` 가 되게 잡고, 남는 칸은 **고르게 비운다**
+     (`floor(i*칸수/수)`). 한쪽에 몰아서 비우면 그쪽이 텅 빈다.
+     칸 안에서 흔드는 폭은 칸의 ±31% 다 — 격자처럼 안 보이면서도
+     이웃 칸과 겹치지 않는다. 흔드는 값은 id 해시라 실행마다 같다. */
+  function grid(list){
+    var m=list.length; if(!m)return;
+    if(m===1){ put(list[0],0,0); return }
+    var cols=Math.max(1,Math.round(Math.sqrt(m*(bw/ey))));
+    var rows=Math.ceil(m/cols);
+    while(cols*rows<m)cols++;
+    var cells=cols*rows;
+    var cw=bw/cols, ch=ey/rows;
     list.forEach(function(n,i){
-      var t=(i+0.5)/list.length;
-      n.ang=a0+span*t;
-      /* ── 반지름은 **순번으로 고르게** 퍼뜨린다 ──
-         해시로 뿌렸더니 한 구역 안에서 안쪽·바깥쪽이 뭉쳐 무리중심이 9.2% 어긋났다
-         (검사 26 한도 9%). **해시는 표본이 클 때만 고르다** — 구역당 1~3개다.
-         순번을 쓰면 어느 구역에서도 고르다. 순서는 해시가 정하므로 뜻은 없다. */
-      var u=(list.length===1)?0.62:(i/(list.length-1));
-      /* ── 안쪽 바닥을 낮춰 **가운데를 채운다** ──
-         0.20 이면 안쪽 반지름이 화면에서 115px 비어 도넛으로 보인다 (실측 1280×800).
-         0.045 로 낮추면 55px 이 된다 — 원 모양은 남고 가운데 구멍만 줄어든다.
-         반지름에는 뜻이 없으므로(구역 안에서 흩뿌린 값) 이 값은 **보기 위한 것**이다. */
-      n.radT=Math.sqrt(0.045+0.955*u);
+      var k=Math.floor(i*cells/m);
+      var c=k%cols, r=(k/cols)|0;
+      var jx=(angHash('gx:'+n.id)-0.5)*0.62*cw;
+      var jy=(angHash('gy:'+n.id)-0.5)*0.62*ch;
+      put(n, -bw/2+(c+0.5)*cw+jx, -ey/2+(r+0.5)*ch+jy);
     });
-  });
-  /* 분야를 모르는 것 — 원 전체에 고르게. 순서는 해시가 정하므로 뜻이 없다. */
-  noCat.sort(function(a,b){
+  }
+  /* 칸에 넣는 **순서**는 해시다 — 뜻이 없어야 하고 실행마다 같아야 한다 */
+  var byHash=function(a,b){
     var d=angHash('a:'+a.id)-angHash('a:'+b.id);
-    return d||(String(a.id)<String(b.id)?-1:1)});
-  noCat.forEach(function(n,i){
-    n.ang=off+(i+0.5)/noCat.length*Math.PI*2;
-    n.radT=Math.sqrt(0.045+0.955*((i%7)/6));
-  });
+    return d||(String(a.id)<String(b.id)?-1:1)};
+
+  /* ① 먼저 **전체**에 자리를 준다 — 초점을 켜서 새 노드가 올라와도 제자리가 있게 */
+  grid(pool.slice().sort(byHash));
+
+  /* ② 그다음 **화면에 올라온 것**만 다시 고르게 나눈다.
+     ①만 하면 100개를 뽑았을 때 그 100개가 고르다는 보장이 없다 —
+     부분집합은 뭉친다. 화면이 고른 것이 목적이므로 화면 기준으로 한 번 더 나눈다.
+     초점 중에는 위에서 이미 돌아가지 않는다(keep). */
+  if(A&&A.length>1){
+    var vis=A.filter(function(n){
+      if(n.ghost)return false;
+      return !(n.id&&n.id.lastIndexOf('case_prec_',0)===0)});
+    if(vis.length>1)grid(vis.sort(byHash));
+  }
 }
 
 
@@ -18557,6 +18542,46 @@ function viewCX(){return W/2}
    문법 오류가 없고 검사도 안 잡았다. 화면만 아래로 밀려 있었다 —
    `size()` 는 이미 `lb0.offsetTop-stg0.offsetTop` 으로 같은 보정을 하고 있었는데
    여기만 빠져 있었다. **한쪽에만 두면 그쪽만 맞고 반대쪽은 조용히 틀린다.** */
+/* ── 아래쪽 UI 가 가리는 높이 ──
+   아래에 사는 것 전부에게 물어본다 — **범례를 아래로 내렸으므로 그것도 포함이다.**
+   한 곳만 물어보면 나중에 아래로 내려온 것과 조용히 겹친다.
+
+   **위쪽에 사는 것은 하단 UI 가 아니다.** '보는 법' 버튼은 넓은 화면에서 좌상단이다.
+   그걸 세었더니 botUI 가 716 이 되어 안내 문구가 검색창 옆으로 올라갔다 —
+   `updateTopSafe` 가 `top>hh*0.5` 로 거르는 것과 같은 판정이 여기도 필요하다.
+
+   화면(draw)과 검사(mapRect)가 **이 함수 하나**를 부른다. 두 벌이면 갈라진다. */
+function botUIPx(){
+  var b=0, so=(typeof stageTop==='function')?stageTop():0;
+  try{ ['.lgd','.hint','.legendbtn','.zoomctl'].forEach(function(sel){
+    var e=document.querySelector(sel);
+    if(!e||e.hidden||!e.offsetHeight)return;
+    /* ── `offsetTop` 은 **페이지 좌표**, `H` 는 **캔버스 높이**다 ──
+       캔버스는 페이지 y=114 에서 시작한다. 빼지 않고 견줬더니
+       `H - offsetTop` 이 음수가 되어 **하단 UI 를 0 으로 셌다** —
+       `--topsafe` 가 겪은 것과 똑같은 버그가 반대쪽에도 있었다. */
+    var t=e.offsetTop-so;
+    if(t<H*0.5)return;
+    /* ── **모서리 위젯은 띠로 잡지 않는다** ──
+       넓은 화면에서 '전체 보기'(195px)·조작 안내(159px)는 좌우 구석에만 있다.
+       그 높이만큼 아래를 통째로 비우면 지도가 가로 띠로 눌린다 —
+       실측(1280×800): 쓸 수 있는 세로 487 → 395, 격자 변동계수 0.28 → 0.58.
+       화면 폭의 45% 도 안 덮는 것은 **가운데로 노드가 지나갈 수 있다.**
+       그래도 글자가 바로 옆에 붙지 않게 최소 여백은 둔다. */
+    var band=(e.offsetWidth>=W*0.45)?(H-t):Math.min(H-t,34);
+    b=Math.max(b,band) }) }catch(e){}
+  return b;
+}
+/* ── 지도가 실제로 쓸 수 있는 자리 ──
+   위는 검색창·범례, 아래는 '보는 법'·'전체 보기' 버튼, 오른쪽은 카드가 덮는다.
+   **「화면 전체를 고르게 쓴다」 는 이 사각형 안에서의 말이다** —
+   버튼 뒤가 비어 있는 것은 빈 것이 아니라 UI 자리다.
+   검사 25 가 이 함수를 불러 격자를 나눈다. */
+function mapRect(){
+  var v=(typeof orbView==='function')?orbView():{x0:0,x1:W,y0:0,y1:H};
+  var y1=Math.max(v.y0+80, Math.min(v.y1, H-botUIPx()));
+  return {x0:v.x0, x1:v.x1, y0:v.y0, y1:y1};
+}
 function topSafePx(){
   try{
     var v=getComputedStyle(document.documentElement).getPropertyValue('--topsafe');
@@ -18619,12 +18644,23 @@ function stageTop(){
 var __firstFit=null;
 function firstFit(){
   var res=A.filter(function(n){return n.t==='result'});
-  var pool=res.length?res:(A.length?A:N);
+  /* ── 담는 대상은 **그리는 것 전부**다 ──
+     전에는 결과 노드만 담았다. 고리 배치에서는 결과가 가운데 모여 있어 그것으로 충분했다.
+     자리를 고르게 흩뿌린 뒤로는 결과가 지도 곳곳에 있고, 결과만 담으면
+     **나머지가 그 밖으로 나가** 위아래가 남는다 — 실측(폰) 세로를 62% 만 썼다.
+     전부를 담으면 87% 다. 「화면 전체를 고르게 써라」 가 그 요구였다. */
+  var pool=(A.length?A:N);
+  if(!pool.length)pool=res;
   var minx=1e9,maxx=-1e9,miny=1e9,maxy=-1e9;
   pool.forEach(function(n){minx=Math.min(minx,n.x-n.r-60);maxx=Math.max(maxx,n.x+n.r+60);
     miny=Math.min(miny,n.y-n.r-40);maxy=Math.max(maxy,n.y+n.r+60)});
   var pad=70,gw=maxx-minx+pad*2,gh=maxy-miny+pad*2;
-  var top=topSafePx(), vh=Math.max(80,H-top);
+  /* ── 아래쪽 UI 도 **뺀다** ──
+     전에는 위(검색창)만 뺐다. 고리 배치에서는 아래가 비어 있어 티가 안 났는데,
+     자리를 고르게 흩뿌린 뒤로는 아래까지 노드가 차서 '보는 법'·'전체 보기' 버튼과 겹쳤다.
+     `mapRect()` 는 화면이 실제로 쓸 수 있는 자리다 — 검사 25 도 같은 것을 쓴다. */
+  var MRf=(typeof mapRect==='function')?mapRect():{y0:topSafePx(),y1:H};
+  var top=MRf.y0, vh=Math.max(80,MRf.y1-MRf.y0);
   var s=Math.max(0.08,Math.min(1.7,Math.min(W/gw,vh/gh)));
   __firstFit={s:s,cx:(minx+maxx)/2,cy:(miny+maxy)/2,top:top,vh:vh,n:pool.length,res:res.length};
   return __firstFit;
@@ -18658,8 +18694,9 @@ function fit(showAll){
   if(!showAll)s=Math.max(s,LABEL_FAR);
   /* **상단 UI 뒤를 비운다.** 그 아래 자리의 한가운데에 맞춘다 —
      그러면 UI 에 가려 못 누르는 노드가 생기지 않는다. */
-  var top=topSafePx();
-  var vh=Math.max(80,H-top);
+  var MRs=(typeof mapRect==='function')?mapRect():{y0:topSafePx(),y1:H};
+  var top=MRs.y0;
+  var vh=Math.max(80,MRs.y1-MRs.y0);
   s=Math.min(s,Math.max(0.25,vh/gh));
   if(!showAll)s=Math.max(s,LABEL_FAR);
   cam.ts=s;cam.tx=viewCX()-((minx+maxx)/2)*s;
@@ -20026,9 +20063,18 @@ function draw(){
        검사가 창을 닫은 뒤에도 타이머가 한 번 더 돌 때가 있다 — 그때 document 가 없다. */
     var doc0=(typeof document!=='undefined'&&document&&document.querySelector)?document:null;
     var bt0=doc0?(doc0.querySelector('.legendbtn')||doc0.querySelector('.zoomctl')):null;
-    var btT0=(bt0&&bt0.offsetHeight)?bt0.offsetTop:H;
+    /* `offsetTop` 은 페이지 좌표, `H` 는 캔버스 높이다 — 빼지 않으면 버튼보다 아래로 간다.
+       실측(폰): 배지가 '보는 법'·'전체 보기' 버튼 위에 그대로 얹혔다.
+       `botUIPx()` 가 겪은 것과 같은 버그다. */
+    var btT0=(bt0&&bt0.offsetHeight)?(bt0.offsetTop-((typeof stageTop==='function')?stageTop():0)):H;
+    /* 안내 문구(「자리에는 뜻이 없습니다」·「두 손가락으로…」) 위에 둔다 —
+       그 줄도 하단 UI 를 재서 자리를 잡으므로 같은 값을 쓴다. 두 벌이면 겹친다. */
+    /* 안내 문구 줄(「자리에는 뜻이 없습니다」)의 y 를 **같은 식으로** 구해 그 위에 둔다.
+       숫자를 따로 박았더니 폰에서 4px 차이로 겹쳤다 (검사 34). 식이 하나여야 안 갈린다. */
+    var botB=(typeof botUIPx==='function')?botUIPx():0;
+    var noticeY=H-Math.max(botB+14,54);
     var ry0=Math.max((typeof topSafePx==='function'?topSafePx():0)+rh0,
-                     Math.min(H-10-rh0/2, btT0-12-rh0/2));
+                     Math.min(noticeY-rh0/2-16, btT0-12-rh0/2));
     resBadge={t:rt0,w:rw0,h:rh0,x:W/2,y:ry0};
   }
   textDefer(1);
@@ -20456,14 +20502,15 @@ function draw(){
   cx.textAlign='left'; cx.textBaseline='alphabetic';
   /* **한 줄로 줄인다.** 두 줄이면 좌하단에서 노드와 겹친다 —
      뜻은 「간격 ≠ 시간」 과 「순서는 그대로」 둘이고, 그건 한 줄에 들어간다. */
-  /* ── 안내 문구가 바뀌었다 ──
-     전에는 「고리 간격 ≠ 시간 간격」이었다. 반지름이 연도였기 때문이다.
-     이제 자리를 정하는 것은 **분야** 하나다 — 그것을 그대로 적는다.
-     **자리에 없는 뜻을 만들지 않는 것**이 이 문구의 목적이다. */
+  /* ── 안내 문구가 또 바뀌었다 ──
+     연도 → 분야 → **아무 뜻 없음**. 분야로 자리를 정했더니 같은 분야가 한군데
+     뭉쳐 보였다. 자리에서 분야를 뺐고, 이제 자리를 정하는 것은 아무것도 없다.
+     **자리에 없는 뜻을 만들지 않는 것**이 이 문구의 목적이므로 그대로 적는다 —
+     밝히지 않으면 보는 사람이 가까운 것끼리 관계가 있다고 읽는다. */
   var narrowWm=W<620;
   var nL=narrowWm
-    ? ['자리 = 분야']
-    : ['자리는 분야가 정합니다 · 거리에는 뜻이 없습니다'];
+    ? ['자리에는 뜻이 없습니다']
+    : ['자리와 거리에는 뜻이 없습니다 · 이어진 선만 봅니다'];
   var nF=narrowWm?10.5:11, nF2=narrowWm?10.5:10.5, nLH=13;
   /* 안내 문구는 '보는 법' 버튼을 피해서 그린다.
      PC 에서는 그 버튼이 왼쪽 위로 올라가 이 자리를 차지한다.
@@ -20474,17 +20521,7 @@ function draw(){
      실제로 「고리 간격은 실제 시간 간…」 두 줄이 검색창 위에 겹쳐 둘 다 안 읽혔다.
      **상단은 UI 것이고 지도가 쓸 수 있는 것은 그 아래다.**
      워터마크가 우상단이므로 안내는 좌하단으로 보낸다. 하단 버튼 위에 앉힌다. */
-  var botUI=0;
-  /* 아래에 사는 것 전부에게 물어본다 — **범례를 아래로 내렸으므로 그것도 포함이다.**
-     한 곳만 물어보면 나중에 아래로 내려온 것과 조용히 겹친다. */
-  try{ ['.lgd','.hint','.legendbtn','.zoomctl'].forEach(function(sel){
-    var bb=document.querySelector(sel);
-    if(!bb||bb.hidden||!bb.offsetHeight)return;
-    /* **위쪽에 사는 것은 하단 UI 가 아니다.** '보는 법' 버튼은 넓은 화면에서 좌상단이다.
-       그걸 세었더니 botUI 가 716 이 되어 안내 문구가 검색창 옆으로 올라갔다 —
-       updateTopSafe 가 `top>hh*0.5` 로 거르는 것과 같은 판정이 여기도 필요하다. */
-    if(bb.offsetTop<H*0.5)return;
-    botUI=Math.max(botUI,H-bb.offsetTop) }) }catch(e){}
+  var botUI=botUIPx();
   var nY=H-Math.max(botUI+14,54)-(nL[1]?nLH:0);
   cx.font='500 '+nF+"px 'Noto Sans KR',-apple-system,sans-serif";
   var nW=cx.measureText(nL[0]).width;

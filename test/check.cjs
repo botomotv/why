@@ -1257,114 +1257,166 @@ const TKN = { result:'결과', bill:'법·정책', person:'인물', party:'정�
     if (!decl.size) F('24. 최상위 var 를 하나도 못 찾았다 — 검사가 아무것도 안 보고 있다');
   }
 
-  // 25. 자리가 무엇을 뜻하는지 — **분야가 각도로 모여 있나 · 화면이 그렇게 밝히나**
+  // 25. 자리에는 **뜻이 없다** — 화면 전체에 고르게 퍼졌나
   //
-  //     ── 이 검사는 다시 썼다 ──
-  //     전에는 「반지름 순서가 연도 순서와 맞는가」와 「고리 간격 ≠ 시간 간격을 밝히는가」를 쟀다.
-  //     **그 약속이 없어졌다** — 반지름은 이제 연도가 아니라 분야 구역 안의 흩뿌린 값이다.
-  //     약속을 바꾸면 그 약속을 재던 검사도 같이 바꾼다. 통째로 지우지 않고
-  //     **이 검사만 할 수 있는 것**을 남긴다: 자리가 뜻하는 것과 화면의 설명이 같은가.
+  //     ── 이 검사는 두 번 다시 썼다 ──
+  //     ① 「반지름 순서 = 연도 순서인가」   ← 반지름이 연도였을 때
+  //     ② 「분야가 각도로 모였나」          ← 각도가 분야였을 때
+  //     ③ **「화면 전체에 고르게 퍼졌나」** ← 지금. 자리는 아무 뜻도 없다
+  //
+  //     같은 분야끼리 모아 놨더니 **한군데 뭉쳐** 보였다 (「주거」 넷이 붙었다).
+  //     약속을 바꾸면 그 약속을 재던 검사도 같이 바꾼다.
+  //     통째로 지우지 않고 **이 검사만 할 수 있는 것**을 남긴다:
+  //       (a) 화면을 격자로 나눠 각 칸에 몇 개인지  ← 새 약속
+  //       (b) 반지름에 연도가 안 남았나            ← ①의 잔재를 계속 막는다
+  //       (c) 분야가 자리를 정하지 **않는가**       ← ②의 잔재를 계속 막는다
+  //       (d) 자리가 무엇을 뜻하는지 화면이 밝히는가
   {
-    const d25 = boot(1440, 900);
-    await new Promise(r => setTimeout(r, 1400));
-    const r = d25.window.eval(`(function(){
-      if(typeof catIndex!=='function')return null;
-      /* 같은 분야가 각도로 모여 있나 — 각도 순으로 세워 이웃이 같은 분야인 비율 */
-      /* **배치와 물리를 나눠 잰다.** 목표 각도(setAngles 가 준 값)로 재면 배치 자체를,
-         실제 자리로 재면 물리가 얼마나 흩뜨렸는지를 본다.
-         섞어서 재면 배치가 완벽해도 물리 탓에 FAIL 이 나고, 어느 쪽이 문제인지 모른다. */
-      /* **분야 없는 노드는 목록에서 빼고 센다.** 그것들은 원 전체에 흩뿌리므로
-         분야 구역 사이에 끼어든다. 그 자리에서 쌍을 건너뛰면 **사슬이 끊긴 것으로 세어**
-         배치가 완벽해도 78% 가 나온다. 분야가 있는 것끼리 이웃을 만든다. */
-      function measure(key){
-        var arr=A.filter(function(n){return isFinite(n.x)&&isFinite(n.y)})
-          .map(function(n){var a=key(n); if(a<0)a+=Math.PI*2; return {c:catIndex(n),a:a}})
-          .sort(function(x,y){return x.a-y.a});
-        var only=arr.filter(function(x){return x.c>=0});
-        var same=0,pairs=0;
-        for(var i=0;i<only.length;i++){
-          var j=(i+1)%only.length;
-          pairs++; if(only[i].c===only[j].c)same++;
+    for (const [vw, vh, nm] of [[1440, 900, '노트북'], [375, 812, '폰']]) {
+      const d25 = boot(vw, vh);
+      await new Promise(r => setTimeout(r, 1400));
+      const r = d25.window.eval(`(function(){
+        if(typeof catIndex!=='function')return null;
+        if(typeof resetAllView==='function')resetAllView();
+        var t=0; while(alpha>LAY_STOP&&t<600){tick();t++}
+        fit(); cam.s=cam.ts;cam.x=cam.tx;cam.y=cam.ty;
+        /* **화면이 쓰는 함수를 그대로 부른다.** 격자를 검사가 따로 나누면
+           버튼 뒤(하단 UI)를 「빈 곳」 으로 세어 없는 문제를 만든다. */
+        var MR=(typeof mapRect==='function')?mapRect():{x0:0,x1:W,y0:0,y1:H};
+        var top=MR.y0, mw=Math.max(1,MR.x1-MR.x0), mh=Math.max(1,MR.y1-MR.y0);
+        var vis=A.filter(function(n){return isFinite(n.x)&&isFinite(n.y)});
+        if(vis.length<8)return {no:'노드가 8개 미만이라 못 잰다'};
+        /* ── 격자 ── 칸 수는 노드 수를 따라간다. 칸당 평균 4개 안팎이 되게. */
+        function grid(cols,rows){
+          var c=[],i; for(i=0;i<cols*rows;i++)c.push(0);
+          var out=0;
+          vis.forEach(function(n){
+            var sx=n.x*cam.s+cam.x-MR.x0, sy=n.y*cam.s+cam.y-top;
+            var ci=Math.floor(sx/mw*cols), rj=Math.floor(sy/mh*rows);
+            if(ci<0||ci>=cols||rj<0||rj>=rows){out++;return}
+            c[rj*cols+ci]++;
+          });
+          var m=0; c.forEach(function(v){m+=v}); m/=c.length;
+          var sd=0; c.forEach(function(v){sd+=(v-m)*(v-m)}); sd=Math.sqrt(sd/c.length);
+          var rowsTxt=[]; for(var j=0;j<rows;j++)rowsTxt.push(c.slice(j*cols,(j+1)*cols).join(' '));
+          /* ── **가운데가 빈 것과 가장자리가 빈 것은 다르다** ──
+             「가운데가 비면 안 된다」 가 요구였다. 가장자리 칸은 맞춤 여백이 걸쳐 있어
+             노드 수가 적은 것이 정상이다 — 그것까지 FAIL 로 잡으면 없는 문제를 만든다.
+             안쪽 칸이 비는 것은 **구멍**이고, 그건 우리가 고칠 수 있다. */
+          var inner=0, innerEmpty=0, edgeEmpty=0;
+          for(var rr2=0;rr2<rows;rr2++)for(var cc2=0;cc2<cols;cc2++){
+            var edge=(rr2===0||rr2===rows-1||cc2===0||cc2===cols-1);
+            var v=c[rr2*cols+cc2];
+            if(edge){ if(!v)edgeEmpty++ } else { inner++; if(!v)innerEmpty++ }
+          }
+          return {cells:c.length, empty:c.filter(function(v){return !v}).length,
+                  inner:inner, innerEmpty:innerEmpty, edgeEmpty:edgeEmpty,
+                  max:Math.max.apply(null,c), mean:m, cv:m?sd/m:0, out:out, txt:rowsTxt};
         }
-        return {same:same,pairs:pairs,arr:arr};
-      }
-      var real=measure(function(n){return Math.atan2(n.y,n.x)});
-      var plan=measure(function(n){return (typeof n.ang==='number'&&isFinite(n.ang))?(n.ang%(Math.PI*2)):0});
-      var arr=real.arr;
-      if(arr.length<4)return {no:'노드가 4개 미만이라 못 잰다'};
-      var same=real.same, pairs=real.pairs;
-      /* 분야가 흩어져 있으면 이 비율은 1/분야수 근처다 — 그것과 견준다 */
-      var cats={}; arr.forEach(function(x){if(x.c>=0)cats[x.c]=1});
-      var nc=Object.keys(cats).length||1;
-      /* 반지름에 연도가 남아 있지 않은지 — 남아 있으면 없앤 것이 아니다 */
-      var yrs=[], rad=[];
-      A.forEach(function(n){ var y=+String(n.yr||'').slice(0,4);
-        if(y>1900&&isFinite(n.x)){ yrs.push(y); rad.push(Math.hypot(n.x,n.y/0.86)) } });
-      var corr=0;
-      if(yrs.length>6){
-        var my=yrs.reduce(function(a,b){return a+b},0)/yrs.length;
-        var mr=rad.reduce(function(a,b){return a+b},0)/rad.length;
-        var sxy=0,sx=0,sy=0;
-        for(var k=0;k<yrs.length;k++){var dy=yrs[k]-my,dr=rad[k]-mr;sxy+=dy*dr;sx+=dy*dy;sy+=dr*dr}
-        corr=(sx&&sy)?sxy/Math.sqrt(sx*sy):0;
-      }
-      /* **분야가 있는 노드만 센다.** 전체를 세면 이론 최대(n−분야수)가 부풀어
-         「덜 모였다」 는 거짓 경보가 난다 — jsdom 38개 중 분야 있는 것은 29개였다. */
-      var withCat=arr.filter(function(x){return x.c>=0}).length;
-      return {same:same,pairs:pairs,planSame:plan.same,nc:nc,n:withCat,all:arr.length,corr:+corr.toFixed(2),yrN:yrs.length};
-    })()`);
-    d25.window.close();
-    if (!r) F('25. catIndex 를 못 불렀다 — 검사가 화면을 안 보고 있다');
-    else if (r.no) W(`25. ${r.no}`);
-    else {
-      /* ── **이론 최대와 견줘야 한다** ──
-         처음엔 「흩어져 있으면 1/분야수」와 견줬다. 그래서 18% 를 FAIL 로 잡았는데
-         **실측하니 배치는 완벽했다** — 목표 각도 9/28, 이론 최대 9/29.
-         분야 20개에 노드 29개면 같은 분야 이웃은 **최대 9쌍**뿐이다.
-         분야마다 한 덩어리로 모으면 같은 분야 이웃 쌍은 `노드수 − 분야수` 다.
-         검사 숫자와 눈이 갈라지면 검사가 다른 것을 재고 있는 것이다. */
-      const cap = Math.max(1, r.n - r.nc);
-      const ratio = r.same / cap;
-      const base = 1 / r.nc;
-      const pratio = r.planSame / cap;
-      console.log(`25. 분야가 모였나   배치 ${r.planSame}/${cap} (${(pratio*100).toFixed(0)}%) · ` +
-        `물리가 민 뒤 ${r.same}/${cap} (${(ratio*100).toFixed(0)}%) · ` +
-        `흩어져 있으면 ${(base*100).toFixed(0)}% 쯤 · 분야 ${r.nc}개 · 분야 있는 노드 ${r.n}/${r.all}개`);
+        var wide=mw>=mh*0.9;
+        var g=wide?grid(6,4):grid(4,6);
+        /* 화면을 얼마나 쓰나 */
+        var xs=vis.map(function(n){return n.x*cam.s+cam.x});
+        var ys=vis.map(function(n){return n.y*cam.s+cam.y});
+        var useW=(Math.max.apply(null,xs)-Math.min.apply(null,xs))/mw;
+        var useH=(Math.max.apply(null,ys)-Math.min.apply(null,ys))/mh;
+        /* 너무 붙은 것 — 가장 가까운 이웃까지의 화면 거리 */
+        var nn=[];
+        for(var i2=0;i2<vis.length;i2++){
+          var best=1e9;
+          for(var j2=0;j2<vis.length;j2++){ if(i2===j2)continue;
+            var dd=Math.hypot((vis[i2].x-vis[j2].x)*cam.s,(vis[i2].y-vis[j2].y)*cam.s);
+            if(dd<best)best=dd }
+          nn.push(best);
+        }
+        nn.sort(function(p,q){return p-q});
+        /* 분야가 자리를 정하지 **않는가** — 같은 분야 쌍과 다른 분야 쌍의 거리 중앙값 */
+        var same=[],diff=[];
+        for(var i3=0;i3<vis.length;i3++)for(var j3=i3+1;j3<vis.length;j3++){
+          var ca=catIndex(vis[i3]), cb=catIndex(vis[j3]);
+          if(ca<0||cb<0)continue;
+          var d3=Math.hypot((vis[i3].x-vis[j3].x)*cam.s,(vis[i3].y-vis[j3].y)*cam.s);
+          (ca===cb?same:diff).push(d3);
+        }
+        var med=function(v){ if(!v.length)return -1; v.sort(function(p,q){return p-q}); return v[v.length>>1] };
+        /* 반지름에 연도가 남아 있지 않은지 */
+        var yrs=[], rad=[];
+        A.forEach(function(n){ var y=+String(n.yr||'').slice(0,4);
+          if(y>1900&&isFinite(n.x)){ yrs.push(y); rad.push(Math.hypot(n.x,n.y/0.86)) } });
+        var corr=0;
+        if(yrs.length>6){
+          var my=0,mr=0,k;
+          for(k=0;k<yrs.length;k++){my+=yrs[k];mr+=rad[k]} my/=yrs.length; mr/=rad.length;
+          var sxy=0,sx=0,sy=0;
+          for(k=0;k<yrs.length;k++){var dy=yrs[k]-my,dr=rad[k]-mr;sxy+=dy*dr;sx+=dy*dy;sy+=dr*dr}
+          corr=(sx&&sy)?sxy/Math.sqrt(sx*sy):0;
+        }
+        return {n:vis.length, g:g, useW:useW, useH:useH,
+          nnMin:nn[0], nnMed:nn[nn.length>>1],
+          same:med(same), diff:med(diff), corr:+corr.toFixed(2), yrN:yrs.length};
+      })()`);
+      d25.window.close();
+      if (!r) { F(`25. ${nm} — catIndex 를 못 불렀다. 검사가 화면을 안 보고 있다`); continue }
+      if (r.no) { W(`25. ${nm} — ${r.no}`); continue }
+      const g = r.g;
+      console.log(`25. 자리 고르기     ${nm} ${vw}×${vh} · 노드 ${r.n}개 · 칸 ${g.cells}개 · ` +
+        `빈칸 ${g.empty}(가운데 ${g.innerEmpty}/${g.inner} · 가장자리 ${g.edgeEmpty}) · ` +
+        `최대 ${g.max} (평균 ${g.mean.toFixed(1)}) · 변동계수 ${g.cv.toFixed(2)}` +
+        (g.out ? ` · 화면 밖 ${g.out}` : ''));
+      g.txt.forEach(t => console.log(`                    [ ${t} ]`));
+      console.log(`25. 화면 쓴 비율    가로 ${(r.useW*100).toFixed(0)}% · 세로 ${(r.useH*100).toFixed(0)}% · ` +
+        `가장 가까운 이웃 최소 ${Math.round(r.nnMin)}px · 중앙 ${Math.round(r.nnMed)}px`);
+      console.log(`25. 분야가 자리를 정하나  같은 분야 거리 ${Math.round(r.same)}px : 다른 분야 ${Math.round(r.diff)}px ` +
+        `(1 에 가까울수록 자리에 분야가 안 남았다)`);
       console.log(`25. 반지름 ↔ 연도   상관 ${r.corr} (연도를 없앴으므로 0 에 가까워야 한다 · 잰 노드 ${r.yrN}개)`);
-      /* **분야로 모으기로 했으면 실제로 모여 있어야 한다.** 흩어진 것보다 뚜렷이 높아야 한다. */
-      /* **배치가 틀리면 FAIL.** 그건 우리가 고칠 수 있다 — setAngles 가 분야로 안 모은 것이다. */
-      if (r.pairs >= 6 && pratio < 0.9)
-        F(`25. 배치가 분야로 안 모았다 — 이론 최대의 ${(pratio*100).toFixed(0)}% 뿐이다 (${r.planSame}/${cap}). ` +
-          `「부동산은 이쪽, 노동은 저쪽」이 안 된다`);
-      /* **물리가 민 것은 WARN.** 겹침을 푸느라 밀린 것이고, 크면 배치가 안 보인다. */
-      else if (r.pairs >= 6 && ratio < 0.5)
-        W(`25. 물리가 분야 배치를 많이 흩뜨렸다 — 배치 ${(pratio*100).toFixed(0)}% → 화면 ${(ratio*100).toFixed(0)}%`);
-      /* **반지름에 연도가 남아 있으면 없앤 것이 아니다.** 자리에 없는 뜻이 남는다. */
-      if (r.yrN > 6 && Math.abs(r.corr) > 0.5)
-        F(`25. 반지름이 아직 연도를 따라간다 (상관 ${r.corr}). 연도 배치를 없앴는데 자리에 시간이 남아 있다`);
 
-      /* ── 자리가 무엇을 뜻하는지 **화면이 밝히는가** ──
-         전에는 「고리 간격 ≠ 시간 간격」이었다. 이제 자리를 정하는 것은 분야다.
-         **자리에 없는 뜻을 만들지 않는 것**이 이 문구의 목적이라 여전히 정확성 문제다.
-         워터마크 검사(16번)와 같은 방식으로 fillText 를 가로채 실제로 그려지는지 본다. */
-      for (const [vw, vh] of [[412, 915], [1440, 900]]) {
-        const dN = boot(vw, vh);
-        await new Promise(rr => setTimeout(rr, 1100));
-        const drawn = dN.window.eval(`(function(){
-          var seen=[];
-          var g=cv.getContext('2d');
-          var real=g.fillText;
-          g.fillText=function(t){seen.push(String(t));return real&&real.apply(g,arguments)};
-          try{draw()}catch(e){}
-          g.fillText=real;
-          return seen;
-        })()`) || [];
-        dN.window.close();
-        const hit = drawn.some(t => /자리\s*[=는]\s*분야|자리는 분야/.test(t));
-        console.log(`25. 자리 안내       ${vw}px · ${hit ? '그려짐' : '없음'} (그린 글자 ${drawn.length}개)`);
-        if (!drawn.length) F(`25. ${vw}px — fillText 를 하나도 못 잡았다. 검사가 화면을 안 보고 있다`);
-        else if (!hit) F(`25. ${vw}px — 자리가 무엇을 뜻하는지(분야) 화면에 없다. 밝히지 않으면 보는 사람이 거리에 뜻을 붙인다`);
-      }
+      /* ── **가운데가 비면 FAIL.** 「가운데가 비면 안 된다」 가 그 요구였다 ── */
+      if (g.innerEmpty)
+        F(`25. ${nm} — 화면 안쪽 격자 ${g.inner}칸 중 ${g.innerEmpty}칸이 비었다. 가운데가 비면 안 된다`);
+      /* 가장자리는 맞춤 여백이 걸쳐 있다 — 절반 넘게 비면 배치가 화면을 안 쓰는 것이다 */
+      else if (g.edgeEmpty > (g.cells - g.inner) * 0.5)
+        F(`25. ${nm} — 가장자리 ${g.cells - g.inner}칸 중 ${g.edgeEmpty}칸이 비었다. 화면 전체를 고르게 써야 한다`);
+      /* ── **한쪽에 몰리면 FAIL.** 변동계수는 노드 수와 무관하다 —
+             절대값(표준편차)으로 박으면 데이터가 늘 때마다 흔들린다. 이 파일이 세 번 겪었다. ── */
+      else if (g.cv > 0.75)
+        F(`25. ${nm} — 칸마다 개수가 너무 다르다 (변동계수 ${g.cv.toFixed(2)}, 한도 0.75). 한쪽에 몰렸다`);
+      /* ── **화면을 안 쓰면 FAIL.** 전에는 가로를 39% 만 썼다 ── */
+      if (r.useW < 0.6 || r.useH < 0.6)
+        F(`25. ${nm} — 화면을 가로 ${(r.useW*100).toFixed(0)}% · 세로 ${(r.useH*100).toFixed(0)}% 만 쓴다 (한도 60%)`);
+      /* ── **너무 붙으면 WARN.** 겹침은 검사 34 가 글자로 따로 잡는다 ── */
+      if (r.nnMin < 12)
+        W(`25. ${nm} — 가장 가까운 두 노드가 ${Math.round(r.nnMin)}px 다. 너무 붙었다`);
+      /* ── **분야가 자리를 정하면 FAIL.** 그게 뭉쳐 보이던 원인이다.
+             같은 분야가 다른 분야보다 뚜렷이 가까우면 자리에 분야가 남은 것이다 ── */
+      if (r.same > 0 && r.diff > 0 && r.same < r.diff * 0.6)
+        F(`25. ${nm} — 같은 분야끼리 ${Math.round(r.same)}px 로 다른 분야(${Math.round(r.diff)}px)보다 뭉쳐 있다. ` +
+          `자리에서 분야를 뺐는데 아직 남아 있다`);
+      /* ── 반지름에 연도가 남아 있으면 없앤 것이 아니다 ── */
+      if (r.yrN > 6 && Math.abs(r.corr) > 0.5)
+        F(`25. ${nm} — 반지름이 아직 연도를 따라간다 (상관 ${r.corr}). 자리에 시간이 남아 있다`);
+    }
+
+    /* ── 자리가 무엇을 뜻하는지 **화면이 밝히는가** ──
+       이제 자리에는 아무 뜻이 없다. 그것을 그대로 적어야 한다 —
+       밝히지 않으면 보는 사람이 **가까운 것끼리 관계가 있다고** 읽는다.
+       fillText 를 가로채 실제로 그려지는지 본다 (워터마크 검사와 같은 방식). */
+    for (const [vw, vh] of [[412, 915], [1440, 900]]) {
+      const dN = boot(vw, vh);
+      await new Promise(rr => setTimeout(rr, 1100));
+      const drawn = dN.window.eval(`(function(){
+        var seen=[];
+        var g=cv.getContext('2d');
+        var real=g.fillText;
+        g.fillText=function(t){seen.push(String(t));return real&&real.apply(g,arguments)};
+        try{draw()}catch(e){}
+        g.fillText=real;
+        return seen;
+      })()`) || [];
+      dN.window.close();
+      const hit = drawn.some(t => /자리에는 뜻이 없|자리와 거리에는 뜻이 없/.test(t));
+      console.log(`25. 자리 안내       ${vw}px · ${hit ? '그려짐' : '없음'} (그린 글자 ${drawn.length}개)`);
+      if (!drawn.length) F(`25. ${vw}px — fillText 를 하나도 못 잡았다. 검사가 화면을 안 보고 있다`);
+      else if (!hit) F(`25. ${vw}px — 자리에 뜻이 없다는 것을 화면이 안 밝힌다. 밝히지 않으면 보는 사람이 거리에 뜻을 붙인다`);
     }
   }
 

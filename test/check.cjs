@@ -4463,18 +4463,28 @@ const TKN = { result:'결과', bill:'법·정책', person:'인물', party:'정�
       console.log(`68. 누르면 읽히나  「${r.lab}」 이웃 ${r.n}개 · ` +
         `「같은 주제」 배지 ${r.topicBadge}개 · 「정반대」 ${r.oppDrawn}/${r.oppN}개 · ` +
         `「연도 · 정부」 ${r.subDrawn}개(글자 ${r.subH}px, 이름 ${r.labH}px) · 글자겹침 ${r.ov}`);
-      console.log(`68. 근거가 셀수록 가까이  손확인 ${r.d1}px(${r.c1}개) · 조문 ${r.d2}px · ` +
-        `자동 ${r.d3}px(${r.c3}개)`);
+      console.log(`68. 거리는 하나       손확인 ${r.d1}px(${r.c1}개) · 조문 ${r.d2}px · ` +
+        `자동 ${r.d3}px(${r.c3}개) — 같아야 한다 (세기는 굵기가 말한다)`);
       /* (a) 「같은 주제」 는 무엇이 다른지 말해 주지 않는다 — 지도에 안 나와야 한다 */
       if (r.topicBadge)
         F(`68. 「같은 주제」 배지가 ${r.topicBadge}개 그려진다. 같은 글자가 여러 번 뜨는 것은 정보가 아니다`);
-      /* (b) 근거가 센 것이 가까워야 한다 */
-      /* **한도에 딱 붙으면 아무것도 안 잡는다.** 거리를 끄고 주입했더니 136 대 137 로
-         1px 차이로 통과했다 — 그건 「가깝다」 가 아니다. 실제 값은 110 대 157(0.70)이라
-         0.9 를 요구해도 여유가 크다. */
-      if (r.c1 && r.c3 && r.d1 >= r.d3 * 0.9)
-        F(`68. 손으로 확인한 이웃(${r.d1}px)이 자동으로 이은 이웃(${r.d3}px)보다 뚜렷이 안 가깝다 ` +
-          `(90% 아래여야 한다). 관련이 강한 것과 약한 것이 갈려야 한다`);
+      /* ── (b) **약속이 뒤집혔다** ──
+         전에는 「근거가 셀수록 가까이」 였다 — 손확인 0.80배 · 조문 0.90 · 자동 1.00.
+         그런데 그것이 「어떤 건 붙어 있고 어떤 건 멀리 떨어져 있다」 의 원인 가운데 하나였다.
+         이제 **거리는 하나**이고(검사 72), 근거의 세기는 **굵기**가 말한다(범례에 있음).
+         같은 것을 두 번 말하면 하나는 반드시 설명이 빠진다.
+
+         그래서 판정을 뒤집는다 — **거리가 tier 별로 갈리면 FAIL.**
+         이 검사만 할 수 있는 것(같은 초점 안에서 실제로 잰 거리)을 남긴다. */
+      if (r.c1 && r.c3 && r.d3 > 0) {
+        const gap = Math.abs(r.d1 - r.d3) / r.d3;
+        if (gap > 0.15)
+          F(`68. 같은 초점인데 손확인 이웃(${r.d1}px)과 자동 이웃(${r.d3}px)의 거리가 다르다. ` +
+            `거리는 하나여야 한다 — 근거의 세기는 선 굵기가 말한다`);
+      }
+      /* 굵기는 여전히 tier 를 가려야 한다 — 거리에서 뺐으니 여기서는 반드시 있어야 한다 */
+      if (!/TIER_W\[tierOf\(l\)\]/.test(html))
+        F('68. 굵기가 근거의 세기를 안 가른다. 거리에서 뺐으면 굵기로는 말해야 한다');
       /* (c) 정반대는 글자로 말해야 한다 */
       if (r.oppN && !r.oppDrawn)
         F(`68. 정반대인 관계가 ${r.oppN}개인데 화면에 「정반대」 가 안 그려진다. ` +
@@ -4708,13 +4718,41 @@ const TKN = { result:'결과', bill:'법·정책', person:'인물', party:'정�
          ── 주석에 백틱을 쓰면 이 템플릿 리터럴이 그 자리에서 끊긴다. 이 파일이 세 번째다 ──
          **검색은 되는데 검사만 ✗** 가 났다 (브라우저에서 「민식이법」→도로교통법 확인함).
          이 파일이 정한 대로 사람이 하는 짓을 흉내 낸다 — 입력창에 글자를 넣고 목록을 본다. */
-      var inHay=false;
+      var inHay=false, zero=[], typed={};
       try{
         var inp=document.querySelector('.search input')||document.querySelector('input');
         if(inp){
+          /* ── **별명을 하나도 빠짐없이 쳐 본다** ──
+             전에는 「민식이법」 하나만 쳤다. 그 하나가 되면 나머지도 될 것이라고 본 것인데,
+             별명은 각각 다른 법에 붙고 **붙을 법이 없으면 조용히 0건**이 된다.
+             실제로 민법·정보통신망법·청탁금지법·청소년성보호법 네 개가 그랬다.
+             결과 개수는 계산으로 만들지 않고 **화면에 뜬 목록을 센다** —
+             공식을 검사에 베껴 쓰면 화면과 갈라진다. */
+          /* ── **데이터에서 뽑은 목록만 치면 아무것도 안 잡는다** ──
+             주입으로 확인했다: 「태완이법」 을 다른 글자로 바꿨더니 검사가 **그 바뀐 글자를**
+             쳐 보고 통과했다. 데이터가 목록을 정하면 데이터를 지우는 순간 검사도 같이 지워진다.
+             그래서 **주인이 이름을 댄 별명은 코드에 박는다** — 이건 데이터가 아니라 약속이다. */
+          var MUST=['민식이법','김용균법','윤창호법','구하라법','태완이법',
+                    'n번방 방지법','김영란법','세월호 특별법','중대재해처벌법'];
+          var names=Object.create(null);
+          MUST.forEach(function(a){ names[a]=1 });
+          N.forEach(function(x){ (x.alias||[]).forEach(function(a){ names[a]=1 }) });
+          Object.keys(names).forEach(function(a){
+            inp.value=a; inp.dispatchEvent(new Event('input',{bubbles:true}));
+            /* ── **「찾는 항목이 없습니다」 도 같은 .sr 이다** ──
+               (주석에 백틱을 쓰면 이 템플릿 리터럴이 그 자리에서 끊긴다 — 이 파일에서 네 번째다)
+               세어 보니 0건일 때도 1 이 나왔다. 그 한 줄이 빈 상태 알림이었다 —
+               disabled 가 붙어 있다. **셀 수 없는 검사는 언제나 통과한다.**
+               주입으로 두 번 확인했다: 처음에는 이 줄 때문에, 그 전에는
+               바꾼 글자에 원래 별명이 그대로 들어 있어서 통과했다. */
+            var rows=[].slice.call(document.querySelectorAll('.sres .sr'))
+              .filter(function(b){return !b.disabled});
+            typed[a]=rows.length;
+            if(!rows.length)zero.push(a);
+          });
           inp.value='민식이법';
           inp.dispatchEvent(new Event('input',{bubbles:true}));
-          var box=document.querySelector('.qlist,.qbox,.suggest,.results')||inp.parentElement;
+          var box=document.querySelector('.sres')||document.querySelector('.qlist,.qbox,.suggest,.results')||inp.parentElement;
           inHay=(box.textContent||'').indexOf('도로교통법')>=0;
           inp.value=''; inp.dispatchEvent(new Event('input',{bubbles:true}));
         }
@@ -4725,7 +4763,7 @@ const TKN = { result:'결과', bill:'법·정책', person:'인물', party:'정�
         cardChain:card.indexOf('사건에서 지금까지')>=0,
         cardMade:card.indexOf('만들어진 법')>=0||card.indexOf('적용된 법')>=0,
         gapSays:gcard.indexOf('아직 확인하지 못했습니다')>=0,
-        alias:al.length, qa:qa, inHay:inHay,
+        alias:al.length, qa:qa, inHay:inHay, zero:zero, typed:typed,
         cardAlias:(function(){ try{ var b=al[0]; setFocus(b.id);
           var t=(document.getElementById('pop')||document.body).textContent||'';
           return t.indexOf('흔히')>=0 }catch(e){ return false } })()};
@@ -4741,7 +4779,8 @@ const TKN = { result:'결과', bill:'법·정책', person:'인물', party:'정�
         `빈 칸을 밝힘 ${r.gapSays ? '○' : '✗'}  (가장 꽉 찬 것: ${r.best})`);
       console.log(`71. 별명            ${r.alias}개 법에 붙음 · ` +
         Object.keys(r.qa).map(k => `${k} ${r.qa[k]}`).join(' · ') +
-        ` · 「민식이법」→도로교통법 ${r.inHay ? '○' : '✗'} · 카드 ${r.cardAlias ? '○' : '✗'}`);
+        ` · 「민식이법」→도로교통법 ${r.inHay ? '○' : '✗'} · 카드 ${r.cardAlias ? '○' : '✗'}` +
+        ` · 쳐서 0건인 별명 ${r.zero ? r.zero.length : '?'}개${r.zero && r.zero.length ? ' ('+r.zero.join(',')+')' : ''}`);
       if (!r.open) F('71. 사슬이 뜨는 사건이 하나도 없다');
       if (!r.cnt.made) F('71. 「그 뒤에 만들어진 법」 이 붙은 사건이 하나도 없다');
       if (!r.cnt.relief) F('71. 보상·지원이 붙은 사건이 하나도 없다. 법 조문에서 뽑을 수 있는데 안 뽑았다');
@@ -4755,6 +4794,103 @@ const TKN = { result:'결과', bill:'법·정책', person:'인물', party:'정�
       if (!r.qa['민식이법'] || !r.qa['김용균법']) F('71. 「민식이법」·「김용균법」이 어느 법에도 안 붙었다');
       if (!r.inHay) F('71. 검색창에 「민식이법」을 쳤는데 도로교통법이 안 나온다. 카드에만 있고 검색이 안 되면 못 찾는다');
       if (!r.cardAlias) F('71. 카드가 별명을 안 보여준다');
+      /* ── **0건이면 FAIL** ── 그 말로 찾아온 사람에게는 그 법이 없는 것과 같다 */
+      if (!r.typed || !Object.keys(r.typed).length)
+        F('71. 별명을 하나도 안 쳐 봤다. 0건은 「문제 없음」 과 「안 보고 있음」 을 구별하지 않는다');
+      else if (r.zero && r.zero.length)
+        F(`71. 검색창에 쳤는데 0건인 별명 ${r.zero.length}개: ${r.zero.join(', ')}. ` +
+          `별명이 없으면 그 법은 없는 것과 같다`);
+    }
+  }
+
+  /* ── 72. 이어진 것 사이 **거리가 하나인가** ──
+     「어떤 건 붙어 있고 어떤 건 멀리 떨어져 있다」 가 요구였다. 세 곳이 제각각이었다:
+       첫 화면  물리의 용수철이 약해(0.055) 흔들림이 38% 였다
+       초점     tier 별로 0.80·0.90·1.00 배 — **일부러 다르게** 두고 있었다
+       지그재그  하나 걸러 안쪽(0.66배) — 같은 초점의 이웃인데 거리가 두 가지였다
+
+     이제 EDGE_LEN 하나다. **화면 기준 px** 이다 —
+     월드 상수로 박아 봤더니 배치가 커지면 fit() 이 더 줄여서 화면 거리는 그대로였고
+     뭉친 곳만 더 뭉쳤다. 숫자는 맞고 화면은 나빠졌다 (스크린샷으로 잡았다).
+
+     **초점과 뒤로가 같아야 한다** — 상태가 바뀌어도 같은 거리여야 한다는 것이 요구다. */
+  {
+    const d72 = boot(1440, 900);
+    await new Promise(r => setTimeout(r, 1300));
+    const r = d72.window.eval(`(function(){
+      if(typeof EDGE_LEN!=='number')return {no:'EDGE_LEN 이 없다'};
+      function edges(){
+        var idx={}; A.forEach(function(n){idx[n.id]=n});
+        var d=[]; AL.forEach(function(l){ var a=idx[l[0]],b=idx[l[1]]; if(!a||!b)return;
+          d.push((Math.hypot(a.x-b.x,a.y-b.y)-(a.r+b.r))*cam.s) });
+        d.sort(function(x,y){return x-y}); if(!d.length)return null;
+        var q=function(p){return d[Math.floor(d.length*p)]||0};
+        return {n:d.length, med:q(.5), lo:q(.25), hi:q(.75), min:d[0], max:d[d.length-1]};
+      }
+      function around(){
+        var f=map[focus]; if(!f)return null;
+        var nb=[]; AL.forEach(function(l){ var o=null;
+          if(l[0]===focus)o=map[l[1]]; else if(l[1]===focus)o=map[l[0]];
+          if(o&&nb.indexOf(o)<0)nb.push(o) });
+        if(!nb.length)return null;
+        var d=nb.map(function(o){return (Math.hypot(o.x-f.x,o.y-f.y)-(o.r+f.r))*cam.s})
+                .sort(function(a,b){return a-b});
+        return {n:d.length, med:d[(d.length/2)|0], min:d[0], max:d[d.length-1]};
+      }
+      var t=0; while(alpha>LAY_STOP&&t<600){tick();t++}
+      for(var i=0;i<300;i++)tick();
+      var first=edges();
+      var res=A.filter(function(n){return n.t==='result'});
+      if(res.length<10)return {no:'결과 노드가 모자라 못 쟀다'};
+      setFocus(res[3].id); for(var i2=0;i2<600;i2++)tick();
+      var onFocus=around();
+      setFocus(res[8].id); for(var i3=0;i3<400;i3++)tick();
+      var btn=null, all=document.querySelectorAll('button,.ub');
+      for(var b=0;b<all.length;b++) if(/뒤로/.test(all[b].textContent||'')){btn=all[b];break}
+      if(btn)btn.click();
+      for(var i4=0;i4<600;i4++)tick();
+      var onBack=around();
+      /* 도형이 겹치면 거리를 아무리 맞춰도 눈에는 엉킨 것이다 */
+      var ov=0;
+      for(var x=0;x<A.length;x++)for(var y=x+1;y<A.length;y++)
+        if(Math.hypot(A[x].x-A[y].x,A[x].y-A[y].y)<(A[x].r+A[y].r))ov++;
+      return {E:EDGE_LEN, first:first, onFocus:onFocus, onBack:onBack, overlap:ov, nodes:A.length};
+    })()`);
+    d72.window.close();
+    if (!r) F('72. 못 쟀다');
+    else if (r.no) F(`72. ${r.no}`);
+    else {
+      const pc = v => Math.round(v);
+      const spread = r.first ? Math.round((r.first.hi - r.first.lo) / Math.max(1, r.first.med) * 100) : -1;
+      console.log(`72. 이어진 거리      EDGE_LEN ${r.E}px · 첫 화면 중앙 ${pc(r.first.med)}px ` +
+        `(${pc(r.first.min)}~${pc(r.first.max)} · 흔들림 ${spread}%) · 선 ${r.first.n}개`);
+      console.log(`72. 상태별          초점 중앙 ${r.onFocus ? pc(r.onFocus.med) : '-'}px · ` +
+        `뒤로 중앙 ${r.onBack ? pc(r.onBack.med) : '-'}px · 도형겹침 ${r.overlap}쌍 (노드 ${r.nodes})`);
+      /* ── 정해진 값과 다르면 FAIL ── */
+      const near = (v, lo, hi) => v >= r.E * lo && v <= r.E * hi;
+      if (!near(r.first.med, 0.75, 1.35))
+        F(`72. 첫 화면의 이어진 거리 중앙값이 ${pc(r.first.med)}px 다 — EDGE_LEN ${r.E}px 여야 한다`);
+      if (spread > 32)
+        F(`72. 첫 화면의 이어진 거리가 ${spread}% 흔들린다 (한도 32%). ` +
+          `「어떤 건 붙어 있고 어떤 건 멀다」 가 이것이다`);
+      /* 초점의 원은 이름표가 겹치면 그 자리에서 넓힌다 — 그래서 위쪽을 넉넉히 본다 */
+      if (r.onFocus && !near(r.onFocus.med, 0.75, 1.8))
+        F(`72. 초점 이웃의 거리 중앙값이 ${pc(r.onFocus.med)}px 다 — EDGE_LEN ${r.E}px 기준을 벗어났다`);
+      if (r.onBack && !near(r.onBack.med, 0.75, 1.8))
+        F(`72. '뒤로' 뒤 이웃의 거리 중앙값이 ${pc(r.onBack.med)}px 다 — EDGE_LEN ${r.E}px 기준을 벗어났다`);
+      /* **상태가 바뀌어도 같은 거리** — 이것이 요구의 핵심이다 */
+      if (r.onFocus && r.onBack) {
+        const gap = Math.abs(r.onFocus.med - r.onBack.med) / Math.max(1, r.onFocus.med);
+        if (gap > 0.15)
+          F(`72. 초점(${pc(r.onFocus.med)}px)과 '뒤로'(${pc(r.onBack.med)}px)의 거리가 다르다. ` +
+            `언제 어디서든 같은 거리로 이어져야 한다`);
+      }
+      if (r.overlap) W(`72. 첫 화면에서 도형이 ${r.overlap}쌍 겹친다`);
+      /* 거리를 다시 제각각으로 만드는 것이 되살아나면 FAIL */
+      if (/rr\*=\(ORB_TIER_R/.test(html))
+        F("72. 초점에서 tier 별로 거리를 다르게 준다. 거리는 하나여야 한다 — 근거의 세기는 굵기가 말한다");
+      if (/var ORBIT_ZIG=0\./.test(html))
+        F('72. 지그재그가 되살아났다. 같은 초점의 이웃인데 거리가 두 가지가 된다');
     }
   }
 

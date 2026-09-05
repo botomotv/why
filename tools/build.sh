@@ -48,6 +48,10 @@ node tools/hand-law-url.mjs
 node tools/verdict.mjs
 # ── 법의 별명 ── 「민식이법」으로 검색이 돼야 한다. 법 노드가 확정된 뒤에 돌린다.
 node tools/alias.mjs
+# ── 사건 설명 ── 「이태원 참사를 눌렀는데 무슨 사건인지 안 나온다」 에 대한 답.
+# 법 제1조에서 날짜·장소를 가져오므로 collect-purpose 뒤에 있어도 되지만,
+# db/event_easy.json 은 사람이 쓴 것이라 순서에 매이지 않는다.
+node tools/event-easy.mjs
 # ── 「피해자는 어떻게 보상받았나」 ──
 # 법 제1조와 조문 제목을 먼저 받고(피해구제법이 여기서 들어온다), 그다음 보상 조문을 뽑는다.
 # **순서가 곧 의존이다** — relief 는 law_articles 를 읽는다.

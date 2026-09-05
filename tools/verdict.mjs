@@ -155,7 +155,10 @@ const block = `/*AUTO-PEN-START*/${rows.join('\n,')}/*AUTO-PEN-END*/`;
    고치는 것은 한 줄이다 — **자기가 쓸 자리만 바꾸고 나머지는 지금 파일 그대로 둔다.** */
 const fresh = fs.readFileSync(HTML, 'utf8');
 const out = fresh.replace(/\/\*AUTO-PEN-START\*\/[\s\S]*?\/\*AUTO-PEN-END\*\//, block);
-if (out === fresh && rows.length) { console.error('AUTO-PEN 자리를 못 찾았다'); process.exit(1) }
+/* **자리가 있는데 내용이 같을 수 있다.** 그때 out===fresh 라서
+   「자리를 못 찾았다」 고 잘못 말했다 — 다시 돌리면 늘 실패했다.
+   찾는 것은 **자리**이지 달라졌는지가 아니다. */
+if (!/\/\*AUTO-PEN-START\*\//.test(fresh)) { console.error('AUTO-PEN 자리를 못 찾았다'); process.exit(1) }
 fs.writeFileSync(HTML, out, 'utf8');
 console.log(`index.html 에 ${rows.length}건을 썼다`);
 if (db) db.close();

@@ -42,6 +42,10 @@ node tools/link-after.mjs
 node tools/result-easy.mjs 2>/dev/null || echo '  (result-easy 건너뜀)'
 node tools/node-url.mjs
 node tools/hand-law-url.mjs
+# ── 「그래서 어떻게 됐어?」 — 판례 노드에 확정 판결의 형량 ──
+# **link-case 뒤에 돌린다.** 판례 노드가 확정된 뒤라야 어느 노드에 붙일지 알 수 있다.
+# db/verdicts.json 에 받아 둔 것은 다시 안 받는다 (843건 · 처음 한 번 15분).
+node tools/verdict.mjs
 # 첫 화면을 무엇으로 골랐나 — db/public_concern.json 을 index.html 로 내보낸다.
 # **결과 노드가 다 만들어진 뒤에** 돌린다: 없는 id 를 만나면 멈춘다.
 node tools/concern.mjs

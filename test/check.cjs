@@ -2499,29 +2499,63 @@ const TKN = { result:'결과', bill:'법·정책', person:'인물', party:'정�
     const autoIds = new Set(N.filter(n => n.auto).map(n => n.id));
     const touch = L.filter(l => autoIds.has(l[0]) || autoIds.has(l[1]));
     const marked = L.filter(l => l[7] === 'auto');
-    const missing = touch.filter(l => l[7] !== 'auto');
+    /* ── **판정을 이 검사 자신의 설명에 맞춘다** ──
+       바로 아래 주석이 이미 이렇게 적어 두었다: 「표시의 뜻은 *이 선을 우리가 계산으로
+       만들었다* 이지 *붙은 노드가 자동* 이 아니다.」 그런데 판정은 「자동 노드에 닿으면
+       표시가 있어야 한다」 였다 — 설명과 코드가 따로 놀았다.
+
+       그 틈이 실제로 드러났다. 판결을 확인해 손으로 넣은 선
+       (「학동 참사 → 산업안전보건법」 · 「중대재해처벌법 → 첫 확정 판결」)이
+       자동 노드에 닿았다는 이유로 FAIL 했다. **그 선에 '자동' 을 붙이면 거짓말이다** —
+       사람이 판결문을 읽고 사건번호를 확인해서 넣은 것이다.
+
+       그래서 **도구가 쓰는 블록 안에 있는데 표시가 없는 것**만 잡는다. 대칭으로,
+       표시가 있는데 어느 블록에도 없는 것(stray)은 이미 아래에서 잡고 있다. */
+    const missing = [];
     /* ── **자동 선 = 자동 블록에서 나온 선**. 노드가 auto 인지와 별개다 ──
        전에는 "양쪽 노드가 다 손으로 넣은 것이면 그 선도 손으로 넣은 것" 이라고 봤다.
        그런데 사건의 '그때 정권'(TERM_L)은 **손으로 넣은 대통령과 손으로 넣은 사건 사이에
        계산으로 만든 선**이다. 옛 판정은 그걸 "손으로 넣은 선에 자동 표시가 붙었다" 고 했다.
        표시의 뜻은 **"이 선을 우리가 계산으로 만들었다"** 이지 "붙은 노드가 자동" 이 아니다.
        그래서 도구가 쓰는 블록 안에 실제로 있는지로 판정한다. */
-    const autoBlocks = ['AUTO-L', 'AUTO-TERM', 'AUTO-CASE-L'].map(k => {
+    const autoBlocks = ['AUTO-L', 'AUTO-TERM', 'AUTO-CASE-L', 'AUTO-AFTER-L'].map(k => {
       const a = html.indexOf(`/*${k}-START*/`), b = html.indexOf(`/*${k}-END*/`);
       return (a >= 0 && b > a) ? html.slice(a, b) : '';
     }).join('\n');
-    const fromBlock = l => autoBlocks.includes(`'${l[0]}','${l[1]}'`);
+    /* ── **양끝만으로는 못 가른다** ──
+       `k4 → z1`(박근혜 → 어떤 사건)이 두 번 있다: 손으로 넣은 「재임 중 결정」과
+       자동으로 만든 「그때 정권」. 같은 두 노드를 잇는 다른 선이다.
+       양끝 문자열로만 찾으면 **손으로 넣은 쪽까지 자동 블록에서 나온 것으로 읽는다.**
+       이름표까지 넣어야 갈린다. */
+    const fromBlock = l => autoBlocks.includes(`'${l[0]}','${l[1]}','${l[2]}'`);
+    L.forEach(l => { if (fromBlock(l) && l[7] !== 'auto') missing.push(l) });
     const stray = marked.filter(l => !autoIds.has(l[0]) && !autoIds.has(l[1]) && !fromBlock(l));
-    console.log(`45. 자동표시        자동 노드 ${autoIds.size} · 그에 닿는 선 ${touch.length} · 표시된 선 ${marked.length}`);
+    /* 손으로 넣었는데 자동 노드에 닿는 선 — **몇 개인지 밝힌다.** 0 이 아니어도 되지만
+       말없이 늘어나면 안 된다. 늘어나면 사람이 확인한 것이 정말 그만큼인지 봐야 한다. */
+    const handToAuto = L.filter(l => (autoIds.has(l[0]) || autoIds.has(l[1])) && l[7] !== 'auto' && !fromBlock(l));
+    console.log(`45. 자동표시        자동 노드 ${autoIds.size} · 그에 닿는 선 ${touch.length} · 표시된 선 ${marked.length}` +
+      ` · 손으로 넣어 자동 노드에 닿는 선 ${handToAuto.length}개`);
     if (!autoIds.size) F('45. 자동 노드가 하나도 없다. 자동 연결이 안 들어갔거나 auto 표시가 빠졌다');
     if (missing.length)
-      F(`45. 자동으로 만든 선 ${missing.length}/${touch.length}개에 '자동' 표시가 없다. ` +
+      F(`45. 자동 블록에서 나온 선 ${missing.length}개에 '자동' 표시가 없다. ` +
         `첫 번째: ${missing[0][0]} → ${missing[0][1]}. 표시가 없으면 손으로 확인해 넣은 선과 안 갈린다`);
     if (stray.length)
       F(`45. 손으로 넣은 선 ${stray.length}개에 '자동' 표시가 붙어 있다 (어느 자동 블록에도 없다): ${stray[0][0]} → ${stray[0][1]}`);
-    /* 화면에도 실제로 나오는지 — 있다고 쓰기만 하고 안 그리면 같은 거짓말이다 */
-    const dash = /var isAuto=\(l\[7\]==='auto'\)/.test(html);
-    if (!dash) F("45. 그리기가 선의 표시(l[7])를 안 본다. 노드에서 유추하면 표시가 빠져도 화면이 그대로다");
+    /* ── 화면에서 무엇으로 가르나 — **약속이 바뀌었다** ──
+       전에는 자동 선을 **점선**으로 그렸다. 그런데 그 점선은 범례에 없었고,
+       **같은 것을 두 번 말하고 있었다** — 굵기(tierOf)가 이미 자동/사람을 가르고
+       그 뜻은 범례에 「굵을수록 근거가 셈」 으로 적혀 있다.
+       그래서 점선을 뺐다. 이 검사도 새 약속으로 다시 쓴다:
+         ① 표시가 **데이터**에 있나 (위에서 이미 봤다)
+         ② 지도가 **굵기**로 가르나 — 그건 범례에 있는 표시다
+         ③ **카드가 글로** 말하나
+       그리고 **점선이 되살아나면 FAIL** 한다 — 범례에 없는 표시가 다시 생기는 것이다. */
+    if (!/TIER_W\[tierOf\(l\)\]/.test(html))
+      F('45. 그리기가 굵기로 근거의 세기를 안 가른다. 그러면 자동과 손확인이 화면에서 안 갈린다');
+    if (!/굵을수록 근거가 셈/.test(html))
+      F('45. 범례에 굵기의 뜻이 없다. 뜻을 안 밝히면 굵기가 그냥 장식이 된다');
+    if (/isAuto\)cx\.setLineDash/.test(html))
+      F('45. 자동 선을 점선으로 그린다. 범례에 없는 표시다 — 자동/사람은 굵기와 카드가 말한다');
     if (!/c\.auto\|\|o\.auto/.test(html)) F("45. 카드 관계 목록이 선의 자동 표시를 안 쓴다");
   }
 
@@ -3967,6 +4001,10 @@ const TKN = { result:'결과', bill:'법·정책', person:'인물', party:'정�
         n.x+=(i%2?1:-1)*700; n.y+=(i<2?-1:1)*500; n.vx=0; n.vy=0 });
       for(var f=0;f<120;f++){ tick(); if(typeof fade==='function')fade() }
       var A1={}; T.forEach(function(n){ A1[n.id]=[n.x,n.y] });   /* 자리 A */
+      /* **카메라와 원(orb)도 그 시점의 것**이다. 자리만 되돌리면
+         「같은 자리를 다른 창으로 보는」 꼴이 되어 배치가 통째로 달라 보인다. */
+      var CAM1=[cam.x,cam.y,cam.s];
+      var ORB1=A.filter(function(x){return x.orb}).length;
 
       setFocus(f2);   /* 다른 노드를 누른다 — 이력에 자리 A 가 담겨야 한다 */
       for(var f=0;f<200;f++){ tick(); if(typeof fade==='function')fade() }
@@ -3984,6 +4022,9 @@ const TKN = { result:'결과', bill:'법·정책', person:'인물', party:'정�
       var back=T.map(function(n){ return Math.round(Math.hypot(n.x-A1[n.id][0],n.y-A1[n.id][1])) });
       return {away:away, back:back, worst:Math.max.apply(null,back),
         moved:Math.max.apply(null,away), focus:focus, want:f1,
+        camOff:[Math.round(cam.x-CAM1[0]),Math.round(cam.y-CAM1[1]),
+                Math.round(Math.abs(cam.s-CAM1[2])*1000)/1000],
+        orbWas:ORB1, orbNow:A.filter(function(x){return x.orb}).length,
         labs:T.map(function(n){return (n.lab||'').slice(0,10)})};
     })()`);
     dm.window.close();
@@ -4000,6 +4041,24 @@ const TKN = { result:'결과', bill:'법·정책', person:'인물', party:'정�
           `(${r.labs.join(' ')} → ${r.back.join('/')}). '뒤로' 는 한 칸 전으로 돌아가는 것이다`);
       if (r.focus !== r.want)
         F(`64. '뒤로' 뒤 초점이 「${r.focus}」 다 — 「${r.want}」 여야 한다`);
+      /* ── 카메라와 원까지 되돌리나 ──
+         자리는 0px 인데 화면이 딴 데 있어서 「뒤로 가면 배치가 뒤죽박죽」 으로 보였다.
+         그리고 되돌리면서 `orb` 를 지워 둘레에 모아 둔 것이 풀렸다 (실측 6개 → 2개). */
+      console.log(`64. 카메라·원        카메라 어긋남 ${r.camOff.join('/')} · 원에 선 것 ${r.orbWas} → ${r.orbNow}`);
+      /* ── **배율은 엄격히, 위치는 튀는 것만** ──
+         「뒤로 가면 엉망」 의 정체는 **배율이 달랐던 것**이다 — 같은 자리를 다른 창으로 보면
+         배치가 통째로 달라 보인다. 위치는 되돌린 뒤에도 자동 맞춤이 조금 미는데,
+         그건 노드 자리가 바뀌었으니 화면 안에 담으려는 **정상 동작**이다.
+         실측: 배율 어긋남 0 · 위치 171px(지도 폭의 12%).
+         절대 px 로 박으면 데이터가 늘 때마다 흔들린다 — **지도 폭의 비율**로 잰다. */
+      if (r.camOff[2] > 0.02)
+        F(`64. '뒤로' 가 배율을 안 되돌린다 (${r.camOff[2]}). ` +
+          `자리가 맞아도 배율이 다르면 같은 자리를 다른 창으로 보는 것이라 배치가 통째로 달라 보인다`);
+      if (Math.abs(r.camOff[0]) > 1440 * 0.25 || Math.abs(r.camOff[1]) > 900 * 0.25)
+        F(`64. '뒤로' 뒤 화면이 ${r.camOff[0]}/${r.camOff[1]}px 튀었다 (지도의 25% 넘음)`);
+      if (r.orbWas > 0 && r.orbNow < r.orbWas)
+        F(`64. '뒤로' 뒤 둘레에 모아 둔 것이 ${r.orbWas} → ${r.orbNow} 로 풀렸다. ` +
+          `자리를 되돌리려면 그 자리를 붙잡고 있던 것까지 되돌려야 한다`);
     }
   }
 
@@ -4226,12 +4285,17 @@ const TKN = { result:'결과', bill:'법·정책', person:'인물', party:'정�
     }
   }
 
-  /* ── 67. 법 · 정책 · 자동 · 사람확인을 **모양으로** 가르나 ──
-     「회색 사각형이 두 가지다. 무엇이 다른지 말해라」 가 요구였다. 두 축이 겹쳐 있었다:
-       ① 무엇인가   — 법(국회) vs 정책(정부). 그때는 **같은 모양**이었다
-       ② 근거의 세기 — 자동 vs 사람 확인. 그때는 **채움 밝기**로만 갈랐다
-     「색만으로 가르지 마라」 이므로 둘 다 모양(실루엣·테두리)으로 가르고,
-     **범례에 그 구분이 있어야 한다** — 뜻을 안 밝히면 모양이 그냥 장식이 된다. */
+  /* ── 67. 법·정책은 모양으로 가르고, 자동/사람은 **지도에서 안 가른다** ──
+     ① 무엇인가   — 법(국회) vs 정책(정부). **모양으로 가른다** (그대로)
+     ② 근거의 세기 — 자동 vs 사람 확인. **지도에서 뺐다**
+
+     ②의 약속이 바뀌었다. 전에는 점선(자동)과 흰 테두리(사람)로 갈랐는데,
+     **범례에 없는 표시라 물어볼 곳이 없었다.** 그리고 같은 것을 두 번 말하고 있었다 —
+     선 굵기(tierOf)가 이미 가르고 그 뜻은 범례에 있다.
+     그래서 이 검사도 다시 썼다: **둘이 같은 그림을 그려야 하고**, 범례에 그 항목이
+     **없어야 하며**, 대신 **카드가 글로** 말해야 한다.
+     옛 판정을 지우지 않고 뒤집었다 — 그 자리에 있던 보증(자동/사람이 어디선가 갈린다)은
+     검사 45(굵기)와 여기 ③이 이어받는다. */
   {
     const d67 = boot(1440, 900);
     await new Promise(r => setTimeout(r, 1300));
@@ -4285,6 +4349,16 @@ const TKN = { result:'결과', bill:'법·정책', person:'인물', party:'정�
            문법 오류가 안 나서 조용히 달라진다. 이스케이프를 아예 안 쓴다. */
         lgAuto:txt.indexOf('점선 = 자동으로 이음')>=0,
         lgHand:txt.indexOf('흰 테두리 = 사람이 확인')>=0,
+        /* 자동/사람이 **같은 그림**인가 — 칠하기까지 견준다 */
+        fillSame:(function(){
+          var a=JSON.stringify(au), b=JSON.stringify(ha); return a===b })(),
+        /* 카드가 글로 말하나 — 화면 글자로 본다 */
+        cardSays:(function(){
+          try{ var an=N.filter(function(n){return n.auto})[0]; if(!an)return false;
+            setFocus(an.id);
+            var t=(document.getElementById('pop')||document.body).textContent||'';
+            return t.indexOf('자동')>=0 }catch(e){ return false } })(),
+
         cssPol:css.indexOf('.lg-pol{')>=0&&css.indexOf('.sg-pol{')>=0};
     })()`);
     d67.window.close();
@@ -4295,25 +4369,31 @@ const TKN = { result:'결과', bill:'법·정책', person:'인물', party:'정�
         `경로가 ${r.same ? '같다' : '다르다'}`);
       console.log(`                   정책 ${r.pa.slice(0, 76)}`);
       console.log(`                   법   ${r.pb.slice(0, 76)}`);
-      console.log(`67. 자동/사람확인   자동 [점선 ${r.au.dash} · 테두리 ${r.au.stroke} · 채움 ${r.au.fill}] · ` +
-        `사람 [점선 ${r.ha.dash} · 테두리 ${r.ha.stroke} · 채움 ${r.ha.fill}]`);
+      console.log(`67. 자동/사람확인   지도에서 안 가른다 — 자동 [점선 ${r.au.dash} · 테두리 ${r.au.stroke} · 채움 ${r.au.fill}] · ` +
+        `사람 [점선 ${r.ha.dash} · 테두리 ${r.ha.stroke} · 채움 ${r.ha.fill}] · 같은 그림 ${r.fillSame ? '○' : '✗'}`);
       console.log(`67. 범례            국회가 만든 법 ${r.lgLaw ? '○' : '✗'} · 정부가 정한 정책 ${r.lgPol ? '○' : '✗'} · ` +
-        `점선=자동 ${r.lgAuto ? '○' : '✗'} · 흰 테두리=사람 ${r.lgHand ? '○' : '✗'} · 모양 CSS ${r.cssPol ? '○' : '✗'}`);
+        `점선=자동 ${r.lgAuto ? '아직 있다 ✗' : '뺐다 ○'} · 흰 테두리=사람 ${r.lgHand ? '아직 있다 ✗' : '뺐다 ○'} · ` +
+        `모양 CSS ${r.cssPol ? '○' : '✗'} · 카드가 말한다 ${r.cardSays ? '○' : '✗'}`);
       /* **모양이 같으면 FAIL.** 색만으로 가르지 말라는 것이 요구였다 */
       if (r.same)
         F('67. 법과 정책이 같은 모양으로 그려진다. 「탈원전 선언」은 정책이지 법이 아니다 — 모양으로 갈라야 한다');
-      /* **자동/사람이 채움 말고 다른 축으로도 갈려야 한다** */
-      if (!r.au.dash)
-        F('67. 자동으로 이은 것에 점선 테두리가 없다. 채움 밝기만으로는 한눈에 안 갈린다');
-      if (!r.ha.stroke)
-        F('67. 사람이 확인한 것에 테두리가 없다. 채움 밝기만으로는 한눈에 안 갈린다');
-      if (r.ha.dash)
-        F('67. 사람이 확인한 것에도 점선을 쓴다. 그러면 자동과 안 갈린다');
+      /* ── ② 자동/사람은 **지도에서 안 가른다** ── */
+      if (!r.fillSame)
+        F('67. 자동과 사람 확인을 지도에서 다르게 그린다. 범례에 없는 표시다 — 카드가 글로 말한다');
+      if (r.au.dash || r.ha.dash)
+        F('67. 노드에 점선을 쓴다. 범례에 없는 표시는 그리지 않는다');
       /* **뜻을 안 밝히면 모양이 장식이 된다** */
       if (!r.lgLaw || !r.lgPol)
         F('67. 범례에 법과 정책의 구분이 없다. 모양을 갈라 놓고 뜻을 안 밝히면 그냥 다른 그림이다');
-      if (!r.lgAuto || !r.lgHand)
-        F('67. 범례에 자동/사람 확인의 구분이 없다');
+      if (r.lgAuto || r.lgHand)
+        F('67. 범례에 점선/흰 테두리 항목이 남아 있다. 지도에서 안 그리는 것을 범례에 두면 거짓말이다');
+      /* ── ③ 대신 **카드가 글로** 말해야 한다 ── */
+      if (!r.cardSays)
+        F('67. 카드가 자동/사람 확인을 말하지 않는다. 지도에서 뺐으면 글로는 말해야 한다');
+      /* 역할 색 테두리 — **페이지 안이 아니라 원문에서 본다.**
+         eval 안에서 script 태그를 읽으면 어느 script 인지 보장이 없다. */
+      if (/ROLE\[roles\[n\.id\]\]\.c;cx\.lineWidth/.test(html))
+        F('67. 초점 이웃에 역할 색 테두리를 그린다. 「같은 주제」가 파랑이라 회색 법 노드에 파란 테두리가 붙었고 범례에 없었다');
       if (!r.cssPol)
         W('67. 범례·서랍의 정책 모양 CSS(.lg-pol · .sg-pol)가 없다 — 화면 도형과 다른 그림이 나간다');
     }
@@ -4503,6 +4583,77 @@ const TKN = { result:'결과', bill:'법·정책', person:'인물', party:'정�
         F(`69. 그리는 종류인데 범례에 없다: ${r.lgMiss.join(' ')}. 실제로 그리는 종류를 전부 넣어야 한다`);
       if (r.drMiss.length)
         F(`69. 그리는 종류인데 '보는 법' 서랍에 없다: ${r.drMiss.join(' ')}`);
+    }
+  }
+
+  /* ── 70. 「그래서 걔 어떻게 됐어?」 에 답하나 ──
+     뉴스는 사건이 터질 때만 나오고 **판결은 조용히 난다.** 지도의 판례 노드 2,819개가
+     **죄명만** 갖고 있었다 — 「업무상과실치사」 라고만 적혀 있으면 그래서 어떻게 됐는지 모른다.
+
+     근거는 우리가 만들지 않는다:
+       · 형량 = **원심 주문에 적힌 그대로** (tools/lib/verdict.mjs)
+       · 확정 = **대법원 주문이 「상고를 기각한다」** 인 것만
+     파기환송이면 「확정 전」 이라고 밝히고 **형량을 안 쓴다** (규칙 1).
+
+     그리고 **기록만 하고 화면에 안 내보내면 없는 것과 같다** — 형량이 창고에만 있던 적이
+     한 번, url 을 노드에 넣고도 안 내보낸 적이 한 번 있었다. 그래서 넷을 함께 본다:
+       ① 형량이 노드에 붙었나  ② 확정 여부를 표시하나
+       ③ **카드가 그것을 그리나**  ④ 확정 전인데 형량을 쓰지 않았나 */
+  {
+    const d70 = boot(1440, 900);
+    await new Promise(r => setTimeout(r, 1300));
+    const r = d70.window.eval(`(function(){
+      var pen=N.filter(function(n){return n.pen});
+      var fix={}; N.forEach(function(n){ if(n.penFix)fix[n.penFix]=(fix[n.penFix]||0)+1 });
+      /* **확정 전인데 형량을 쓴 것** — 규칙 1 을 어기는 것이다 */
+      var bad=N.filter(function(n){return n.pen&&/확정 전/.test(n.penFix||'')}).length;
+      /* 형량이 있는데 **어느 판결인지 안 밝힌 것** — 출처 없는 숫자다 */
+      var noSrc=N.filter(function(n){return n.pen&&!n.penNo}).length;
+      /* 사람 이름이 섞였나 (규칙 8) — 검사 47 과 같은 잣대 */
+      var SUR='김이박최정강조윤장임한오서신권황안송류전홍고문양손배백허유남심노하곽성차주우구';
+      var re=new RegExp('(?:피\\\\s*고\\\\s*인|검\\\\s*사|변\\\\s*호\\\\s*인|변호사|피해자)\\\\s+['+SUR+'][가-힣]{1,2}');
+      var named=N.filter(function(n){return n.pen&&(re.test(n.pen)||/[가-힣]\\s*○/.test(n.pen))});
+      /* **카드가 그리나** — 화면 글자로 본다 */
+      var one=pen[0], card='';
+      try{ if(one){ setFocus(one.id);
+        card=(document.getElementById('pop')||document.body).textContent||'' } }catch(e){}
+      /* 확정 전인 노드의 카드도 본다 — 「확정 전」 이라고 밝혀야 한다 */
+      var pv=N.filter(function(n){return /확정 전/.test(n.penFix||'')})[0], card2='';
+      try{ if(pv){ setFocus(pv.id);
+        card2=(document.getElementById('pop')||document.body).textContent||'' } }catch(e){}
+      /* 사건 → 법 → 결과 를 끝까지 잇는 사슬 */
+      var idx={}; N.forEach(function(n){idx[n.id]=n});
+      var chain=0;
+      L.filter(function(l){return l[3]==='after'}).forEach(function(l){
+        var ev=idx[l[0]], law=idx[l[1]]; if(!ev||!law||law.t!=='bill')return;
+        for(var i=0;i<L.length;i++){ var x=L[i];
+          if(x[0]!==law.id&&x[1]!==law.id)continue;
+          var o=idx[x[0]===law.id?x[1]:x[0]];
+          if(o&&o.t==='result'){chain++;break} } });
+      return {pen:pen.length, fix:fix, bad:bad, noSrc:noSrc, named:named.length,
+        namedEx:named.length?named[0].pen:'',
+        cardPen:one?(card.indexOf(one.pen)>=0):false,
+        cardFix:one?(card.indexOf(one.penFix||'확정')>=0):false,
+        pvFix:pv?(card2.indexOf('확정 전')>=0):null,
+        chain:chain, after:L.filter(function(l){return l[3]==='after'}).length};
+    })()`);
+    d70.window.close();
+    if (!r) F('70. 못 쟀다');
+    else {
+      console.log(`70. 그래서 어떻게 됐나  형량이 붙은 노드 ${r.pen}개 · ` +
+        Object.keys(r.fix).map(k => `${k} ${r.fix[k]}`).join(' · '));
+      console.log(`70. 화면에 나오나    카드에 형량 ${r.cardPen ? '○' : '✗'} · 확정 표시 ${r.cardFix ? '○' : '✗'} · ` +
+        `확정 전 밝힘 ${r.pvFix === null ? '(없음)' : r.pvFix ? '○' : '✗'}`);
+      console.log(`70. 사슬            「그 뒤에」 ${r.after}개 · 사건→법→결과 완주 ${r.chain}개`);
+      if (!r.pen) F('70. 형량이 붙은 노드가 하나도 없다. 판례 노드가 죄명만 갖고 있으면 「그래서 어떻게 됐나」 에 답하지 못한다');
+      if (r.bad) F(`70. 확정 전인데 형량을 쓴 노드가 ${r.bad}개다. 확정된 것만 쓴다 (규칙 1)`);
+      if (r.noSrc) F(`70. 형량이 있는데 사건번호가 없는 노드가 ${r.noSrc}개다. 출처 없는 숫자다`);
+      if (r.named) F(`70. 형량 문장에 사람 이름이 섞였다 (규칙 8): ${r.namedEx}`);
+      /* **기록만 하고 화면에 안 내보내면 없는 것과 같다** */
+      if (!r.cardPen) F('70. 카드가 형량을 안 그린다. 데이터에만 있고 화면에 없으면 없는 것과 같다');
+      if (!r.cardFix) F('70. 카드가 확정 여부를 안 그린다. 「확정 판결」 이라고 써 놓고 확정 전이면 그게 제일 나쁜 거짓말이다');
+      if (r.pvFix === false) F('70. 확정 전인 판결의 카드가 그 사실을 안 밝힌다');
+      if (!r.chain) F('70. 사건 → 법 → 결과 를 끝까지 잇는 사슬이 하나도 없다');
     }
   }
 

@@ -667,6 +667,10 @@ body.popfull .pexp .pex-i{transform:rotate(180deg)}
 .lg-after::before{content:'';position:absolute;left:0;right:4px;top:4px;height:2px;background:#E39A3C}
 .lg-after::after{content:'';position:absolute;right:0;top:1px;border-left:5px solid #E39A3C;
   border-top:4px solid transparent;border-bottom:4px solid transparent}
+/* 정반대 — 화면의 선과 같은 붉은 점선. 앞 정책을 뒤집은 것이라 방향이 아니라 대립이다 */
+.lg-opp{background:transparent;border:0;width:16px;height:9px;position:relative}
+.lg-opp::before{content:'';position:absolute;left:0;right:0;top:3.5px;height:0;
+  border-top:2px dashed #E2635A}
 /* 굵기 범례 — 가는 선과 굵은 선을 나란히. 색은 안 쓴다(진영 색과 섞이면 안 된다). */
 .lg-thick{background:transparent;border:0;width:15px;height:9px;position:relative}
 .lg-thick::before,.lg-thick::after{content:'';position:absolute;left:0;right:0;background:#8A929E}
@@ -1279,10 +1283,11 @@ body.hasundo .rolebar{top:232px;width:calc(100vw - 24px);max-height:96px;overflo
     <span class="lgi lgi-s"><i class="lg lg-so"></i>그 외 정당</span>
     <!-- 「그 뒤에」 — 이 사이트가 답하려는 것이다. 「같은 주제」와 다르다는 걸 밝힌다. -->
     <span class="lgi"><i class="lg lg-after"></i>그 뒤에</span>
-    <!-- 자동/사람 확인은 **채움 밝기로 가르지 않는다** — 실측 (82,87,95) 대 (138,146,158) 로
-         한눈에 안 갈렸다. 속이 빈 점선 대 밝은 테두리, 두 알약을 나란히 놓아 보여준다. -->
-    <span class="lgi lgi-x"><i class="lg lg-auto"></i>점선 = 자동으로 이음</span>
-    <span class="lgi lgi-x"><i class="lg lg-hand"></i>흰 테두리 = 사람이 확인</span>
+    <!-- 「정반대」 — **첫 화면에도 붉은 점선이 그려진다.** 알약(글자)은 눌렀을 때만 뜨므로
+         범례가 없으면 물어볼 곳이 없다. 근거는 데이터의 `against` 이지 우리 판단이 아니다. -->
+    <span class="lgi"><i class="lg lg-opp"></i>정반대</span>
+    <!-- 자동/사람 확인은 **지도에서 안 가른다.** 카드가 글로 말한다 —
+         범례에 없는 표시는 보는 사람에게 그냥 다른 그림일 뿐이다. -->
     <!-- 굵기가 뜻하는 것. **판단이 아니라 어떻게 이어졌나**다 — 카드의 층(tierOf)과 같은 기준이다. -->
     <span class="lgi lgi-x"><i class="lg lg-thick"></i>굵을수록 근거가 셈</span>
   </div>
@@ -1319,10 +1324,12 @@ body.hasundo .rolebar{top:232px;width:calc(100vw - 24px);max-height:96px;overflo
       <li><span class="sg sg-party"></span><b>정당</b> — 빈 원 + 진영 색</li>
       <li><span class="sg sg-org"></span><b>기관</b> — 사다리꼴 (건물)</li>
       <li><span class="sg sg-rec"></span><b>이력 · 직위</b> — 육각형 (그 사람에 딸린 줄)</li>
+      <li><span class="sg lg-opp" style="width:20px"></span><b>붉은 점선</b> — 앞 정책을 뒤집은 것 (정반대)</li>
     </ul>
-    <p class="linesub"><b>점선 테두리는 자동으로 이은 것</b>입니다 — 법 이름과 결과의 핵심어가
-      맞아 기계가 이었습니다. <b>흰 테두리는 사람이 근거를 확인해 넣은 것</b>입니다.
-      색의 밝기로 가르지 않습니다 — 밝기만 다르면 한눈에 안 갈립니다.</p>
+    <p class="linesub"><b>자동으로 이었는지 사람이 확인했는지는 지도에서 가르지 않습니다.</b>
+      노드를 누르면 카드가 글로 말합니다. 지도의 모양은 <b>무엇인지</b>만 뜻합니다 —
+      모양 하나가 두 가지 뜻을 지면 둘 다 안 읽힙니다.
+      선 굵기는 그대로 근거의 세기를 뜻합니다.</p>
     <p class="linesub"><b>법과 정책은 「국회를 거쳤나」로 가릅니다.</b>
       「탈원전 선언」·「원전 확대 전환」은 정부가 정한 것이라 법이 아닙니다.
       대통령령·시행령도 법령이지만 국회를 거치지 않아 정책 쪽입니다 —
@@ -2469,6 +2476,55 @@ var N=[
   ['통상 마찰 우려','특정 국적을 겨냥한 규제로 비칠 경우 상호주의 분쟁이 될 수 있다는 지적이 있습니다.']],
  body:'수도권 주택 등에 대해 외국인 토지거래허가 제도를 시행한 조치입니다.',
  src:'출처 · 국토교통부, 부동산거래신고법'}
+/* ── 「그래서 걔 어떻게 됐어?」 ──
+   뉴스는 사건이 터질 때만 나오고 **판결은 조용히 난다.** 그래서 사람들이 제일 궁금해하는
+   것이 지도에 없었다. 아래는 **사람이 사건번호를 확인해 넣은 것**이다 (손확인).
+
+   지킨 것:
+     · 사람 이름을 안 쓴다 — 「가장 무거운 형 …」 이면 충분하다 (규칙 8)
+     · **확정된 것만** 형량을 쓴다. 대법원 주문이 「상고를 기각한다」 인 것 (규칙 1)
+     · 피해 내용을 자세히 쓰지 않는다. 기사 본문을 싣지 않는다 —
+       사건 이름·시기만 밖에서 확인하고 **형량은 판례 주문에서** 가져왔다
+     · 형량 문장은 tools/lib/verdict.mjs 가 주문에서 뽑는다. 우리가 요약하지 않는다 */
+,{id:'ev_hakdong',t:'event',side:'rec',lab:'철거건물 붕괴 참사',title:'광주 학동 철거건물 붕괴 참사',yr:'2021',ekind:'2021년 · 사건',
+  off:'2021.6 · 17명 사상',
+  tip:'2021년 재개발 철거 현장에서 건물이 무너져 지나던 시내버스를 덮친 사고입니다.',
+  body:'철거 공사 관계자와 법인이 업무상과실치사·건축물관리법위반·산업안전보건법위반으로 재판을 받았습니다. 1심(광주지법 2021고합318)과 항소심(광주고법 2022노329)을 거쳐 2025년 8월 대법원이 상고를 모두 기각해 형이 확정됐습니다.',
+  pen:'가장 무거운 형 징역 2년 6개월 · 나머지 징역 2년 · 징역 1년 6개월(집행유예 3년)',
+  penNo:'2022노329',penCourt:'광주고등법원',penFinal:'2025도4428',penFix:'확정',
+  penUrl:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=616110&type=HTML',
+  src:'출처 · 법제처 국가법령정보 공동활용 (법원 판례 2022노329 · 2025도4428)',
+  url:'https://www.law.go.kr/DRF/lawSearch.do?OC=botomotv&target=prec&query=2022%EB%85%B8329',cats:[]}
+,{id:'ev_jdjh1',t:'event',side:'rec',lab:'중대재해처벌법 첫 확정 판결',title:'중대재해처벌법 첫 유죄 확정',yr:'2023',ekind:'2023년 · 사건',
+  off:'2022년 사고 · 2023년 확정',
+  tip:'중대재해처벌법이 생긴 뒤 경영책임자에게 실형이 확정된 첫 사건입니다.',
+  body:'2022년 제강 공장에서 노동자가 숨진 사고로 대표와 안전보건책임자, 법인이 함께 기소됐습니다. 1심(창원지법 마산지원 2022고합95)에서 대표에게 실형이 선고됐고, 항소심(부산고법 창원재판부 2023노167)이 항소를 기각한 뒤 2023년 12월 대법원이 상고를 모두 기각해 확정됐습니다. 법이 실제로 적용된 첫 사례입니다.',
+  pen:'가장 무거운 형 징역 1년 · 나머지 징역 6개월(집행유예 2년) · 법인 벌금 1억원',
+  penNo:'2022고합95',penCourt:'창원지방법원 마산지원',penFinal:'2023도12316',penFix:'확정',
+  penUrl:'https://www.law.go.kr/DRF/lawSearch.do?OC=botomotv&target=prec&query=2022%EA%B3%A0%ED%95%A995',
+  src:'출처 · 법제처 국가법령정보 공동활용 (법원 판례 2022고합95 · 2023도12316)',
+  url:'https://www.law.go.kr/DRF/lawSearch.do?OC=botomotv&target=prec&query=2023%EB%8F%8412316',cats:[]}
+/* ── 대통령 탄핵 셋 ──
+   **세 건을 다 넣는다.** 파면 둘만 넣으면 그것이 곧 편집이다 (규칙 5).
+   헌법재판소가 실제로 결정한 대통령 탄핵은 이 셋뿐이다. */
+,{id:'ev_imp_2016',t:'event',side:'gov',lab:'대통령 파면 (2017)',title:'대통령(박근혜) 탄핵 — 파면',yr:'2017',ekind:'2017년 · 헌법재판소 결정',
+  off:'2016헌나1 · 2017.3.10',
+  tip:'헌법재판소가 대통령을 파면한 결정입니다.',
+  body:'국회가 2016년 12월 탄핵소추를 의결했고, 헌법재판소가 2017년 3월 10일 파면을 결정했습니다. 헌정사상 처음으로 대통령이 탄핵으로 물러났습니다.',
+  src:'출처 · 법제처 국가법령정보 공동활용 (헌법재판소 결정 2016헌나1)',
+  url:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=detc&ID=54153&type=HTML',cats:[]}
+,{id:'ev_imp_2024',t:'event',side:'gov',lab:'대통령 파면 (2025)',title:'대통령(윤석열) 탄핵 — 파면',yr:'2025',ekind:'2025년 · 헌법재판소 결정',
+  off:'2024헌나8 · 2025.4.4',
+  tip:'헌법재판소가 대통령을 파면한 결정입니다.',
+  body:'2024년 12월 비상계엄 선포 뒤 국회가 탄핵소추를 의결했고, 헌법재판소가 2025년 4월 4일 파면을 결정했습니다. 두 번째 대통령 파면입니다.',
+  src:'출처 · 법제처 국가법령정보 공동활용 (헌법재판소 결정 2024헌나8)',
+  url:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=detc&ID=197519&type=HTML',cats:[]}
+,{id:'ev_imp_2004',t:'event',side:'gov',lab:'대통령 탄핵 기각 (2004)',title:'대통령(노무현) 탄핵 — 기각',yr:'2004',ekind:'2004년 · 헌법재판소 결정',
+  off:'2004헌나1 · 2004.5.14',
+  tip:'헌법재판소가 탄핵 청구를 받아들이지 않은 결정입니다.',
+  body:'국회가 2004년 3월 탄핵소추를 의결했으나 헌법재판소가 2004년 5월 14일 청구를 기각해 대통령이 직무에 복귀했습니다. 대통령 탄핵심판 세 건 가운데 파면되지 않은 유일한 사건입니다.',
+  src:'출처 · 법제처 국가법령정보 공동활용 (헌법재판소 결정 2004헌나1)',
+  url:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=detc&ID=134744&type=HTML',cats:[]}
 
 ];
 
@@ -2713,6 +2769,22 @@ var L=[
 ,['y7','b8','찬성','','{a}도 표결에 참여했습니다',0,'2020.07']
 ,['y8','b10','찬성','','{a}도 표결에 참여했습니다',0,'2025.12']
 ,['y9','b10','찬성','','{a}도 표결에 참여했습니다',0,'2025.12']
+/* ── 「그 뒤에」 — 대통령이 어떻게 됐나 ──
+   **우리가 판단한 것이 아니다.** 헌법재판소가 결정했고 사건번호가 있다.
+   파면 둘만 넣으면 그것이 편집이므로 기각 한 건까지 셋을 다 넣는다 (규칙 5). */
+,['k4','ev_imp_2016','그 뒤에','after','헌법재판소가 2017년 3월 10일 파면을 결정했습니다 (2016헌나1)','2016 소추 → 2017 파면']
+,['k5','ev_imp_2024','그 뒤에','after','헌법재판소가 2025년 4월 4일 파면을 결정했습니다 (2024헌나8)','2024 소추 → 2025 파면']
+,['k2','ev_imp_2004','그 뒤에','after','헌법재판소가 2004년 5월 14일 청구를 기각해 직무에 복귀했습니다 (2004헌나1)','2004 소추 → 2004 기각']
+/* ── 사건 → 그 사건에 적용된 법 ──
+   「그래서 만들어진 법」 이 아니다 — 법은 이미 있었고 그 법으로 재판을 받았다.
+   근거는 **재판부가 사건명에 적은 죄명**이다. 판례 노드가 참조조문으로 법에 붙는 것과
+   같은 종류의 근거라 같은 역할(`topic`)을 쓴다. */
+,['ev_hakdong','auto_산업안전보건법_369','같은 주제','topic','판결 사건명에 「산업안전보건법위반」 이 있습니다 — 재판부가 그렇게 적었습니다','2021 사고 → 2025 확정']
+/* ── 법이 실제로 적용됐나 ──
+   사건 → 법 → **판결** 로 이어지는 마지막 칸이다. 법을 만든 것과 그 법으로
+   실제 처벌이 확정된 것은 다른 사실이고, 둘 다 기록에 있다. */
+,['auto_중대재해처벌등에관한법률_630','ev_jdjh1','그 뒤에','after','이 법으로 경영책임자에게 실형이 확정된 첫 사건입니다 (대법원 2023도12316 상고기각)','2021 공포 → 2023 확정']
+
 ];
 
 
@@ -16678,7 +16750,856 @@ if(AUTO_N.length||CASE_N.length||KOSIS_N.length){
   TERM_L.forEach(function(l){ if(_seen[l[0]]&&_seen[l[1]])L.push(l) });
   CASE_L.forEach(function(l){ if(_seen[l[0]]&&_seen[l[1]])L.push(l) });
 }
+/* ── 확정 판결의 형량 ──
+   **「그래서 걔 어떻게 됐어?」 에 대한 답이다.** 판례 노드는 죄명만 있고
+   형량이 없었다 — 「업무상과실치사」 라고만 적혀 있으면 무슨 일이 있었는지 모른다.
+
+   근거는 우리가 만들지 않는다:
+     · 형량   = **원심 주문에 적힌 그대로** (tools/lib/verdict.mjs 가 뽑는다)
+     · 확정   = **대법원 주문이 「상고를 기각한다」** 인 것만. 파기환송이면 「확정 전」이라고 밝힌다
+   사람 이름이 섞인 문장은 통째로 버린다 (규칙 8).
+
+   **여기는 tools/verdict.mjs 가 쓴다. 손으로 고치지 마라** — 다음 실행 때 덮어쓴다. */
+var PEN={/*AUTO-PEN-START*/'case_prec_621917':{n:'2025도16733',c:'대법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=621917&type=HTML',x:'확정 전 · 대법원이 원심을 파기했습니다'}
+,'case_prec_621925':{n:'2025도15459',c:'대법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=621925&type=HTML',x:'확정 전 · 대법원이 원심을 파기했습니다'}
+,'case_prec_613001':{f:'2025도13198',x:'확정'}
+,'case_prec_622925':{n:'2024노426',c:'전주지방법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=622925&type=HTML',x:'확정 여부 확인 못 함'}
+,'case_prec_609311':{p:'가장 무거운 형 징역 5년',n:'2025노69, 2025전노1(병합), 2025보노4(병합)',c:'부산고등법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=609311&type=HTML',x:'확정 여부 확인 못 함'}
+,'case_prec_606495':{p:'가장 무거운 형 징역 2년',n:'2024노1211',c:'서울동부지방법원',f:'2025도2199',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=606735&type=HTML',x:'확정'}
+,'case_prec_605983':{f:'2024도20848',x:'확정'}
+,'case_prec_605949':{p:'가장 무거운 형 징역 1년 6개월 · 피고인 4명',n:'2024노514',c:'서울고등법원',f:'2024도15290',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=606363&type=HTML',x:'확정'}
+,'case_prec_619283':{n:'2025노688',c:'의정부지방법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=619283&type=HTML',x:'확정 여부 확인 못 함'}
+,'case_prec_609367':{p:'가장 무거운 형 징역 3년 10개월~1년 6개월 · 피고인 5명',n:'2024노1830',c:'서울북부지방법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=609367&type=HTML',x:'확정 여부 확인 못 함'}
+,'case_prec_603533':{f:'2024도17385',x:'확정'}
+,'case_prec_603537':{n:'2023도1907',c:'대법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=603537&type=HTML',x:'확정 전 · 대법원이 원심을 파기했습니다'}
+,'case_prec_609313':{p:'가장 무거운 형 징역 6년',n:'2024고합473, 2024전고42(병합), 2024보고42(병합)',c:'부산지방법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=609313&type=HTML',x:'확정 여부 확인 못 함'}
+,'case_prec_606665':{n:'2024도17479',c:'대법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=606665&type=HTML',x:'확정 전 · 대법원이 원심을 파기했습니다'}
+,'case_prec_607233':{p:'가장 무거운 형 징역 5년~6개월 · 피고인 5명',n:'2024노1485',c:'창원지방법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=607233&type=HTML',x:'확정 여부 확인 못 함'}
+,'case_prec_617197':{p:'가장 무거운 형 징역 12년',n:'2020고단4306, 2020고단2132(병합), 2020고단7284(병합), 2021고단1043(병합), 2021고단3480(병합), 2021고단6437(병합), 2022고단3805(병합), 2022고단4517(병합)',c:'서울중앙지방법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=617197&type=HTML',x:'확정 여부 확인 못 함'}
+,'case_prec_606373':{n:'2024노1247',c:'서울남부지방법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=606373&type=HTML',x:'확정 여부 확인 못 함'}
+,'case_prec_612945':{p:'가장 무거운 형 징역 6년',n:'2024고합143, 2024초기613',c:'수원지방법원 평택지원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=612945&type=HTML',x:'확정 여부 확인 못 함'}
+,'case_prec_241797':{f:'2024도10062',x:'확정'}
+,'case_prec_609369':{p:'가장 무거운 형 징역 3년 6개월~1년 4개월 · 피고인 5명',n:'2023고단4232, 2023고단4908(병합), 2024초기60, 2024초기61, 2024초기62',c:'서울북부지방법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=609369&type=HTML',x:'확정 여부 확인 못 함'}
+,'case_prec_241379':{n:'2024도3061',c:'대법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=241379&type=HTML',x:'확정 전 · 대법원이 원심을 파기했습니다'}
+,'case_prec_612055':{n:'2024노672',c:'서울중앙지방법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=612055&type=HTML',x:'확정 여부 확인 못 함'}
+,'case_prec_241053':{p:'가장 무거운 형 징역 9개월 · 피고인 6명',n:'2020노1023',c:'제주지방법원',f:'2021도6051',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=241327&type=HTML',x:'확정'}
+,'case_prec_240953':{n:'2024도4055',c:'대법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=240953&type=HTML',x:'확정 전 · 대법원이 원심을 파기했습니다'}
+,'case_prec_240929':{n:'2023도17596',c:'대법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=240929&type=HTML',x:'확정 전 · 대법원이 원심을 파기했습니다'}
+,'case_prec_603419':{n:'2022노3337',c:'서울중앙지방법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=603419&type=HTML',x:'확정 여부 확인 못 함'}
+,'case_prec_599821':{f:'2023도8426',x:'확정'}
+,'case_prec_613335':{p:'가장 무거운 형 징역 1년 6개월',n:'2023고단993, 2023고단1750(병합), 2024고단291(병합), 2023초기946',c:'서울서부지방법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=613335&type=HTML',x:'확정 여부 확인 못 함'}
+,'case_prec_607235':{p:'가장 무거운 형 징역 4년~6개월 · 피고인 5명',n:'2023고단1017, 1251, 2024고단268, 354(병합), 2023초기472, 474, 475, 476, 477, 478, 479, 480, 481, 482, 483, 484, 492, 498, 499, 503, 506, 517, 518, 524, 530, 2024초기165',c:'창원지방법원 마산지원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=607235&type=HTML',x:'확정 여부 확인 못 함'}
+,'case_prec_240745':{f:'2024도1309',x:'확정'}
+,'case_prec_240659':{f:'2023도13707',x:'확정'}
+,'case_prec_241547':{n:'2023노499',c:'서울중앙지방법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=241547&type=HTML',x:'확정 여부 확인 못 함'}
+,'case_prec_238199':{n:'2020도15393',c:'대법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=238199&type=HTML',x:'확정 전 · 대법원이 원심을 파기했습니다'}
+,'case_prec_237867':{n:'2023도8752',c:'대법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=237867&type=HTML',x:'확정 전 · 대법원이 원심을 파기했습니다'}
+,'case_prec_238937':{n:'2021도2020',c:'대법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=238937&type=HTML',x:'확정 전 · 대법원이 원심을 파기했습니다'}
+,'case_prec_235109':{f:'2020도16228',x:'확정'}
+,'case_prec_238405':{f:'2023도3258',x:'확정'}
+,'case_prec_235007':{f:'2023도3741',x:'확정'}
+,'case_prec_237109':{n:'2022노2244',c:'서울고등법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=237109&type=HTML',x:'확정 여부 확인 못 함'}
+,'case_prec_238237':{n:'2022도3035',c:'대법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=238237&type=HTML',x:'확정 전 · 대법원이 원심을 파기했습니다'}
+,'case_prec_234849':{n:'2022노144, 2022전노20(병합), 2022보노8(병합)',c:'서울고등법원(춘천)',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=234849&type=HTML',x:'확정 여부 확인 못 함'}
+,'case_prec_238501':{n:'2022노293',c:'부산고등법원(창원)',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=238501&type=HTML',x:'확정 여부 확인 못 함'}
+,'case_prec_233093':{n:'2022도10660',c:'대법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=233093&type=HTML',x:'확정 전 · 대법원이 원심을 파기했습니다'}
+,'case_prec_238283':{f:'2022도11786',x:'확정'}
+,'case_prec_232085':{f:'2022도9510',x:'확정'}
+,'case_prec_600063':{n:'2022노75',c:'광주고등법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=600063&type=HTML',x:'확정 여부 확인 못 함'}
+,'case_prec_233529':{p:'가장 무거운 형 징역 7년',n:'2022고합7',c:'수원지방법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=233529&type=HTML',x:'확정 여부 확인 못 함'}
+,'case_prec_219301':{f:'2021도15507',x:'확정'}
+,'case_prec_231573':{n:'2021도15221',c:'대법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=231573&type=HTML',x:'확정 전 · 대법원이 원심을 파기했습니다'}
+,'case_prec_231585':{n:'2021도14387',c:'대법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=231585&type=HTML',x:'확정 전 · 대법원이 원심을 파기했습니다'}
+,'case_prec_233531':{n:'2020고단583, 2021고단84(병합)',c:'창원지방법원 밀양지원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=233531&type=HTML',x:'확정 여부 확인 못 함'}
+,'case_prec_227047':{n:'2018도10327',c:'대법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=227047&type=HTML',x:'확정 전 · 대법원이 원심을 파기했습니다'}
+,'case_prec_218707':{n:'2017도13182',c:'대법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=218707&type=HTML',x:'확정 전 · 대법원이 원심을 파기했습니다'}
+,'case_prec_221827':{p:'가장 무거운 형 징역 4년',n:'2021고합123, 136(병합), 168(병합), 217(병합), 2021초기682',c:'부산지방법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=221827&type=HTML',x:'확정 여부 확인 못 함'}
+,'case_prec_218875':{f:'2020도14654',x:'확정'}
+,'case_prec_220125':{n:'2020노2946',c:'창원지방법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=220125&type=HTML',x:'확정 여부 확인 못 함'}
+,'case_prec_216985':{f:'2020도18285',x:'확정'}
+,'case_prec_217005':{n:'2020도13266',c:'대법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=217005&type=HTML',x:'확정 전 · 대법원이 원심을 파기했습니다'}
+,'case_prec_213111':{p:'가장 무거운 형 징역 1년',n:'2020노1189',c:'울산지법',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=213111&type=HTML',x:'확정 여부 확인 못 함'}
+,'case_prec_226711':{f:'2017도11533',x:'확정'}
+,'case_prec_226689':{p:'가장 무거운 형 징역 4개월',n:'2020노359',c:'광주지방법원',f:'2020도14045',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=226269&type=HTML',x:'확정'}
+,'case_prec_226631':{f:'2020도13700',x:'확정'}
+,'case_prec_235669':{n:'2020노1389',c:'부산지방법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=235669&type=HTML',x:'확정 여부 확인 못 함'}
+,'case_prec_214883':{n:'2019도12042',c:'대법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=214883&type=HTML',x:'확정 전 · 대법원이 원심을 파기했습니다'}
+,'case_prec_214253':{n:'2020도6258',c:'대법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=214253&type=HTML',x:'확정 전 · 대법원이 원심을 파기했습니다'}
+,'case_prec_214287':{n:'2016도10654',c:'대법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=214287&type=HTML',x:'확정 전 · 대법원이 원심을 파기했습니다'}
+,'case_prec_215437':{f:'2020도960',x:'확정'}
+,'case_prec_231067':{n:'2018노3811',c:'의정부지방법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=231067&type=HTML',x:'확정 여부 확인 못 함'}
+,'case_prec_214915':{n:'2020도7915',c:'대법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=214915&type=HTML',x:'확정 전 · 대법원이 원심을 파기했습니다'}
+,'case_prec_226507':{p:'가장 무거운 형 징역 7년~1년 · 피고인 11명',n:'2020노486, 2018노3185(병합)',c:'서울고등법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=226507&type=HTML',x:'확정 여부 확인 못 함'}
+,'case_prec_211813':{f:'2020도7154',x:'확정'}
+,'case_prec_226363':{n:'2020도4018',c:'대법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=226363&type=HTML',x:'확정 전 · 대법원이 원심을 파기했습니다'}
+,'case_prec_226351':{n:'2019도12750',c:'대법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=226351&type=HTML',x:'확정 전 · 대법원이 원심을 파기했습니다'}
+,'case_prec_211601':{p:'가장 무거운 형 징역 3년',n:'2019노630, 2019전노44(병합), 2019보노19(병합)',c:'서울고등법원',f:'2020도2433',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=226043&type=HTML',x:'확정'}
+,'case_prec_214657':{p:'가장 무거운 형 징역 4년',n:'2019노664, 2019전노55(병합)',c:'부산고등법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=214657&type=HTML',x:'확정 여부 확인 못 함'}
+,'case_prec_213325':{p:'가장 무거운 형 징역 8년',n:'2019노7, 2019노75(병합), 2019노208(병합)',c:'광주고등법원(전주)',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=213325&type=HTML',x:'확정 여부 확인 못 함'}
+,'case_prec_214667':{p:'가장 무거운 형 징역 10년~7년 · 피고인 2명',n:'2020노81',c:'서울고등법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=214667&type=HTML',x:'확정 여부 확인 못 함'}
+,'case_prec_226167':{n:'2019도13217',c:'대법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=226167&type=HTML',x:'확정 전 · 대법원이 원심을 파기했습니다'}
+,'case_prec_218411':{p:'가장 무거운 형 징역 1년 6개월~6개월 · 피고인 6명',n:'2019노941',c:'창원지방법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=218411&type=HTML',x:'확정 여부 확인 못 함'}
+,'case_prec_226083':{p:'가장 무거운 형 징역 7년~1년 · 피고인 10명',n:'2017고합1008, 2017고합1241(병합), 2018고합75(병합), 2018고합112(병합), 2018고합321(병합), 2018고합375(병합), 2018고합494(병합), 2018고합622(병합), 2018고합846(병합), 2019고합13(병합)',c:'서울중앙지방법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=226083&type=HTML',x:'확정 여부 확인 못 함'}
+,'case_prec_214739':{p:'가장 무거운 형 징역 20년 · 피고인 2명',n:'2019고합473',c:'인천지방법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=214739&type=HTML',x:'확정 여부 확인 못 함'}
+,'case_prec_213337':{p:'가장 무거운 형 징역 4년',n:'2019고합141, 2019전고8(병합)',c:'부산지방법원 동부지원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=213337&type=HTML',x:'확정 여부 확인 못 함'}
+,'case_prec_225711':{p:'가장 무거운 형 징역 4년~2년 6개월 · 피고인 3명',n:'2019고합136, 160, 218, 2019초기456, 487',c:'서울동부지법',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=225711&type=HTML',x:'확정 여부 확인 못 함'}
+,'case_prec_225685':{f:'2019도894',x:'확정'}
+,'case_prec_210445':{n:'2019도8815',c:'대법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=210445&type=HTML',x:'확정 전 · 대법원이 원심을 파기했습니다'}
+,'case_prec_210573':{p:'가장 무거운 형 징역 1년 6개월~8개월 · 피고인 3명',n:'2018노3513',c:'서울고법',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=210573&type=HTML',x:'확정 여부 확인 못 함'}
+,'case_prec_225439':{n:'2019노721',c:'부산지방법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=225439&type=HTML',x:'확정 여부 확인 못 함'}
+,'case_prec_218685':{n:'2019노1256',c:'수원지방법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=218685&type=HTML',x:'확정 여부 확인 못 함'}
+,'case_prec_208483':{p:'가장 무거운 형 징역 6개월',n:'2019노363',c:'수원지방법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=208483&type=HTML',x:'확정 여부 확인 못 함'}
+,'case_prec_234477':{p:'가장 무거운 형 징역 3년',n:'2018고단1833, 1928(병합), 4098(병합), 6391(병합)',c:'서울중앙지방법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=234477&type=HTML',x:'확정 여부 확인 못 함'}
+,'case_prec_208484':{p:'가장 무거운 형 징역 1년',n:'2018노6057',c:'수원지방법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=208484&type=HTML',x:'확정 여부 확인 못 함'}
+,'case_prec_208485':{p:'가장 무거운 형 징역 8개월',n:'2018고단5874',c:'수원지방법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=208485&type=HTML',x:'확정 여부 확인 못 함'}
+,'case_prec_214783':{p:'가장 무거운 형 징역 10년 · 나머지 벌금 10,000,000원',n:'2018고단376, 801(병합), 830(병합), 832(병합), 1111(병합), 1258(병합), 1275(병합), 1381(병합), 1429(병합), 1632(병합)',c:'전주지방법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=214783&type=HTML',x:'확정 여부 확인 못 함'}
+,'case_prec_208857':{n:'2018도6870',c:'대법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=208857&type=HTML',x:'확정 전 · 대법원이 원심을 파기했습니다'}
+,'case_prec_208867':{n:'2018도12896',c:'대법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=208867&type=HTML',x:'확정 전 · 대법원이 원심을 파기했습니다'}
+,'case_prec_224935':{p:'가장 무거운 형 징역 3년',n:'2017고합1156, 2018고합92(병합)',c:'서울중앙지방법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=224935&type=HTML',x:'확정 여부 확인 못 함'}
+,'case_prec_208882':{n:'2017도9297',c:'대법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=208882&type=HTML',x:'확정 전 · 대법원이 원심을 파기했습니다'}
+,'case_prec_208487':{p:'가장 무거운 형 징역 1년 6개월',n:'2018고단1386',c:'수원지방법원 안산지원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=208487&type=HTML',x:'확정 여부 확인 못 함'}
+,'case_prec_206313':{n:'2018도8657',c:'대법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=206313&type=HTML',x:'확정 전 · 대법원이 원심을 파기했습니다'}
+,'case_prec_206111':{n:'2018도6352',c:'대법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=206111&type=HTML',x:'확정 전 · 대법원이 원심을 파기했습니다'}
+,'case_prec_198734':{f:'2018도2429',x:'확정'}
+,'case_prec_205744':{n:'2017도21033',c:'대법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=205744&type=HTML',x:'확정 전 · 대법원이 원심을 파기했습니다'}
+,'case_prec_205761':{f:'2017도18706',x:'확정'}
+,'case_prec_193392':{n:'2014도10051',c:'대법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=193392&type=HTML',x:'확정 전 · 대법원이 원심을 파기했습니다'}
+,'case_prec_193353':{n:'2017고단434',c:'전주지법',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=193353&type=HTML',x:'확정 여부 확인 못 함'}
+,'case_prec_209661':{p:'가장 무거운 형 징역 2년 · 나머지 벌금 20,000,000원 · 피고인 3명',n:'2017고단1309, 2017고단2217(병합)',c:'인천지방법원 부천지원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=209661&type=HTML',x:'확정 여부 확인 못 함'}
+,'case_prec_204946':{f:'2017도9746',x:'확정'}
+,'case_prec_186110':{f:'2017도8600',x:'확정'}
+,'case_prec_199901':{f:'2015도602',x:'확정'}
+,'case_prec_218427':{n:'2017노593',c:'창원지방법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=218427&type=HTML',x:'확정 여부 확인 못 함'}
+,'case_prec_197824':{p:'가장 무거운 형 징역 6년~1년 6개월 · 피고인 3명',n:'2016노5445, 2017초기2047',c:'서울중앙지방법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=197824&type=HTML',x:'확정 여부 확인 못 함'}
+,'case_prec_207596':{n:'2017도5115',c:'대법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=207596&type=HTML',x:'확정 전 · 대법원이 원심을 파기했습니다'}
+,'case_prec_195472':{f:'2016도3411',x:'확정'}
+,'case_prec_197757':{n:'2017노1885',c:'수원지방법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=197757&type=HTML',x:'확정 여부 확인 못 함'}
+,'case_prec_195474':{f:'2017도1660',x:'확정'}
+,'case_prec_197622':{n:'2017노209',c:'서울고등법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=197622&type=HTML',x:'확정 여부 확인 못 함'}
+,'case_prec_195520':{f:'2017도3373',x:'확정'}
+,'case_prec_185694':{f:'2016도21075',x:'확정'}
+,'case_prec_205493':{p:'가장 무거운 형 징역 6년~8개월 · 피고인 5명',n:'2016고단4625, 2016고단4742(병합)',c:'서울중앙지방법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=205493&type=HTML',x:'확정 여부 확인 못 함'}
+,'case_prec_184424':{f:'2016도11880',x:'확정'}
+,'case_prec_187878':{f:'2016도1060',x:'확정'}
+,'case_prec_184007':{f:'2016도7672',x:'확정'}
+,'case_prec_183090':{f:'2013도11210',x:'확정'}
+,'case_prec_184398':{n:'2015도13726',c:'대법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=184398&type=HTML',x:'확정 전 · 대법원이 원심을 파기했습니다'}
+,'case_prec_182079':{f:'2015도11659',x:'확정'}
+,'case_prec_182881':{n:'2015도17051',c:'대법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=182881&type=HTML',x:'확정 전 · 대법원이 원심을 파기했습니다'}
+,'case_prec_192658':{f:'2015도13488',x:'확정'}
+,'case_prec_182880':{n:'2013도15113',c:'대법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=182880&type=HTML',x:'확정 전 · 대법원이 원심을 파기했습니다'}
+,'case_prec_187672':{n:'2014도16051',c:'대법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=187672&type=HTML',x:'확정 전 · 대법원이 원심을 파기했습니다'}
+,'case_prec_180194':{f:'2013도13070',x:'확정'}
+,'case_prec_180172':{n:'2015도2046',c:'대법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=180172&type=HTML',x:'확정 전 · 대법원이 원심을 파기했습니다'}
+,'case_prec_179041':{f:'2013도2444',x:'확정'}
+,'case_prec_178731':{f:'2014도9691',x:'확정'}
+,'case_prec_178803':{f:'2014도11263',x:'확정'}
+,'case_prec_187515':{p:'가장 무거운 형 벌금 500,000원',n:'2012노2116',c:'의정부지방법원',f:'2013도1228',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=176544&type=HTML',x:'확정'}
+,'case_prec_176537':{p:'가장 무거운 형 징역 10개월',n:'2014노268',c:'부산고법(창원)',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=176537&type=HTML',x:'확정 여부 확인 못 함'}
+,'case_prec_175632':{p:'가장 무거운 형 징역 3년',n:'2014노109',c:'부산고등법원',f:'2014도9315',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=192542&type=HTML',x:'확정'}
+,'case_prec_177767':{f:'2013도10945',x:'확정'}
+,'case_prec_174853':{f:'2013도828',x:'확정'}
+,'case_prec_174856':{n:'2013도14656',c:'대법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=174856&type=HTML',x:'확정 전 · 대법원이 원심을 파기했습니다'}
+,'case_prec_173650':{p:'가장 무거운 형 징역 2년',n:'2013노2492',c:'서울고법',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=173650&type=HTML',x:'확정 여부 확인 못 함'}
+,'case_prec_182662':{p:'가장 무거운 형 징역 2년 6개월 · 피고인 2명',n:'2013고합236',c:'대구지방법원 서부지원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=182662&type=HTML',x:'확정 여부 확인 못 함'}
+,'case_prec_176218':{f:'2013도15456',x:'확정'}
+,'case_prec_176192':{p:'가장 무거운 형 징역 6년',n:'2013고합135,2014고합1(병합)',c:'춘천지방법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=176192&type=HTML',x:'확정 여부 확인 못 함'}
+,'case_prec_172081':{n:'2013도6608',c:'대법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=172081&type=HTML',x:'확정 전 · 대법원이 원심을 파기했습니다'}
+,'case_prec_171815':{n:'2013도10011',c:'대법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=171815&type=HTML',x:'확정 전 · 대법원이 원심을 파기했습니다'}
+,'case_prec_174105':{f:'2013도7876',x:'확정'}
+,'case_prec_173211':{n:'2013도6809',c:'대법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=173211&type=HTML',x:'확정 전 · 대법원이 원심을 파기했습니다'}
+,'case_prec_172498':{p:'가장 무거운 형 징역 2년',n:'2012노244',c:'서울고등법원',f:'2013도4644',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=171092&type=HTML',x:'확정'}
+,'case_prec_172414':{n:'2013도321',c:'대법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=172414&type=HTML',x:'확정 전 · 대법원이 원심을 파기했습니다'}
+,'case_prec_172412':{n:'2013도6660,2013전도137,2013치도1',c:'대법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=172412&type=HTML',x:'확정 전 · 대법원이 원심을 파기했습니다'}
+,'case_prec_172420':{n:'2011도13023',c:'대법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=172420&type=HTML',x:'확정 전 · 대법원이 원심을 파기했습니다'}
+,'case_prec_172430':{p:'가장 무거운 형 징역 2년 6개월 · 나머지 벌금 300,000원',n:'2013노76',c:'춘천지방법원',f:'2013도4721',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=173050&type=HTML',x:'확정'}
+,'case_prec_173050':{p:'가장 무거운 형 징역 2년 6개월 · 나머지 벌금 300,000원',n:'2013노76',c:'춘천지방법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=173050&type=HTML',x:'확정 여부 확인 못 함'}
+,'case_prec_172456':{n:'2013도2510',c:'대법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=172456&type=HTML',x:'확정 전 · 대법원이 원심을 파기했습니다'}
+,'case_prec_190610':{f:'2012도16086',x:'확정'}
+,'case_prec_169247':{f:'2010도9007',x:'확정'}
+,'case_prec_169252':{f:'2010도3029',x:'확정'}
+,'case_prec_168357':{f:'2010도16946',x:'확정'}
+,'case_prec_167731':{n:'(창원)2012노149,(창원)2012전노18(병합)',c:'부산고등법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=167731&type=HTML',x:'확정 여부 확인 못 함'}
+,'case_prec_167247':{f:'2012도2628',x:'확정'}
+,'case_prec_167360':{f:'2012도2631',x:'확정'}
+,'case_prec_167358':{n:'2012도1546',c:'대법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=167358&type=HTML',x:'확정 전 · 대법원이 원심을 파기했습니다'}
+,'case_prec_173785':{n:'2012노344,2012초기487',c:'광주지방법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=173785&type=HTML',x:'확정 여부 확인 못 함'}
+,'case_prec_167769':{p:'가장 무거운 형 징역 17년',n:'2011고합120,2011고합130(병합),2011전고15(병합),2011전고18(병합)',c:'창원지방법원 진주지원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=167769&type=HTML',x:'확정 여부 확인 못 함'}
+,'case_prec_165619':{p:'가장 무거운 형 징역 1년 6개월',n:'2011노810',c:'부산지방법원',f:'2011도17437',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=160570&type=HTML',x:'확정'}
+,'case_prec_165617':{f:'2010도16314',x:'확정'}
+,'case_prec_165570':{f:'2011도10508',x:'확정'}
+,'case_prec_161834':{n:'2011노2977, 2012초기4',c:'서울고법',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=161834&type=HTML',x:'확정 여부 확인 못 함'}
+,'case_prec_165182':{f:'2012도544,2012전도12',x:'확정'}
+,'case_prec_172288':{p:'가장 무거운 형 징역 1년 6개월~2개월 · 나머지 벌금 1,000,000원 · 피고인 4명',n:'2011고단475,2011고단2378(병합)',c:'전주지방법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=172288&type=HTML',x:'확정 여부 확인 못 함'}
+,'case_prec_164836':{n:'2011노3355',c:'서울고등법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=164836&type=HTML',x:'확정 여부 확인 못 함'}
+,'case_prec_164913':{p:'가장 무거운 형 징역 1년 6개월 · 피고인 5명',n:'2011노2649,3207(병합)(분리)',c:'서울고등법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=164913&type=HTML',x:'확정 여부 확인 못 함'}
+,'case_prec_173048':{p:'가장 무거운 형 벌금 500,000원',n:'2011노1219',c:'서울동부지방법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=173048&type=HTML',x:'확정 여부 확인 못 함'}
+,'case_prec_600055':{p:'가장 무거운 형 징역 7년~3년 · 피고인 3명',n:'2011노1828,1819(병합),2568(병합)',c:'서울고등법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=600055&type=HTML',x:'확정 여부 확인 못 함'}
+,'case_prec_186695':{p:'가장 무거운 형 징역 4년~6개월 · 피고인 3명',n:'2011노2480',c:'서울고등법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=186695&type=HTML',x:'확정 여부 확인 못 함'}
+,'case_prec_159450':{p:'가장 무거운 형 징역 6년',n:'2011노2024',c:'서울고등법원',f:'2011도12302',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=160453&type=HTML',x:'확정'}
+,'case_prec_164840':{n:'2011고합116',c:'서울북부지방법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=164840&type=HTML',x:'확정 여부 확인 못 함'}
+,'case_prec_163716':{p:'가장 무거운 형 징역 8년~2년 6개월 · 나머지 벌금 870,000,000원 · 피고인 6명',n:'2011노188',c:'서울고등법원',f:'2011도10539',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=221075&type=HTML',x:'확정'}
+,'case_prec_163669':{f:'2009도9948',x:'확정'}
+,'case_prec_162606':{n:'2009도5698',c:'대법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=162606&type=HTML',x:'확정 전 · 대법원이 원심을 파기했습니다'}
+,'case_prec_162528':{n:'2011도6213',c:'대법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=162528&type=HTML',x:'확정 전 · 대법원이 원심을 파기했습니다'}
+,'case_prec_157256':{n:'2011도6904',c:'대법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=157256&type=HTML',x:'확정 전 · 대법원이 원심을 파기했습니다'}
+,'case_prec_158558':{n:'2011노36',c:'의정부지방법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=158558&type=HTML',x:'확정 여부 확인 못 함'}
+,'case_prec_153092':{p:'가장 무거운 형 징역 1년',n:'2011노573,2011전노68',c:'서울고법',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=153092&type=HTML',x:'확정 여부 확인 못 함'}
+,'case_prec_149576':{p:'가장 무거운 형 징역 5년 6개월~5년 · 피고인 3명',n:'2010노1463,2010노2754(병합)',c:'서울고등법원',f:'2011도277',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=221129&type=HTML',x:'확정'}
+,'case_prec_157279':{f:'2010도12920',x:'확정'}
+,'case_prec_221123':{p:'가장 무거운 형 징역 3년 6개월',n:'2010노1812',c:'서울고등법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=221123&type=HTML',x:'확정 여부 확인 못 함'}
+,'case_prec_221129':{p:'가장 무거운 형 징역 5년 6개월~5년 · 피고인 3명',n:'2010노1463,2010노2754(병합)',c:'서울고등법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=221129&type=HTML',x:'확정 여부 확인 못 함'}
+,'case_prec_150845':{f:'2008도4233',x:'확정'}
+,'case_prec_147367':{p:'가장 무거운 형 징역 3년~1년 6개월 · 피고인 14명',n:'2010노88',c:'대전고등법원',f:'2010도11015',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=221161&type=HTML',x:'확정'}
+,'case_prec_148916':{p:'가장 무거운 형 징역 2년~4개월 · 피고인 3명',n:'2009노1630,2010노2082(병합)',c:'광주지방법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=148916&type=HTML',x:'확정 여부 확인 못 함'}
+,'case_prec_192335':{f:'2010도8477',x:'확정'}
+,'case_prec_147397':{f:'2009도3876',x:'확정'}
+,'case_prec_188306':{p:'가장 무거운 형 벌금 3,000,000원 · 피고인 2명',n:'2009고단590',c:'서울남부지방법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=188306&type=HTML',x:'확정 여부 확인 못 함'}
+,'case_prec_147339':{f:'2010도5975',x:'확정'}
+,'case_prec_221361':{p:'가장 무거운 형 징역 1년 6개월~10개월 · 피고인 3명',n:'2009고단2704',c:'광주지방법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=221361&type=HTML',x:'확정 여부 확인 못 함'}
+,'case_prec_221161':{p:'가장 무거운 형 징역 3년~1년 6개월 · 피고인 14명',n:'2010노88',c:'대전고등법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=221161&type=HTML',x:'확정 여부 확인 못 함'}
+,'case_prec_152378':{p:'가장 무거운 형 징역 4년',n:'2009고합1376,2009고합1503(병합)',c:'서울중앙지방법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=152378&type=HTML',x:'확정 여부 확인 못 함'}
+,'case_prec_221381':{p:'가장 무거운 형 징역 5년~1년 · 나머지 벌금 10,000,000원 · 피고인 6명',n:'2009고합1553,2010고합34(병합),2010고합62(병합)',c:'서울중앙지방법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=221381&type=HTML',x:'확정 여부 확인 못 함'}
+,'case_prec_145489':{n:'2008도10678',c:'대법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=145489&type=HTML',x:'확정 전 · 대법원이 원심을 파기했습니다'}
+,'case_prec_145091':{f:'2010도1071',x:'확정'}
+,'case_prec_145110':{f:'2009도11146',x:'확정'}
+,'case_prec_149954':{p:'가장 무거운 형 징역 2년~2개월 · 나머지 벌금 2,000,000원 · 피고인 5명',n:'2009고단7105',c:'서울중앙지방법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=149954&type=HTML',x:'확정 여부 확인 못 함'}
+,'case_prec_600863':{f:'2009도13187',x:'확정'}
+,'case_prec_221393':{n:'2009고합19,2009고합22(병합),2009고합30(병합),2009고합47(병합),2009고합51(병합),2009고합60(병합)',c:'대전지방법원 홍성지원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=221393&type=HTML',x:'확정 여부 확인 못 함'}
+,'case_prec_221397':{p:'가장 무거운 형 징역 3년 6개월~1년 · 피고인 4명',n:'2009고합232,2009고합259(병합),2009고합290(병합),2009고합342(병합)',c:'서울서부지방법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=221397&type=HTML',x:'확정 여부 확인 못 함'}
+,'case_prec_148919':{p:'가장 무거운 형 징역 4개월',n:'2009고단287,561(병합)',c:'춘천지방법원 영월지원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=148919&type=HTML',x:'확정 여부 확인 못 함'}
+,'case_prec_209160':{f:'2009도10340',x:'확정'}
+,'case_prec_141752':{n:'2009도5304',c:'대법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=141752&type=HTML',x:'확정 전 · 대법원이 원심을 파기했습니다'}
+,'case_prec_220679':{n:'2008노1594, 2008노1749(병합)',c:'창원지방법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=220679&type=HTML',x:'확정 여부 확인 못 함'}
+,'case_prec_164919':{n:'2008고단2426,2009고단498(병합)',c:'서울서부지방법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=164919&type=HTML',x:'확정 여부 확인 못 함'}
+,'case_prec_138194':{p:'가장 무거운 형 벌금 2,000,000원',n:'2009노1230',c:'대구지법',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=138194&type=HTML',x:'확정 여부 확인 못 함'}
+,'case_prec_135791':{p:'가장 무거운 형 징역 7년 · 나머지 벌금 10,000,000,000원',n:'2008노1143, 2008노1759(병합), 2008초기765, 1020, 2008초기770, 2008초기943',c:'서울고등법원',f:'2009도1446',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=220487&type=HTML',x:'확정'}
+,'case_prec_159745':{p:'가장 무거운 형 징역 1년~5개월 · 피고인 4명',n:'2009고단229,247(병합),345(병합),432(병합),2009고정775(병합)-1(분리)',c:'서울남부지방법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=159745&type=HTML',x:'확정 여부 확인 못 함'}
+,'case_prec_134366':{n:'2008도11040',c:'대법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=134366&type=HTML',x:'확정 전 · 대법원이 원심을 파기했습니다'}
+,'case_prec_127787':{n:'2008도11722',c:'대법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=127787&type=HTML',x:'확정 전 · 대법원이 원심을 파기했습니다'}
+,'case_prec_133490':{p:'가장 무거운 형 징역 1년',n:'2008노3324',c:'서울고법',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=133490&type=HTML',x:'확정 여부 확인 못 함'}
+,'case_prec_220487':{p:'가장 무거운 형 징역 7년 · 나머지 벌금 10,000,000,000원',n:'2008노1143, 2008노1759(병합), 2008초기765, 1020, 2008초기770, 2008초기943',c:'서울고등법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=220487&type=HTML',x:'확정 여부 확인 못 함'}
+,'case_prec_164921':{p:'가장 무거운 형 징역 2년',n:'2008고합195',c:'서울남부지방법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=164921&type=HTML',x:'확정 여부 확인 못 함'}
+,'case_prec_128015':{n:'2007도9287',c:'대법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=128015&type=HTML',x:'확정 전 · 대법원이 원심을 파기했습니다'}
+,'case_prec_128061':{f:'2008도9606',x:'확정'}
+,'case_prec_128278':{p:'가장 무거운 형 징역 2년 6개월',n:'2008노1610',c:'서울고등법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=128278&type=HTML',x:'확정 여부 확인 못 함'}
+,'case_prec_124912':{f:'2008도7647',x:'확정'}
+,'case_prec_221493':{p:'가장 무거운 형 징역 1년 6개월~8개월 · 피고인 7명',n:'2008노2194',c:'서울고등법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=221493&type=HTML',x:'확정 여부 확인 못 함'}
+,'case_prec_152136':{n:'2008고단4579,5030(병합)(분리)-2',c:'서울중앙지방법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=152136&type=HTML',x:'확정 여부 확인 못 함'}
+,'case_prec_134303':{n:'2005마988',c:'대법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=134303&type=HTML',x:'확정 전 · 대법원이 원심을 파기했습니다'}
+,'case_prec_64612':{f:'2004도746',x:'확정'}
+,'case_prec_64848':{p:'가장 무거운 형 징역 2년 6개월 · 나머지 벌금 5,000,000원',n:'2008노42',c:'대전고법',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=64848&type=HTML',x:'확정 여부 확인 못 함'}
+,'case_prec_65125':{n:'2008도1421',c:'대법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=65125&type=HTML',x:'확정 전 · 대법원이 원심을 파기했습니다'}
+,'case_prec_69423':{n:'2007도8116',c:'대법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=69423&type=HTML',x:'확정 전 · 대법원이 원심을 파기했습니다'}
+,'case_prec_69421':{f:'2006도2536',x:'확정'}
+,'case_prec_69358':{f:'2008도443',x:'확정'}
+,'case_prec_69285':{f:'2008도3',x:'확정'}
+,'case_prec_69263':{n:'2006도7881',c:'대법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=69263&type=HTML',x:'확정 전 · 대법원이 원심을 파기했습니다'}
+,'case_prec_78948':{n:'2007초기837',c:'서울동부지방법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=78948&type=HTML',x:'확정 여부 확인 못 함'}
+,'case_prec_69131':{p:'가장 무거운 형 징역 2년',n:'2005노2004',c:'서울고등법원',f:'2006도7329',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=77552&type=HTML',x:'확정'}
+,'case_prec_69081':{f:'2007도6336',x:'확정'}
+,'case_prec_78929':{n:'2007초기2055',c:'서울남부지방법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=78929&type=HTML',x:'확정 여부 확인 못 함'}
+,'case_prec_133639':{p:'가장 무거운 형 벌금 7,000,000원',n:'2006노3431',c:'대구지방법원',f:'2007도1738',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=78563&type=HTML',x:'확정'}
+,'case_prec_68956':{n:'2007도4959',c:'대법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=68956&type=HTML',x:'확정 전 · 대법원이 원심을 파기했습니다'}
+,'case_prec_153072':{n:'2005도4459',c:'대법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=153072&type=HTML',x:'확정 전 · 대법원이 원심을 파기했습니다'}
+,'case_prec_68954':{f:'2007도4739',x:'확정'}
+,'case_prec_68904':{n:'2006도5041',c:'대법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=68904&type=HTML',x:'확정 전 · 대법원이 원심을 파기했습니다'}
+,'case_prec_70850':{p:'가장 무거운 형 벌금 5,000,000원 · 피고인 2명',n:'2006고정1486',c:'인천지법',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=70850&type=HTML',x:'확정 여부 확인 못 함'}
+,'case_prec_68811':{f:'2007도3035',x:'확정'}
+,'case_prec_161395':{p:'가장 무거운 형 징역 10개월',n:'2006고합181',c:'부산지방법원 동부지원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=161395&type=HTML',x:'확정 여부 확인 못 함'}
+,'case_prec_68677':{p:'가장 무거운 형 징역 1년 6개월',n:'2007노329',c:'서울고등법원',f:'2007도2517',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=220559&type=HTML',x:'확정'}
+,'case_prec_216463':{n:'2007도1375',c:'대법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=216463&type=HTML',x:'확정 전 · 대법원이 원심을 파기했습니다'}
+,'case_prec_70782':{n:'2006고정1527',c:'대전지법',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=70782&type=HTML',x:'확정 여부 확인 못 함'}
+,'case_prec_85069':{p:'가장 무거운 형 징역 10개월 · 나머지 벌금 7,000,000원 · 피고인 2명',n:'2006노1653',c:'서울고등법원',f:'2006도8136',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=78247&type=HTML',x:'확정'}
+,'case_prec_68608':{f:'2007도1249',x:'확정'}
+,'case_prec_68567':{f:'2007도523',x:'확정'}
+,'case_prec_70728':{n:'2007노81',c:'대구고법',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=70728&type=HTML',x:'확정 여부 확인 못 함'}
+,'case_prec_70726':{p:'가장 무거운 형 징역 1년 6개월~6개월 · 나머지 벌금 10,000,000원 · 피고인 4명',n:'2006노3935',c:'대구지법',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=70726&type=HTML',x:'확정 여부 확인 못 함'}
+,'case_prec_68492':{f:'2006도2238',x:'확정'}
+,'case_prec_84973':{n:'2006도7058',c:'대법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=84973&type=HTML',x:'확정 전 · 대법원이 원심을 파기했습니다'}
+,'case_prec_68339':{n:'2006도2732',c:'대법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=68339&type=HTML',x:'확정 전 · 대법원이 원심을 파기했습니다'}
+,'case_prec_78247':{p:'가장 무거운 형 징역 10개월 · 나머지 벌금 7,000,000원 · 피고인 2명',n:'2006노1653',c:'서울고등법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=78247&type=HTML',x:'확정 여부 확인 못 함'}
+,'case_prec_230559':{n:'2006노283',c:'대전고등법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=230559&type=HTML',x:'확정 여부 확인 못 함'}
+,'case_prec_68178':{n:'2004도6371',c:'대법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=68178&type=HTML',x:'확정 전 · 대법원이 원심을 파기했습니다'}
+,'case_prec_68146':{n:'2004도7481',c:'대법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=68146&type=HTML',x:'확정 전 · 대법원이 원심을 파기했습니다'}
+,'case_prec_224099':{n:'2006노929',c:'광주지법',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=224099&type=HTML',x:'확정 여부 확인 못 함'}
+,'case_prec_68115':{f:'2005도5105',x:'확정'}
+,'case_prec_216073':{n:'2005도3431',c:'대법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=216073&type=HTML',x:'확정 전 · 대법원이 원심을 파기했습니다'}
+,'case_prec_68021':{n:'2006도641',c:'대법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=68021&type=HTML',x:'확정 전 · 대법원이 원심을 파기했습니다'}
+,'case_prec_68005':{n:'2005도4513',c:'대법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=68005&type=HTML',x:'확정 전 · 대법원이 원심을 파기했습니다'}
+,'case_prec_67970':{f:'2003도4735',x:'확정'}
+,'case_prec_78000':{p:'가장 무거운 형 벌금 5,000,000원',n:'2006고합31',c:'제주지방법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=78000&type=HTML',x:'확정 여부 확인 못 함'}
+,'case_prec_70410':{p:'가장 무거운 형 징역 1년 6개월',n:'2005노680,754',c:'부산고법',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=70410&type=HTML',x:'확정 여부 확인 못 함'}
+,'case_prec_168193':{p:'가장 무거운 형 징역 6개월 · 나머지 벌금 10,000,000원 · 피고인 5명',n:'2005노480',c:'서울중앙지법',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=168193&type=HTML',x:'확정 여부 확인 못 함'}
+,'case_prec_67872':{f:'2005도3490',x:'확정'}
+,'case_prec_67869':{x:'확정'}
+,'case_prec_70267':{p:'가장 무거운 형 벌금 700,000원',n:'2005고정765,2005고단896',c:'부산지법 동부지원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=70267&type=HTML',x:'확정 여부 확인 못 함'}
+,'case_prec_67805':{f:'2005도7569',x:'확정'}
+,'case_prec_70266':{p:'가장 무거운 형 징역 2년 6개월 · 나머지 벌금 5,000,000원',n:'2005고합45,109,148,260,490,690',c:'서울중앙지법',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=70266&type=HTML',x:'확정 여부 확인 못 함'}
+,'case_prec_77638':{p:'가장 무거운 형 징역 6년~2년 6개월 · 피고인 2명',n:'2005고합343',c:'서울중앙지방법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=77638&type=HTML',x:'확정 여부 확인 못 함'}
+,'case_prec_67766':{f:'2004도7545',x:'확정'}
+,'case_prec_67727':{f:'2005도4383',x:'확정'}
+,'case_prec_67642':{f:'2005도3357',x:'확정'}
+,'case_prec_70101':{p:'가장 무거운 형 벌금 10,000,000원',n:'2005노195',c:'전주지법',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=70101&type=HTML',x:'확정 여부 확인 못 함'}
+,'case_prec_83919':{f:'2005도1373',x:'확정'}
+,'case_prec_67597':{f:'2004도7218',x:'확정'}
+,'case_prec_67565':{f:'2005도959',x:'확정'}
+,'case_prec_78017':{n:'2004노3164',c:'대전지방법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=78017&type=HTML',x:'확정 여부 확인 못 함'}
+,'case_prec_77655':{n:'2004노689',c:'부산고등법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=77655&type=HTML',x:'확정 여부 확인 못 함'}
+,'case_prec_77281':{p:'가장 무거운 형 징역 3년~1년 · 피고인 4명',n:'2004고합687',c:'인천지방법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=77281&type=HTML',x:'확정 여부 확인 못 함'}
+,'case_prec_83827':{f:'2002도7262',x:'확정'}
+,'case_prec_191929':{f:'2005도284',x:'확정'}
+,'case_prec_83798':{n:'2003도2960',c:'대법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=83798&type=HTML',x:'확정 전 · 대법원이 원심을 파기했습니다'}
+,'case_prec_216615':{f:'2004도6646',x:'확정'}
+,'case_prec_77275':{n:'2004노2619',c:'서울고등법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=77275&type=HTML',x:'확정 여부 확인 못 함'}
+,'case_prec_68293':{f:'2004도6483',x:'확정'}
+,'case_prec_77395':{p:'가장 무거운 형 벌금 2,000,000원',n:'2004노555',c:'서울중앙지방법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=77395&type=HTML',x:'확정 여부 확인 못 함'}
+,'case_prec_69932':{p:'가장 무거운 형 벌금 3,000,000원',n:'2004노1073',c:'인천지법',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=69932&type=HTML',x:'확정 여부 확인 못 함'}
+,'case_prec_83566':{n:'2004도6784',c:'대법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=83566&type=HTML',x:'확정 전 · 대법원이 원심을 파기했습니다'}
+,'case_prec_67380':{n:'2004도4437',c:'대법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=67380&type=HTML',x:'확정 전 · 대법원이 원심을 파기했습니다'}
+,'case_prec_209234':{n:'2004도5035',c:'대법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=209234&type=HTML',x:'확정 전 · 대법원이 원심을 파기했습니다'}
+,'case_prec_69927':{p:'가장 무거운 형 징역 10개월~8개월 · 피고인 3명',n:'2004고단4500',c:'서울중앙지법',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=69927&type=HTML',x:'확정 여부 확인 못 함'}
+,'case_prec_83429':{n:'2003도4732',c:'대법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=83429&type=HTML',x:'확정 전 · 대법원이 원심을 파기했습니다'}
+,'case_prec_69858':{n:'2004노424',c:'청주지법',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=69858&type=HTML',x:'확정 여부 확인 못 함'}
+,'case_prec_83367':{n:'2004도2116',c:'대법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=83367&type=HTML',x:'확정 전 · 대법원이 원심을 파기했습니다'}
+,'case_prec_126652':{n:'2004도2221',c:'대법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=126652&type=HTML',x:'확정 전 · 대법원이 원심을 파기했습니다'}
+,'case_prec_69813':{p:'가장 무거운 형 징역 1년 2개월',n:'2004고단232',c:'울산지법',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=69813&type=HTML',x:'확정 여부 확인 못 함'}
+,'case_prec_190063':{f:'2003도6133',x:'확정'}
+,'case_prec_69787':{p:'가장 무거운 형 징역 1년 8개월',n:'2004고단55, 79',c:'창원지법 거창지원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=69787&type=HTML',x:'확정 여부 확인 못 함'}
+,'case_prec_606165':{n:'2004도74',c:'대법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=606165&type=HTML',x:'확정 전 · 대법원이 원심을 파기했습니다'}
+,'case_prec_83237':{f:'2004도482',x:'확정'}
+,'case_prec_83204':{p:'가장 무거운 형 징역 3년~2년 · 피고인 10명',n:'2003노1555, 2004노1851(병합)',c:'서울고등법원',f:'2004도606',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=220617&type=HTML',x:'확정'}
+,'case_prec_69732':{p:'가장 무거운 형 징역 1년 6개월~10개월 · 피고인 2명',n:'2004고합164',c:'서울중앙지법',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=69732&type=HTML',x:'확정 여부 확인 못 함'}
+,'case_prec_69705':{p:'가장 무거운 형 징역 8개월~6개월 · 피고인 2명',n:'2002고단2371, 2003고단7187, 7419',c:'인천지법',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=69705&type=HTML',x:'확정 여부 확인 못 함'}
+,'case_prec_83019':{f:'2001도6349',x:'확정'}
+,'case_prec_82929':{f:'2003도3600',x:'확정'}
+,'case_prec_67148':{f:'2003도3516',x:'확정'}
+,'case_prec_82186':{n:'2002도4986',c:'대법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=82186&type=HTML',x:'확정 전 · 대법원이 원심을 파기했습니다'}
+,'case_prec_82190':{n:'2002도5211',c:'대법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=82190&type=HTML',x:'확정 전 · 대법원이 원심을 파기했습니다'}
+,'case_prec_82078':{f:'2002도4089',x:'확정'}
+,'case_prec_230597':{p:'가장 무거운 형 징역 3년~1년 · 나머지 벌금 2,000,000,000원 · 피고인 3명',n:'2000고합1402,2000고합1466(병합),2001고합1098(병합),2001고합1380(병합),2001고합1397(병합),2001초6013',c:'서울지방법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=230597&type=HTML',x:'확정 여부 확인 못 함'}
+,'case_prec_190012':{p:'가장 무거운 형 징역 10개월~8개월 · 피고인 2명',n:'2002고단211',c:'창원지법 통영지원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=190012&type=HTML',x:'확정 여부 확인 못 함'}
+,'case_prec_81543':{x:'확정'}
+,'case_prec_81184':{n:'2001도5304',c:'대법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=81184&type=HTML',x:'확정 전 · 대법원이 원심을 파기했습니다'}
+,'case_prec_227915':{f:'2001도3997',x:'확정'}
+,'case_prec_190275':{p:'가장 무거운 형 징역 2년 6개월~4개월 · 피고인 2명',n:'2001노268, 343(병합)',c:'광주고법',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=190275&type=HTML',x:'확정 여부 확인 못 함'}
+,'case_prec_80839':{n:'2000도6026',c:'대법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=80839&type=HTML',x:'확정 전 · 대법원이 원심을 파기했습니다'}
+,'case_prec_80796':{n:'2001도435',c:'대법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=80796&type=HTML',x:'확정 전 · 대법원이 원심을 파기했습니다'}
+,'case_prec_80795':{n:'2000도4298',c:'대법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=80795&type=HTML',x:'확정 전 · 대법원이 원심을 파기했습니다'}
+,'case_prec_80753':{n:'2001도1289',c:'대법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=80753&type=HTML',x:'확정 전 · 대법원이 원심을 파기했습니다'}
+,'case_prec_80707':{x:'확정'}
+,'case_prec_80380':{x:'확정'}
+,'case_prec_80346':{f:'2000도6113',x:'확정'}
+,'case_prec_80118':{n:'99도317',c:'대법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=80118&type=HTML',x:'확정 전 · 대법원이 원심을 파기했습니다'}
+,'case_prec_190237':{p:'가장 무거운 형 벌금 200,000원',n:'2000노473',c:'대전고법',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=190237&type=HTML',x:'확정 여부 확인 못 함'}
+,'case_prec_80030':{f:'2000도3307',x:'확정'}
+,'case_prec_79940':{x:'확정'}
+,'case_prec_220939':{x:'확정'}
+,'case_prec_220933':{x:'확정'}
+,'case_prec_220931':{f:'2000도1914',x:'확정'}
+,'case_prec_79842':{n:'2000도2704',c:'대법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=79842&type=HTML',x:'확정 전 · 대법원이 원심을 파기했습니다'}
+,'case_prec_229229':{n:'2000도1507',c:'대법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=229229&type=HTML',x:'확정 전 · 대법원이 원심을 파기했습니다'}
+,'case_prec_229569':{x:'확정'}
+,'case_prec_229605':{x:'확정'}
+,'case_prec_229735':{x:'확정'}
+,'case_prec_230003':{x:'확정'}
+,'case_prec_230213':{n:'98도138',c:'대법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=230213&type=HTML',x:'확정 전 · 대법원이 원심을 파기했습니다'}
+,'case_prec_117945':{n:'99도1682',c:'대법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=117945&type=HTML',x:'확정 전 · 대법원이 원심을 파기했습니다'}
+,'case_prec_163032':{n:'99도2168',c:'대법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=163032&type=HTML',x:'확정 전 · 대법원이 원심을 파기했습니다'}
+,'case_prec_120942':{p:'가장 무거운 형 벌금 3,000,000원 · 피고인 4명',n:'99노119',c:'광주지법',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=120942&type=HTML',x:'확정 여부 확인 못 함'}
+,'case_prec_120938':{n:'99노521',c:'서울고법',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=120938&type=HTML',x:'확정 여부 확인 못 함'}
+,'case_prec_117368':{x:'확정'}
+,'case_prec_117335':{n:'98도2550',c:'대법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=117335&type=HTML',x:'확정 전 · 대법원이 원심을 파기했습니다'}
+,'case_prec_227921':{x:'확정'}
+,'case_prec_117019':{n:'98도2181',c:'대법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=117019&type=HTML',x:'확정 전 · 대법원이 원심을 파기했습니다'}
+,'case_prec_116977':{n:'98도1701',c:'대법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=116977&type=HTML',x:'확정 전 · 대법원이 원심을 파기했습니다'}
+,'case_prec_116846':{x:'확정'}
+,'case_prec_116592':{n:'98도164, 98감도12',c:'대법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=116592&type=HTML',x:'확정 전 · 대법원이 원심을 파기했습니다'}
+,'case_prec_120671':{p:'가장 무거운 형 징역 2년 6개월',n:'98노97',c:'서울고법',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=120671&type=HTML',x:'확정 여부 확인 못 함'}
+,'case_prec_116403':{n:'97도183',c:'대법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=116403&type=HTML',x:'확정 전 · 대법원이 원심을 파기했습니다'}
+,'case_prec_223153':{p:'가장 무거운 형 징역 10개월',n:'97고단195',c:'전주지법 정읍지원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=223153&type=HTML',x:'확정 여부 확인 못 함'}
+,'case_prec_115745':{x:'확정'}
+,'case_prec_120567':{n:'97노610',c:'전주지법',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=120567&type=HTML',x:'확정 여부 확인 못 함'}
+,'case_prec_115508':{x:'확정'}
+,'case_prec_115501':{x:'확정'}
+,'case_prec_115363':{x:'확정'}
+,'case_prec_115357':{x:'확정'}
+,'case_prec_115171':{n:'96도2950',c:'대법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=115171&type=HTML',x:'확정 전 · 대법원이 원심을 파기했습니다'}
+,'case_prec_114786':{x:'확정'}
+,'case_prec_114726':{x:'확정'}
+,'case_prec_114728':{n:'96도776',c:'대법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=114728&type=HTML',x:'확정 전 · 대법원이 원심을 파기했습니다'}
+,'case_prec_114672':{x:'확정'}
+,'case_prec_191978':{n:'96도2214',c:'대법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=191978&type=HTML',x:'확정 전 · 대법원이 원심을 파기했습니다'}
+,'case_prec_114255':{n:'94도2865',c:'대법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=114255&type=HTML',x:'확정 전 · 대법원이 원심을 파기했습니다'}
+,'case_prec_600719':{n:'96도1733',c:'대법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=600719&type=HTML',x:'확정 전 · 대법원이 원심을 파기했습니다'}
+,'case_prec_114252':{x:'확정'}
+,'case_prec_114035':{x:'확정'}
+,'case_prec_113959':{n:'95도2655',c:'대법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=113959&type=HTML',x:'확정 전 · 대법원이 원심을 파기했습니다'}
+,'case_prec_113902':{n:'95도2604',c:'대법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=113902&type=HTML',x:'확정 전 · 대법원이 원심을 파기했습니다'}
+,'case_prec_113753':{x:'확정'}
+,'case_prec_113694':{n:'96도481',c:'대법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=113694&type=HTML',x:'확정 전 · 대법원이 원심을 파기했습니다'}
+,'case_prec_113336':{n:'96도47',c:'대법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=113336&type=HTML',x:'확정 전 · 대법원이 원심을 파기했습니다'}
+,'case_prec_113056':{n:'94도1519',c:'대법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=113056&type=HTML',x:'확정 전 · 대법원이 원심을 파기했습니다'}
+,'case_prec_112973':{n:'94도3271',c:'대법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=112973&type=HTML',x:'확정 전 · 대법원이 원심을 파기했습니다'}
+,'case_prec_112978':{x:'확정'}
+,'case_prec_112909':{x:'확정'}
+,'case_prec_112404':{x:'확정'}
+,'case_prec_111927':{x:'확정'}
+,'case_prec_223057':{p:'가장 무거운 형 징역 1년 · 피고인 2명',n:'95고단200',c:'대전지법',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=223057&type=HTML',x:'확정 여부 확인 못 함'}
+,'case_prec_190034':{n:'94재도9',c:'대법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=190034&type=HTML',x:'확정 전 · 대법원이 원심을 파기했습니다'}
+,'case_prec_111359':{x:'확정'}
+,'case_prec_111164':{n:'93도3667',c:'대법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=111164&type=HTML',x:'확정 전 · 대법원이 원심을 파기했습니다'}
+,'case_prec_110991':{x:'확정'}
+,'case_prec_110894':{n:'94도1',c:'대법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=110894&type=HTML',x:'확정 전 · 대법원이 원심을 파기했습니다'}
+,'case_prec_110892':{x:'확정'}
+,'case_prec_190025':{x:'확정'}
+,'case_prec_110700':{n:'94도1763',c:'대법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=110700&type=HTML',x:'확정 전 · 대법원이 원심을 파기했습니다'}
+,'case_prec_190000':{x:'확정'}
+,'case_prec_603375':{x:'확정'}
+,'case_prec_110344':{x:'확정'}
+,'case_prec_110047':{n:'93도3612',c:'대법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=110047&type=HTML',x:'확정 전 · 대법원이 원심을 파기했습니다'}
+,'case_prec_109813':{x:'확정'}
+,'case_prec_109540':{n:'93도2346',c:'대법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=109540&type=HTML',x:'확정 전 · 대법원이 원심을 파기했습니다'}
+,'case_prec_123321':{n:'93오1',c:'대법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=123321&type=HTML',x:'확정 전 · 대법원이 원심을 파기했습니다'}
+,'case_prec_123318':{x:'확정'}
+,'case_prec_123076':{n:'93도49',c:'대법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=123076&type=HTML',x:'확정 전 · 대법원이 원심을 파기했습니다'}
+,'case_prec_603161':{x:'확정'}
+,'case_prec_122573':{x:'확정'}
+,'case_prec_189597':{n:'90도3001',c:'대법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=189597&type=HTML',x:'확정 전 · 대법원이 원심을 파기했습니다'}
+,'case_prec_121402':{x:'확정'}
+,'case_prec_601717':{n:'91도1319',c:'대법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=601717&type=HTML',x:'확정 전 · 대법원이 원심을 파기했습니다'}
+,'case_prec_189435':{x:'확정'}
+,'case_prec_189390':{x:'확정'}
+,'case_prec_109338':{x:'확정'}
+,'case_prec_109330':{x:'확정'}
+,'case_prec_109199':{x:'확정'}
+,'case_prec_109127':{x:'확정'}
+,'case_prec_108960':{n:'91도1077',c:'대법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=108960&type=HTML',x:'확정 전 · 대법원이 원심을 파기했습니다'}
+,'case_prec_108391':{x:'확정'}
+,'case_prec_108247':{x:'확정'}
+,'case_prec_108110':{x:'확정'}
+,'case_prec_107965':{x:'확정'}
+,'case_prec_107771':{x:'확정'}
+,'case_prec_107782':{x:'확정'}
+,'case_prec_107425':{x:'확정'}
+,'case_prec_107327':{x:'확정'}
+,'case_prec_107332':{x:'확정'}
+,'case_prec_107269':{x:'확정'}
+,'case_prec_107141':{x:'확정'}
+,'case_prec_107133':{x:'확정'}
+,'case_prec_107086':{x:'확정'}
+,'case_prec_106783':{x:'확정'}
+,'case_prec_106639':{x:'확정'}
+,'case_prec_106633':{x:'확정'}
+,'case_prec_106480':{x:'확정'}
+,'case_prec_106419':{x:'확정'}
+,'case_prec_105694':{x:'확정'}
+,'case_prec_105307':{x:'확정'}
+,'case_prec_139008':{x:'확정'}
+,'case_prec_104459':{x:'확정'}
+,'case_prec_104305':{x:'확정'}
+,'case_prec_103910':{n:'87도2297',c:'대법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=103910&type=HTML',x:'확정 전 · 대법원이 원심을 파기했습니다'}
+,'case_prec_103851':{x:'확정'}
+,'case_prec_166417':{x:'확정'}
+,'case_prec_103637':{x:'확정'}
+,'case_prec_103015':{x:'확정'}
+,'case_prec_102949':{x:'확정'}
+,'case_prec_102374':{n:'86도1570',c:'대법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=102374&type=HTML',x:'확정 전 · 대법원이 원심을 파기했습니다'}
+,'case_prec_102240':{x:'확정'}
+,'case_prec_101976':{n:'85도1952',c:'대법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=101976&type=HTML',x:'확정 전 · 대법원이 원심을 파기했습니다'}
+,'case_prec_101898':{n:'86도239',c:'대법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=101898&type=HTML',x:'확정 전 · 대법원이 원심을 파기했습니다'}
+,'case_prec_101709':{n:'86도614',c:'대법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=101709&type=HTML',x:'확정 전 · 대법원이 원심을 파기했습니다'}
+,'case_prec_101625':{x:'확정'}
+,'case_prec_101434':{x:'확정'}
+,'case_prec_101432':{x:'확정'}
+,'case_prec_100988':{n:'85도1262',c:'대법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=100988&type=HTML',x:'확정 전 · 대법원이 원심을 파기했습니다'}
+,'case_prec_100995':{x:'확정'}
+,'case_prec_100934':{x:'확정'}
+,'case_prec_100883':{x:'확정'}
+,'case_prec_100573':{x:'확정'}
+,'case_prec_100090':{n:'84도2941',c:'대법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=100090&type=HTML',x:'확정 전 · 대법원이 원심을 파기했습니다'}
+,'case_prec_76085':{n:'84노3203',c:'서울형사지법',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=76085&type=HTML',x:'확정 여부 확인 못 함'}
+,'case_prec_100036':{x:'확정'}
+,'case_prec_99832':{x:'확정'}
+,'case_prec_99564':{x:'확정'}
+,'case_prec_99499':{n:'84도981',c:'대법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=99499&type=HTML',x:'확정 전 · 대법원이 원심을 파기했습니다'}
+,'case_prec_99316':{x:'확정'}
+,'case_prec_601379':{x:'확정'}
+,'case_prec_98699':{n:'83도2924',c:'대법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=98699&type=HTML',x:'확정 전 · 대법원이 원심을 파기했습니다'}
+,'case_prec_98297':{x:'확정'}
+,'case_prec_98243':{n:'83도1929',c:'대법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=98243&type=HTML',x:'확정 전 · 대법원이 원심을 파기했습니다'}
+,'case_prec_98231':{x:'확정'}
+,'case_prec_98225':{n:'82도671',c:'대법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=98225&type=HTML',x:'확정 전 · 대법원이 원심을 파기했습니다'}
+,'case_prec_97711':{n:'83도200',c:'대법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=97711&type=HTML',x:'확정 전 · 대법원이 원심을 파기했습니다'}
+,'case_prec_97608':{x:'확정'}
+,'case_prec_601283':{x:'확정'}
+,'case_prec_97399':{n:'81도2761',c:'대법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=97399&type=HTML',x:'확정 전 · 대법원이 원심을 파기했습니다'}
+,'case_prec_96837':{n:'82도1702',c:'대법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=96837&type=HTML',x:'확정 전 · 대법원이 원심을 파기했습니다'}
+,'case_prec_211937':{n:'82도1531',c:'대법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=211937&type=HTML',x:'확정 전 · 대법원이 원심을 파기했습니다'}
+,'case_prec_211879':{n:'82도1018',c:'대법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=211879&type=HTML',x:'확정 전 · 대법원이 원심을 파기했습니다'}
+,'case_prec_211965':{n:'82도364',c:'대법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=211965&type=HTML',x:'확정 전 · 대법원이 원심을 파기했습니다'}
+,'case_prec_96272':{x:'확정'}
+,'case_prec_125445':{n:'80도1672',c:'대법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=125445&type=HTML',x:'확정 전 · 대법원이 원심을 파기했습니다'}
+,'case_prec_95447':{x:'확정'}
+,'case_prec_214017':{x:'확정'}
+,'case_prec_190177':{n:'79노1210',c:'서울고법',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=190177&type=HTML',x:'확정 여부 확인 못 함'}
+,'case_prec_94526':{n:'79도266',c:'대법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=94526&type=HTML',x:'확정 전 · 대법원이 원심을 파기했습니다'}
+,'case_prec_214063':{x:'확정'}
+,'case_prec_240487':{x:'확정'}
+,'case_prec_214125':{n:'78도2747',c:'대법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=214125&type=HTML',x:'확정 전 · 대법원이 원심을 파기했습니다'}
+,'case_prec_158876':{n:'78도2596',c:'대법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=158876&type=HTML',x:'확정 전 · 대법원이 원심을 파기했습니다'}
+,'case_prec_214163':{x:'확정'}
+,'case_prec_93407':{n:'77도412',c:'대법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=93407&type=HTML',x:'확정 전 · 대법원이 원심을 파기했습니다'}
+,'case_prec_92858':{n:'75도1543',c:'대법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=92858&type=HTML',x:'확정 전 · 대법원이 원심을 파기했습니다'}
+,'case_prec_213983':{x:'확정'}
+,'case_prec_240349':{n:'73도1684',c:'대법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=240349&type=HTML',x:'확정 전 · 대법원이 원심을 파기했습니다'}
+,'case_prec_154521':{n:'72도987',c:'대법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=154521&type=HTML',x:'확정 전 · 대법원이 원심을 파기했습니다'}
+,'case_prec_154743':{n:'71도2381',c:'대법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=154743&type=HTML',x:'확정 전 · 대법원이 원심을 파기했습니다'}
+,'case_prec_240229':{x:'확정'}
+,'case_prec_156103':{x:'확정'}
+,'case_prec_215077':{x:'확정'}
+,'case_prec_156576':{n:'67도613',c:'대법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=156576&type=HTML',x:'확정 전 · 대법원이 원심을 파기했습니다'}
+,'case_prec_179387':{f:'2015도1803',x:'확정'}
+,'case_prec_232027':{n:'2022도7290',c:'대법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=232027&type=HTML',x:'확정 전 · 대법원이 원심을 파기했습니다'}
+,'case_prec_214509':{n:'2020노4720',c:'수원지법',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=214509&type=HTML',x:'확정 여부 확인 못 함'}
+,'case_prec_226187':{n:'2018도20188',c:'대법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=226187&type=HTML',x:'확정 전 · 대법원이 원심을 파기했습니다'}
+,'case_prec_219921':{n:'2018도3821',c:'대법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=219921&type=HTML',x:'확정 전 · 대법원이 원심을 파기했습니다'}
+,'case_prec_220429':{n:'2020도9257',c:'대법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=220429&type=HTML',x:'확정 전 · 대법원이 원심을 파기했습니다'}
+,'case_prec_238645':{n:'2023도2715',c:'대법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=238645&type=HTML',x:'확정 전 · 대법원이 원심을 파기했습니다'}
+,'case_prec_609467':{n:'2022도493',c:'대법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=609467&type=HTML',x:'확정 전 · 대법원이 원심을 파기했습니다'}
+,'case_prec_623089':{n:'2025도12988',c:'대법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=623089&type=HTML',x:'확정 전 · 대법원이 원심을 파기했습니다'}
+,'case_prec_606787':{n:'2023도11997',c:'대법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=606787&type=HTML',x:'확정 전 · 대법원이 원심을 파기했습니다'}
+,'case_prec_605971':{n:'2025도4697',c:'대법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=605971&type=HTML',x:'확정 전 · 대법원이 원심을 파기했습니다'}
+,'case_prec_600559':{p:'가장 무거운 형 벌금 7,000,000원 · 피고인 6명',n:'2023노422',c:'부산고등법원',f:'2024도7642',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=600445&type=HTML',x:'확정'}
+,'case_prec_214597':{p:'가장 무거운 형 징역 7년~1년 · 피고인 11명',n:'2020노486, 2018노3185(병합)',c:'서울고등법원',f:'2020도12583',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=226507&type=HTML',x:'확정'}
+,'case_prec_225777':{n:'2019도11766',c:'대법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=225777&type=HTML',x:'확정 전 · 대법원이 원심을 파기했습니다'}
+,'case_prec_225759':{n:'2018도20832',c:'대법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=225759&type=HTML',x:'확정 전 · 대법원이 원심을 파기했습니다'}
+,'case_prec_68055':{p:'가장 무거운 형 징역 1년 6개월 · 피고인 2명',n:'2005노4045',c:'서울중앙지법',f:'2006도1368',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=70316&type=HTML',x:'확정'}
+,'case_prec_599683':{p:'가장 무거운 형 징역 1년 6개월',n:'2019노388',c:'고등군사법원',f:'2020도11949',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=600383&type=HTML',x:'확정'}
+,'case_prec_197604':{f:'2013도5539',x:'확정'}
+,'case_prec_170900':{p:'가장 무거운 형 징역 7년~1년 · 피고인 5명',n:'2012노805',c:'서울고등법원',f:'2013도2511',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=171731&type=HTML',x:'확정'}
+,'case_prec_162368':{p:'가장 무거운 형 징역 2년 8개월',n:'2008노4176',c:'수원지방법원',f:'2009도320',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=138877&type=HTML',x:'확정'}
+,'case_prec_618653':{n:'2025도16559',c:'대법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=618653&type=HTML',x:'확정 전 · 대법원이 원심을 파기했습니다'}
+,'case_prec_606189':{p:'가장 무거운 형 징역 2년',n:'2024노228',c:'서울고등법원',f:'2024도16239',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=606635&type=HTML',x:'확정'}
+,'case_prec_603915':{n:'2021도8284',c:'대법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=603915&type=HTML',x:'확정 전 · 대법원이 원심을 파기했습니다'}
+,'case_prec_238931':{n:'2020도1669',c:'대법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=238931&type=HTML',x:'확정 전 · 대법원이 원심을 파기했습니다'}
+,'case_prec_203779':{n:'2016도15961',c:'대법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=203779&type=HTML',x:'확정 전 · 대법원이 원심을 파기했습니다'}
+,'case_prec_622097':{f:'2024도20470',x:'확정'}
+,'case_prec_169624':{f:'2011두7175',x:'확정'}
+,'case_prec_240951':{f:'2020도16541',x:'확정'}
+,'case_prec_192017':{f:'2008도553',x:'확정'}
+,'case_prec_85457':{n:'2005도7517',c:'대법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=85457&type=HTML',x:'확정 전 · 대법원이 원심을 파기했습니다'}
+,'case_prec_83363':{n:'2003도6413',c:'대법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=83363&type=HTML',x:'확정 전 · 대법원이 원심을 파기했습니다'}
+,'case_prec_607829':{n:'2023두61370',c:'대법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=607829&type=HTML',x:'확정 전 · 대법원이 원심을 파기했습니다'}
+,'case_prec_606175':{n:'2022두64693',c:'대법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=606175&type=HTML',x:'확정 전 · 대법원이 원심을 파기했습니다'}
+,'case_prec_199855':{f:'2018도5909',x:'확정'}
+,'case_prec_175320':{p:'가장 무거운 형 벌금 2,000,000원',n:'2014고정311',c:'울산지법',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=175320&type=HTML',x:'확정 여부 확인 못 함'}
+,'case_prec_112833':{x:'확정'}
+,'case_prec_105679':{x:'확정'}
+,'case_prec_105615':{x:'확정'}
+,'case_prec_127132':{n:'2003도2780',c:'대법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=127132&type=HTML',x:'확정 전 · 대법원이 원심을 파기했습니다'}
+,'case_prec_612953':{f:'2024도2871',x:'확정'}
+,'case_prec_233981':{f:'2022도4610',x:'확정'}
+,'case_prec_608417':{f:'2025도4428',x:'확정'}
+,'case_prec_67470':{f:'2004도7028',x:'확정'}
+,'case_prec_81774':{n:'2000도1094',c:'대법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=81774&type=HTML',x:'확정 전 · 대법원이 원심을 파기했습니다'}
+,'case_prec_622877':{p:'가장 무거운 형 징역 4년',n:'2025노1707, 2025전노42, 2025보노28',c:'수원고법',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=622877&type=HTML',x:'확정 여부 확인 못 함'}
+,'case_prec_607783':{n:'2025도3890',c:'대법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=607783&type=HTML',x:'확정 전 · 대법원이 원심을 파기했습니다'}
+,'case_prec_241793':{n:'2021도13926',c:'대법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=241793&type=HTML',x:'확정 전 · 대법원이 원심을 파기했습니다'}
+,'case_prec_241687':{p:'가장 무거운 형 징역 3년 6개월',n:'2024고합56',c:'부산지법',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=241687&type=HTML',x:'확정 여부 확인 못 함'}
+,'case_prec_621905':{f:'2023두50080',x:'확정'}
+,'case_prec_607211':{n:'2023도18539',c:'대법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=607211&type=HTML',x:'확정 전 · 대법원이 원심을 파기했습니다'}
+,'case_prec_206283':{n:'2017고단463, 3186, 3344, 5519, 7646, 8366, 2018고단1304, 4459',c:'수원지법',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=206283&type=HTML',x:'확정 여부 확인 못 함'}
+,'case_prec_609527':{n:'2024도12420',c:'대법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=609527&type=HTML',x:'확정 전 · 대법원이 원심을 파기했습니다'}
+,'case_prec_219565':{f:'2016도14772',x:'확정'}
+,'case_prec_204669':{p:'가장 무거운 형 징역 3년 6개월 · 피고인 3명',n:'2018노1731',c:'서울고등법원',f:'2018도16474',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=206151&type=HTML',x:'확정'}
+,'case_prec_187848':{n:'2014도14364',c:'대법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=187848&type=HTML',x:'확정 전 · 대법원이 원심을 파기했습니다'}
+,'case_prec_237943':{p:'가장 무거운 형 징역 3년 · 피고인 3명',n:'2021노115',c:'대구고등법원',f:'2022도90',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=238075&type=HTML',x:'확정'}
+,'case_prec_145094':{n:'2008도7688',c:'대법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=145094&type=HTML',x:'확정 전 · 대법원이 원심을 파기했습니다'}
+,'case_prec_605769':{n:'2024도20371',c:'대법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=605769&type=HTML',x:'확정 전 · 대법원이 원심을 파기했습니다'}
+,'case_prec_157932':{f:'2009도9576',x:'확정'}
+,'case_prec_199905':{n:'2017도8989',c:'대법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=199905&type=HTML',x:'확정 전 · 대법원이 원심을 파기했습니다'}
+,'case_prec_197038':{n:'2013도841',c:'대법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=197038&type=HTML',x:'확정 전 · 대법원이 원심을 파기했습니다'}
+,'case_prec_226203':{n:'2019두40079',c:'대법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=226203&type=HTML',x:'확정 전 · 대법원이 원심을 파기했습니다'}
+,'case_prec_185563':{p:'가장 무거운 형 징역 10개월 · 피고인 5명',n:'2016노816',c:'서울고등법원',f:'2017도7134',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=194796&type=HTML',x:'확정'}
+,'case_prec_177960':{n:'2014노1609',c:'창원지법',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=177960&type=HTML',x:'확정 여부 확인 못 함'}
+,'case_prec_208874':{n:'2015도1000',c:'대법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=208874&type=HTML',x:'확정 전 · 대법원이 원심을 파기했습니다'}
+,'case_prec_205746':{f:'2018도3577',x:'확정'}
+,'case_prec_616025':{n:'2025도13674',c:'대법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=616025&type=HTML',x:'확정 전 · 대법원이 원심을 파기했습니다'}
+,'case_prec_606501':{n:'2021도97',c:'대법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=606501&type=HTML',x:'확정 전 · 대법원이 원심을 파기했습니다'}
+,'case_prec_616523':{p:'가장 무거운 형 징역 3년~1년 · 피고인 2명',n:'2025노860',c:'대전지방법원',f:'2025도15060',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=617207&type=HTML',x:'확정'}
+,'case_prec_232797':{n:'2022도7209',c:'대법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=232797&type=HTML',x:'확정 전 · 대법원이 원심을 파기했습니다'}
+,'case_prec_233897':{n:'2021도16198',c:'대법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=233897&type=HTML',x:'확정 전 · 대법원이 원심을 파기했습니다'}
+,'case_prec_204283':{f:'2016도14781',x:'확정'}
+,'case_prec_622245':{n:'2026도4423',c:'대법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=622245&type=HTML',x:'확정 전 · 대법원이 원심을 파기했습니다'}
+,'case_prec_621903':{p:'가장 무거운 형 징역 2년',n:'2024노5228',c:'수원지방법원',f:'2025도10476',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=622331&type=HTML',x:'확정'}
+,'case_prec_619423':{n:'2025도12357',c:'대법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=619423&type=HTML',x:'확정 전 · 대법원이 원심을 파기했습니다'}
+,'case_prec_623083':{f:'2022도2402',x:'확정'}
+,'case_prec_179760':{n:'2014도17294,2014전도276',c:'대법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=179760&type=HTML',x:'확정 전 · 대법원이 원심을 파기했습니다'}
+,'case_prec_178697':{f:'2014도7088',x:'확정'}
+,'case_prec_167311':{n:'2012도5291,2012전도112',c:'대법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=167311&type=HTML',x:'확정 전 · 대법원이 원심을 파기했습니다'}
+,'case_prec_241179':{f:'2023도12851',x:'확정'}
+,'case_prec_234269':{p:'가장 무거운 형 징역 1년',n:'2022노2157',c:'서울고법',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=234269&type=HTML',x:'확정 여부 확인 못 함'}
+,'case_prec_67921':{f:'2006도477',x:'확정'}
+,'case_prec_81696':{n:'2002도2425',c:'대법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=81696&type=HTML',x:'확정 전 · 대법원이 원심을 파기했습니다'}
+,'case_prec_226179':{n:'2016도19170',c:'대법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=226179&type=HTML',x:'확정 전 · 대법원이 원심을 파기했습니다'}
+,'case_prec_241993':{n:'2024도11629',c:'대법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=241993&type=HTML',x:'확정 전 · 대법원이 원심을 파기했습니다'}
+,'case_prec_227049':{n:'2018도2993',c:'대법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=227049&type=HTML',x:'확정 전 · 대법원이 원심을 파기했습니다'}
+,'case_prec_184520':{f:'2013도2168',x:'확정'}
+,'case_prec_213725':{f:'2019도18700',x:'확정'}
+,'case_prec_599675':{f:'2021도11919',x:'확정'}
+,'case_prec_241041':{n:'2022도8655',c:'대법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=241041&type=HTML',x:'확정 전 · 대법원이 원심을 파기했습니다'}
+,'case_prec_227065':{p:'가장 무거운 형 징역 8개월 · 나머지 벌금 3,000,000원',n:'2020노3521',c:'부산지방법원',f:'2021도8719',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=220117&type=HTML',x:'확정'}
+,'case_prec_218881':{n:'2018도16587',c:'대법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=218881&type=HTML',x:'확정 전 · 대법원이 원심을 파기했습니다'}
+,'case_prec_228491':{p:'가장 무거운 형 징역 4개월',n:'2020노359',c:'광주지방법원',f:'2020도5813',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=226269&type=HTML',x:'확정'}
+,'case_prec_140503':{f:'2009도5945',x:'확정'}
+,'case_prec_114910':{x:'확정'}
+,'case_prec_214275':{n:'2018도16466',c:'대법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=214275&type=HTML',x:'확정 전 · 대법원이 원심을 파기했습니다'}
+,'case_prec_179876':{f:'2014도3112',x:'확정'}
+,'case_prec_606761':{n:'2025도1049',c:'대법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=606761&type=HTML',x:'확정 전 · 대법원이 원심을 파기했습니다'}
+,'case_prec_605071':{f:'2024도15542',x:'확정'}
+,'case_prec_239383':{p:'가장 무거운 형 징역 5년',n:'2023노1673',c:'서울고법',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=239383&type=HTML',x:'확정 여부 확인 못 함'}
+,'case_prec_235557':{f:'2021도17733',x:'확정'}
+,'case_prec_204234':{n:'2018도14262',c:'대법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=204234&type=HTML',x:'확정 전 · 대법원이 원심을 파기했습니다'}
+,'case_prec_185594':{p:'가장 무거운 형 징역 2년 · 피고인 2명',n:'2017고합146',c:'광주지법',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=185594&type=HTML',x:'확정 여부 확인 못 함'}
+,'case_prec_185098':{n:'2016도21034',c:'대법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=185098&type=HTML',x:'확정 전 · 대법원이 원심을 파기했습니다'}
+,'case_prec_184796':{n:'2016도12407',c:'대법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=184796&type=HTML',x:'확정 전 · 대법원이 원심을 파기했습니다'}
+,'case_prec_209175':{p:'가장 무거운 형 무기징역 · 나머지 징역 12년~1년 6개월 · 피고인 16명',n:'2014노490',c:'광주고등법원',f:'2015도6809',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=182110&type=HTML',x:'확정'}
+,'case_prec_216991':{f:'2020도1274',x:'확정'}
+,'case_prec_117644':{x:'확정'}
+,'case_prec_615965':{n:'2025도17027',c:'대법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=615965&type=HTML',x:'확정 전 · 대법원이 원심을 파기했습니다'}
+,'case_prec_232585':{p:'가장 무거운 형 징역 6개월',n:'2020노2809',c:'광주지방법원',f:'2022도6462',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=233349&type=HTML',x:'확정'}
+,'case_prec_227267':{p:'가장 무거운 형 징역 10개월',n:'2021노3426',c:'대구지방법원',f:'2022도755',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=227179&type=HTML',x:'확정'}
+,'case_prec_227063':{n:'2021도7168',c:'대법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=227063&type=HTML',x:'확정 전 · 대법원이 원심을 파기했습니다'}
+,'case_prec_208868':{f:'2018도9672',x:'확정'}
+,'case_prec_186216':{n:'2017도13140',c:'대법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=186216&type=HTML',x:'확정 전 · 대법원이 원심을 파기했습니다'}
+,'case_prec_607825':{f:'2021도11886',x:'확정'}
+,'case_prec_237595':{n:'2021도11675',c:'대법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=237595&type=HTML',x:'확정 전 · 대법원이 원심을 파기했습니다'}
+,'case_prec_217011':{f:'2020도17654',x:'확정'}
+,'case_prec_231803':{f:'2018도4413',x:'확정'}
+,'case_prec_165911':{p:'가장 무거운 형 징역 4년~1년 · 피고인 3명',n:'2012노82',c:'서울고등법원',f:'2012도7455',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=167468&type=HTML',x:'확정'}
+,'case_prec_71046':{p:'가장 무거운 형 벌금 1,000,000원',n:'2007노3631',c:'대구지법',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=71046&type=HTML',x:'확정 여부 확인 못 함'}
+,'case_prec_83175':{f:'2003도7878',x:'확정'}
+,'case_prec_605593':{f:'2001도6484',x:'확정'}
+,'case_prec_69591':{p:'가장 무거운 형 징역 3년~1년 · 피고인 5명',n:'2003고합580, 585, 609, 643',c:'서울지법',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=69591&type=HTML',x:'확정 여부 확인 못 함'}
+,'case_prec_122570':{x:'확정'}
+,'case_prec_231805':{n:'2019도10516',c:'대법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=231805&type=HTML',x:'확정 전 · 대법원이 원심을 파기했습니다'}
+,'case_prec_222705':{n:'2016도11744',c:'대법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=222705&type=HTML',x:'확정 전 · 대법원이 원심을 파기했습니다'}
+,'case_prec_214919':{f:'2015도15618',x:'확정'}
+,'case_prec_225541':{f:'2019도6252',x:'확정'}
+,'case_prec_84120':{n:'2003도5192',c:'대법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=84120&type=HTML',x:'확정 전 · 대법원이 원심을 파기했습니다'}
+,'case_prec_231605':{n:'2017도18591',c:'대법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=231605&type=HTML',x:'확정 전 · 대법원이 원심을 파기했습니다'}
+,'case_prec_209691':{n:'2018도7682',c:'대법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=209691&type=HTML',x:'확정 전 · 대법원이 원심을 파기했습니다'}
+,'case_prec_225561':{f:'2019도4368',x:'확정'}
+,'case_prec_178874':{n:'2014도8289',c:'대법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=178874&type=HTML',x:'확정 전 · 대법원이 원심을 파기했습니다'}
+,'case_prec_170471':{n:'2012도4848',c:'대법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=170471&type=HTML',x:'확정 전 · 대법원이 원심을 파기했습니다'}
+,'case_prec_164844':{n:'2010도7059',c:'대법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=164844&type=HTML',x:'확정 전 · 대법원이 원심을 파기했습니다'}
+,'case_prec_623069':{f:'2025도11170',x:'확정'}
+,'case_prec_614539':{n:'2023노878',c:'제주지법',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=614539&type=HTML',x:'확정 여부 확인 못 함'}
+,'case_prec_235561':{f:'2022도13430',x:'확정'}
+,'case_prec_238245':{n:'2022도14694',c:'대법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=238245&type=HTML',x:'확정 전 · 대법원이 원심을 파기했습니다'}
+,'case_prec_239255':{n:'2023도2836',c:'대법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=239255&type=HTML',x:'확정 전 · 대법원이 원심을 파기했습니다'}
+,'case_prec_179315':{n:'2015노315',c:'창원지법',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=179315&type=HTML',x:'확정 여부 확인 못 함'}
+,'case_prec_175319':{p:'가장 무거운 형 벌금 16,000,000원',n:'2014노46',c:'청주지법',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=175319&type=HTML',x:'확정 여부 확인 못 함'}
+,'case_prec_143367':{f:'2009도14772',x:'확정'}
+,'case_prec_134186':{n:'2007도5372',c:'대법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=134186&type=HTML',x:'확정 전 · 대법원이 원심을 파기했습니다'}
+,'case_prec_70312':{p:'가장 무거운 형 벌금 7,000,000원 · 피고인 4명',n:'2005노1213,1214',c:'의정부지법',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=70312&type=HTML',x:'확정 여부 확인 못 함'}
+,'case_prec_615703':{n:'2024도3387',c:'대법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=615703&type=HTML',x:'확정 전 · 대법원이 원심을 파기했습니다'}
+,'case_prec_608437':{n:'2025도7665',c:'대법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=608437&type=HTML',x:'확정 전 · 대법원이 원심을 파기했습니다'}
+,'case_prec_217007':{f:'2020도17070, 2020전도171',x:'확정'}
+,'case_prec_214291':{n:'2017도18291',c:'대법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=214291&type=HTML',x:'확정 전 · 대법원이 원심을 파기했습니다'}
+,'case_prec_214251':{n:'2020도4140',c:'대법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=214251&type=HTML',x:'확정 전 · 대법원이 원심을 파기했습니다'}
+,'case_prec_203021':{p:'가장 무거운 형 징역 20년~13년 · 피고인 2명',n:'2017노2950, 2017노2951(병합), 2017전노149(병합), 2017전노150(병합), 2017보노1(병합), 2017로133(병합)',c:'서울고등법원',f:'2018도7658, 2018전도54, 55, 2018보도6, 2018모2593',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=205383&type=HTML',x:'확정'}
+,'case_prec_184524':{f:'2016도17719',x:'확정'}
+,'case_prec_182959':{n:'2016도3508, 2016전도40',c:'대법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=182959&type=HTML',x:'확정 전 · 대법원이 원심을 파기했습니다'}
+,'case_prec_175513':{n:'2014오1,2014전오1',c:'대법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=175513&type=HTML',x:'확정 전 · 대법원이 원심을 파기했습니다'}
+,'case_prec_173194':{n:'2013도6424,2013전도134',c:'대법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=173194&type=HTML',x:'확정 전 · 대법원이 원심을 파기했습니다'}
+,'case_prec_172501':{n:'2013도6220,2013전도124',c:'대법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=172501&type=HTML',x:'확정 전 · 대법원이 원심을 파기했습니다'}
+,'case_prec_169431':{n:'2012고합384,2012전고24',c:'울산지법',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=169431&type=HTML',x:'확정 여부 확인 못 함'}
+,'case_prec_165221':{p:'가장 무거운 형 징역 2년',n:'2011노2069,2011전노268',c:'서울고등법원',f:'2011도14257, 2011전도233',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=167107&type=HTML',x:'확정'}
+,'case_prec_164819':{p:'가장 무거운 형 징역 4개월',n:'2012노151',c:'광주지방법원',f:'2012도5862',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=166501&type=HTML',x:'확정'}
+,'case_prec_163893':{n:'2012도1047, 2012전도26',c:'대법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=163893&type=HTML',x:'확정 전 · 대법원이 원심을 파기했습니다'}
+,'case_prec_163727':{n:'2012도2289, 2012감도5, 2012전도51',c:'대법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=163727&type=HTML',x:'확정 전 · 대법원이 원심을 파기했습니다'}
+,'case_prec_161631':{f:'2011도15057, 2011전도249',x:'확정'}
+,'case_prec_165193':{n:'2012도311,2012전도9',c:'대법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=165193&type=HTML',x:'확정 전 · 대법원이 원심을 파기했습니다'}
+,'case_prec_161021':{n:'2011도8124, 2011전도141',c:'대법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=161021&type=HTML',x:'확정 전 · 대법원이 원심을 파기했습니다'}
+,'case_prec_225811':{f:'2018두63563',x:'확정'}
+,'case_prec_181035':{n:'2015도9123',c:'대법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=181035&type=HTML',x:'확정 전 · 대법원이 원심을 파기했습니다'}
+,'case_prec_141749':{f:'2009도1490',x:'확정'}
+,'case_prec_136391':{f:'2007도7725',x:'확정'}
+,'case_prec_84806':{p:'가장 무거운 형 징역 1년 6개월',n:'2005노2753',c:'수원지방법원',f:'2006도4888',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=77953&type=HTML',x:'확정'}
+,'case_prec_179486':{p:'가장 무거운 형 징역 1년',n:'2013노2728',c:'서울고등법원',f:'2014도5939',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=182159&type=HTML',x:'확정'}
+,'case_prec_125299':{p:'가장 무거운 형 징역 6개월',n:'2008노1092',c:'서울북부지방법원',f:'2008도10831',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=128260&type=HTML',x:'확정'}
+,'case_prec_167550':{f:'2011도1614',x:'확정'}
+,'case_prec_216247':{p:'가장 무거운 형 벌금 2,000,000원',n:'2004노555',c:'서울중앙지방법원',f:'2004도9073',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=77395&type=HTML',x:'확정'}
+,'case_prec_220437':{n:'2019도14416',c:'대법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=220437&type=HTML',x:'확정 전 · 대법원이 원심을 파기했습니다'}
+,'case_prec_219745':{n:'2015도6326',c:'대법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=219745&type=HTML',x:'확정 전 · 대법원이 원심을 파기했습니다'}
+,'case_prec_218701':{n:'2020도3996',c:'대법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=218701&type=HTML',x:'확정 전 · 대법원이 원심을 파기했습니다'}
+,'case_prec_146248':{f:'2010도2615',x:'확정'}
+,'case_prec_620423':{n:'2026도541',c:'대법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=620423&type=HTML',x:'확정 전 · 대법원이 원심을 파기했습니다'}
+,'case_prec_618503':{n:'2025도12709',c:'대법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=618503&type=HTML',x:'확정 전 · 대법원이 원심을 파기했습니다'}
+,'case_prec_608477':{n:'2025도986',c:'대법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=608477&type=HTML',x:'확정 전 · 대법원이 원심을 파기했습니다'}
+,'case_prec_612957':{n:'2025도7142',c:'대법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=612957&type=HTML',x:'확정 전 · 대법원이 원심을 파기했습니다'}
+,'case_prec_606797':{f:'2024도14039',x:'확정'}
+,'case_prec_606811':{f:'2024도16133',x:'확정'}
+,'case_prec_605941':{n:'2021도11938',c:'대법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=605941&type=HTML',x:'확정 전 · 대법원이 원심을 파기했습니다'}
+,'case_prec_605725':{n:'2024도18718',c:'대법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=605725&type=HTML',x:'확정 전 · 대법원이 원심을 파기했습니다'}
+,'case_prec_605069':{p:'가장 무거운 형 징역 6년~5년 · 피고인 2명',n:'2023노249',c:'서울고등법원',f:'2023도10405',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=605579&type=HTML',x:'확정'}
+,'case_prec_606785':{n:'2021도12274',c:'대법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=606785&type=HTML',x:'확정 전 · 대법원이 원심을 파기했습니다'}
+,'case_prec_606647':{n:'2021도11856',c:'대법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=606647&type=HTML',x:'확정 전 · 대법원이 원심을 파기했습니다'}
+,'case_prec_242151':{n:'2022도10688',c:'대법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=242151&type=HTML',x:'확정 전 · 대법원이 원심을 파기했습니다'}
+,'case_prec_242145':{n:'2023도7199',c:'대법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=242145&type=HTML',x:'확정 전 · 대법원이 원심을 파기했습니다'}
+,'case_prec_242111':{p:'가장 무거운 형 징역 2년 6개월',n:'2024노1823',c:'서울고법',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=242111&type=HTML',x:'확정 여부 확인 못 함'}
+,'case_prec_604515':{n:'2024도10477',c:'대법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=604515&type=HTML',x:'확정 전 · 대법원이 원심을 파기했습니다'}
+,'case_prec_601529':{f:'2023도17896',x:'확정'}
+,'case_prec_240667':{n:'2023도13406',c:'대법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=240667&type=HTML',x:'확정 전 · 대법원이 원심을 파기했습니다'}
+,'case_prec_240681':{p:'가장 무거운 형 징역 2년',n:'2023노3763',c:'서울고법',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=240681&type=HTML',x:'확정 여부 확인 못 함'}
+,'case_prec_239999':{p:'가장 무거운 형 징역 8년~3년 6개월 · 피고인 2명',n:'2023노130, 2023전노14(병합), 15(병합), 16(병합)',c:'부산고등법원(창원)',f:'2023도15133, 2023전도163, 164',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=240625&type=HTML',x:'확정'}
+,'case_prec_239921':{p:'가장 무거운 형 징역 1년',n:'2019노1277',c:'의정부지방법원',f:'2020도9431',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=240137&type=HTML',x:'확정'}
+,'case_prec_237581':{n:'2018도13877',c:'대법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=237581&type=HTML',x:'확정 전 · 대법원이 원심을 파기했습니다'}
+,'case_prec_237893':{n:'2020도15730, 2020보도48',c:'대법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=237893&type=HTML',x:'확정 전 · 대법원이 원심을 파기했습니다'}
+,'case_prec_235559':{n:'2022도6278',c:'대법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=235559&type=HTML',x:'확정 전 · 대법원이 원심을 파기했습니다'}
+,'case_prec_235113':{n:'2022도15414',c:'대법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=235113&type=HTML',x:'확정 전 · 대법원이 원심을 파기했습니다'}
+,'case_prec_234585':{f:'2023도2358, 2023전도26',x:'확정'}
+,'case_prec_237209':{n:'2022노3389',c:'서울고법',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=237209&type=HTML',x:'확정 여부 확인 못 함'}
+,'case_prec_231989':{f:'2020도13672',x:'확정'}
+,'case_prec_231731':{n:'2020도11185',c:'대법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=231731&type=HTML',x:'확정 전 · 대법원이 원심을 파기했습니다'}
+,'case_prec_230889':{n:'2022도3801',c:'대법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=230889&type=HTML',x:'확정 전 · 대법원이 원심을 파기했습니다'}
+,'case_prec_232617':{n:'2021도9041',c:'대법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=232617&type=HTML',x:'확정 전 · 대법원이 원심을 파기했습니다'}
+,'case_prec_220305':{n:'2021도14530, 2021전도143',c:'대법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=220305&type=HTML',x:'확정 전 · 대법원이 원심을 파기했습니다'}
+,'case_prec_219709':{p:'가장 무거운 형 벌금 3,000,000원',n:'2015노462',c:'청주지방법원',f:'2016도348',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=220207&type=HTML',x:'확정'}
+,'case_prec_219875':{n:'2021노802',c:'울산지법',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=219875&type=HTML',x:'확정 여부 확인 못 함'}
+,'case_prec_218461':{f:'2021도9051',x:'확정'}
+,'case_prec_216983':{f:'2021도749',x:'확정'}
+,'case_prec_148138':{n:'2010도15986',c:'대법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=148138&type=HTML',x:'확정 전 · 대법원이 원심을 파기했습니다'}
+,'case_prec_622249':{f:'2024도7082',x:'확정'}
+,'case_prec_619491':{n:'2026도2108',c:'대법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=619491&type=HTML',x:'확정 전 · 대법원이 원심을 파기했습니다'}
+,'case_prec_600305':{f:'2023도11912',x:'확정'}
+,'case_prec_241863':{n:'2023도12878',c:'대법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=241863&type=HTML',x:'확정 전 · 대법원이 원심을 파기했습니다'}
+,'case_prec_614703':{p:'가장 무거운 형 징역 1년',n:'2024노711',c:'서울고법',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=614703&type=HTML',x:'확정 여부 확인 못 함'}
+,'case_prec_238929':{f:'2023도10313',x:'확정'}
+,'case_prec_237585':{p:'가장 무거운 형 징역 10개월',n:'2023노568',c:'대전지방법원',f:'2023도6411',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=238739&type=HTML',x:'확정'}
+,'case_prec_234933':{n:'2022도12037',c:'대법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=234933&type=HTML',x:'확정 전 · 대법원이 원심을 파기했습니다'}
+,'case_prec_238307':{n:'2020도14640',c:'대법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=238307&type=HTML',x:'확정 전 · 대법원이 원심을 파기했습니다'}
+,'case_prec_230897':{n:'2020도12944',c:'대법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=230897&type=HTML',x:'확정 전 · 대법원이 원심을 파기했습니다'}
+,'case_prec_216955':{f:'2020도13815',x:'확정'}
+,'case_prec_211409':{n:'2017도16995',c:'대법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=211409&type=HTML',x:'확정 전 · 대법원이 원심을 파기했습니다'}
+,'case_prec_206108':{f:'2018도6254',x:'확정'}
+,'case_prec_228787':{f:'2012두18882',x:'확정'}
+,'case_prec_227687':{n:'2020도12419',c:'대법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=227687&type=HTML',x:'확정 전 · 대법원이 원심을 파기했습니다'}
+,'case_prec_214219':{n:'2020도3694',c:'대법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=214219&type=HTML',x:'확정 전 · 대법원이 원심을 파기했습니다'}
+,'case_prec_213143':{p:'가장 무거운 형 징역 4년',n:'2019노664, 2019전노55(병합)',c:'부산고등법원',f:'2020도6422',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=214657&type=HTML',x:'확정'}
+,'case_prec_195372':{f:'2016두64371',x:'확정'}
+,'case_prec_185380':{p:'가장 무거운 형 징역 3년 6개월',n:'2016고합664',c:'수원지법',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=185380&type=HTML',x:'확정 여부 확인 못 함'}
+,'case_prec_184577':{p:'가장 무거운 형 벌금 5,000,000원 · 피고인 2명',n:'2015노945',c:'춘천지법',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=184577&type=HTML',x:'확정 여부 확인 못 함'}
+,'case_prec_182934':{p:'가장 무거운 형 징역 20년~6년 · 피고인 2명',n:'2015노743, 2015전노89',c:'부산고법',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=182934&type=HTML',x:'확정 여부 확인 못 함'}
+,'case_prec_622067':{f:'2025도16040',x:'확정'}
+,'case_prec_241043':{n:'2024도2940',c:'대법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=241043&type=HTML',x:'확정 전 · 대법원이 원심을 파기했습니다'}
+,'case_prec_183066':{n:'2014도7160',c:'대법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=183066&type=HTML',x:'확정 전 · 대법원이 원심을 파기했습니다'}
+,'case_prec_85128':{p:'가장 무거운 형 징역 3년~2년 6개월 · 피고인 2명',n:'2005노1858',c:'서울고등법원',f:'2006도1813',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=78286&type=HTML',x:'확정'}
+,'case_prec_70676':{n:'2006고단5065',c:'대구지법',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=70676&type=HTML',x:'확정 여부 확인 못 함'}
+,'case_prec_180299':{n:'2015고정752',c:'청주지법',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=180299&type=HTML',x:'확정 여부 확인 못 함'}
+,'case_prec_157273':{n:'2011도6705, 2011감도20',c:'대법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=157273&type=HTML',x:'확정 전 · 대법원이 원심을 파기했습니다'}
+,'case_prec_110148':{x:'확정'}
+,'case_prec_141751':{f:'2009도4115',x:'확정'}
+,'case_prec_234701':{n:'2020도17883',c:'대법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=234701&type=HTML',x:'확정 전 · 대법원이 원심을 파기했습니다'}
+,'case_prec_206303':{n:'2018도10183',c:'대법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=206303&type=HTML',x:'확정 전 · 대법원이 원심을 파기했습니다'}
+,'case_prec_205742':{f:'2018도1299',x:'확정'}
+,'case_prec_194924':{p:'가장 무거운 형 징역 1년 9개월',n:'2017노4041',c:'수원지방법원',f:'2017도17699',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=200545&type=HTML',x:'확정'}
+,'case_prec_142621':{f:'2009도3763',x:'확정'}
+,'case_prec_214223':{n:'2016도4404, 2016전도49',c:'대법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=214223&type=HTML',x:'확정 전 · 대법원이 원심을 파기했습니다'}
+,'case_prec_225635':{p:'가장 무거운 형 징역 6년',n:'(청주)2019노31',c:'대전고등법원',f:'2019도11609',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=225413&type=HTML',x:'확정'}
+,'case_prec_209236':{f:'2014도17346',x:'확정'}
+,'case_prec_113069':{x:'확정'}
+,'case_prec_614521':{p:'가장 무거운 형 징역 1년 2개월',n:'2024노1932',c:'서울남부지법',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=614521&type=HTML',x:'확정 여부 확인 못 함'}
+,'case_prec_239251':{n:'2023도2982',c:'대법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=239251&type=HTML',x:'확정 전 · 대법원이 원심을 파기했습니다'}
+,'case_prec_210925':{n:'2018고단3643',c:'서울남부지법',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=210925&type=HTML',x:'확정 여부 확인 못 함'}
+,'case_prec_612955':{f:'2025도7814',x:'확정'}
+,'case_prec_612959':{f:'2025도6811',x:'확정'}
+,'case_prec_606381':{n:'2025고합87',c:'창원지법',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=606381&type=HTML',x:'확정 여부 확인 못 함'}
+,'case_prec_606539':{f:'2024도11351',x:'확정'}
+,'case_prec_241635':{n:'2024도7516',c:'대법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=241635&type=HTML',x:'확정 전 · 대법원이 원심을 파기했습니다'}
+,'case_prec_184471':{n:'2016도13362',c:'대법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=184471&type=HTML',x:'확정 전 · 대법원이 원심을 파기했습니다'}
+,'case_prec_187770':{f:'2015도15101',x:'확정'}
+,'case_prec_162490':{n:'2011전도82',c:'대법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=162490&type=HTML',x:'확정 전 · 대법원이 원심을 파기했습니다'}
+,'case_prec_214327':{n:'2015도19296',c:'대법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=214327&type=HTML',x:'확정 전 · 대법원이 원심을 파기했습니다'}
+,'case_prec_191241':{f:'2000도4415',x:'확정'}
+,'case_prec_218203':{n:'2020노105',c:'서울고법',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=218203&type=HTML',x:'확정 여부 확인 못 함'}
+,'case_prec_600289':{n:'2022도3103',c:'대법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=600289&type=HTML',x:'확정 전 · 대법원이 원심을 파기했습니다'}
+,'case_prec_177578':{n:'2014노519',c:'청주지법',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=177578&type=HTML',x:'확정 여부 확인 못 함'}
+,'case_prec_81137':{f:'2001도5025',x:'확정'}
+,'case_prec_80477':{f:'2000도4901',x:'확정'}
+,'case_prec_220937':{f:'2000도2798',x:'확정'}
+,'case_prec_114975':{x:'확정'}
+,'case_prec_98237':{x:'확정'}
+,'case_prec_211993':{n:'82도977',c:'대법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=211993&type=HTML',x:'확정 전 · 대법원이 원심을 파기했습니다'}
+,'case_prec_231607':{n:'2015도11567',c:'대법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=231607&type=HTML',x:'확정 전 · 대법원이 원심을 파기했습니다'}
+,'case_prec_226461':{n:'2019고단4541',c:'수원지법안산지원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=226461&type=HTML',x:'확정 여부 확인 못 함'}
+,'case_prec_213765':{f:'2018도18187',x:'확정'}
+,'case_prec_209625':{n:'2013재고단25',c:'대구지법',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=209625&type=HTML',x:'확정 여부 확인 못 함'}
+,'case_prec_208854':{p:'가장 무거운 형 징역 1년 6개월',n:'2015노2496',c:'서울중앙지방법원',f:'2016도19464',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=182741&type=HTML',x:'확정'}
+,'case_prec_209367':{f:'2016도21311',x:'확정'}
+,'case_prec_194918':{p:'가장 무거운 형 징역 1년~8개월 · 피고인 3명',n:'2014고단770',c:'전주지법',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=194918&type=HTML',x:'확정 여부 확인 못 함'}
+,'case_prec_209210':{n:'2015도17738',c:'대법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=209210&type=HTML',x:'확정 전 · 대법원이 원심을 파기했습니다'}
+,'case_prec_185099':{p:'가장 무거운 형 징역 3년 · 나머지 벌금 500,000원',n:'2016노2071',c:'서울고등법원',f:'2016도21077',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=193000&type=HTML',x:'확정'}
+,'case_prec_180189':{n:'2015도4273',c:'대법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=180189&type=HTML',x:'확정 전 · 대법원이 원심을 파기했습니다'}
+,'case_prec_176309':{n:'2011도2871',c:'대법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=176309&type=HTML',x:'확정 전 · 대법원이 원심을 파기했습니다'}
+,'case_prec_177834':{n:'2008도6031',c:'대법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=177834&type=HTML',x:'확정 전 · 대법원이 원심을 파기했습니다'}
+,'case_prec_178714':{n:'2012도214',c:'대법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=178714&type=HTML',x:'확정 전 · 대법원이 원심을 파기했습니다'}
+,'case_prec_600493':{n:'2020다300299',c:'대법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=600493&type=HTML',x:'확정 전 · 대법원이 원심을 파기했습니다'}
+,'case_prec_199740':{f:'2015도13909',x:'확정'}
+,'case_prec_179789':{n:'2014도17853,2014감도45,2014전도286,2014치도6',c:'대법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=179789&type=HTML',x:'확정 전 · 대법원이 원심을 파기했습니다'}
+,'case_prec_209229':{n:'2014도6930,2014감도25,2014전도126,2014치도3',c:'대법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=209229&type=HTML',x:'확정 전 · 대법원이 원심을 파기했습니다'}
+,'case_prec_143681':{f:'2009도10558',x:'확정'}
+,'case_prec_142029':{p:'가장 무거운 형 징역 10개월',n:'2009고합119, 171, 175, 217, 326, 327, 2009감고3, 5, 7, 8, 14, 15',c:'창원지법',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=142029&type=HTML',x:'확정 여부 확인 못 함'}
+,'case_prec_140872':{n:'2009도6946, 2009감도24',c:'대법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=140872&type=HTML',x:'확정 전 · 대법원이 원심을 파기했습니다'}
+,'case_prec_68910':{f:'2007도3820',x:'확정'}
+,'case_prec_68880':{p:'가장 무거운 형 징역 8개월',n:'2007노2836',c:'서울고등법원',f:'2007감도11',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=153138&type=HTML',x:'확정'}
+,'case_prec_68149':{f:'2006도4211',x:'확정'}
+,'case_prec_67724':{f:'2005도3940',x:'확정'}
+,'case_prec_67726':{f:'2005도4208',x:'확정'}
+,'case_prec_68027':{x:'확정'}
+,'case_prec_84411':{p:'가장 무거운 형 징역 10년 · 피고인 2명',n:'2005노336',c:'대구고등법원',f:'2006도536',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=77482&type=HTML',x:'확정'}
+,'case_prec_114247':{x:'확정'}
+,'case_prec_608551':{n:'2022도15547',c:'대법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=608551&type=HTML',x:'확정 전 · 대법원이 원심을 파기했습니다'}
+,'case_prec_612961':{f:'2025도6266',x:'확정'}
+,'case_prec_607853':{p:'가장 무거운 형 징역 6개월~4개월 · 피고인 2명',n:'2023노112',c:'서울고등법원',f:'2023도16500',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=608553&type=HTML',x:'확정'}
+,'case_prec_605811':{n:'2024도15789',c:'대법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=605811&type=HTML',x:'확정 전 · 대법원이 원심을 파기했습니다'}
+,'case_prec_605329':{p:'가장 무거운 형 징역 4년',n:'2024노289',c:'광주고등법원',f:'2024도20290',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=605673&type=HTML',x:'확정'}
+,'case_prec_239935':{n:'2023도17394',c:'대법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=239935&type=HTML',x:'확정 전 · 대법원이 원심을 파기했습니다'}
+,'case_prec_238887':{n:'2017도21248',c:'대법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=238887&type=HTML',x:'확정 전 · 대법원이 원심을 파기했습니다'}
+,'case_prec_238907':{n:'2023도12852, 2023전도144',c:'대법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=238907&type=HTML',x:'확정 전 · 대법원이 원심을 파기했습니다'}
+,'case_prec_233585':{n:'2017도14104',c:'대법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=233585&type=HTML',x:'확정 전 · 대법원이 원심을 파기했습니다'}
+,'case_prec_178802':{p:'가장 무거운 형 징역 2년',n:'2014노69',c:'서울고등법원',f:'2014도10199',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=176108&type=HTML',x:'확정'}
+,'case_prec_215917':{n:'2005도2049',c:'대법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=215917&type=HTML',x:'확정 전 · 대법원이 원심을 파기했습니다'}
+,'case_prec_241497':{n:'2023도1924',c:'대법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=241497&type=HTML',x:'확정 전 · 대법원이 원심을 파기했습니다'}
+,'case_prec_214921':{f:'2020도7929',x:'확정'}
+,'case_prec_210559':{n:'2019도6525',c:'대법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=210559&type=HTML',x:'확정 전 · 대법원이 원심을 파기했습니다'}
+,'case_prec_618077':{n:'2025도4422',c:'대법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=618077&type=HTML',x:'확정 전 · 대법원이 원심을 파기했습니다'}
+,'case_prec_622685':{n:'2025도18126',c:'대법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=622685&type=HTML',x:'확정 전 · 대법원이 원심을 파기했습니다'}
+,'case_prec_622099':{f:'2025도18435',x:'확정'}
+,'case_prec_622069':{n:'2023도18112',c:'대법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=622069&type=HTML',x:'확정 전 · 대법원이 원심을 파기했습니다'}
+,'case_prec_616027':{n:'2025도14142',c:'대법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=616027&type=HTML',x:'확정 전 · 대법원이 원심을 파기했습니다'}
+,'case_prec_616019':{n:'2024도15728',c:'대법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=616019&type=HTML',x:'확정 전 · 대법원이 원심을 파기했습니다'}
+,'case_prec_615669':{n:'2023도6106',c:'대법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=615669&type=HTML',x:'확정 전 · 대법원이 원심을 파기했습니다'}
+,'case_prec_615687':{n:'2025모45',c:'대법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=615687&type=HTML',x:'확정 전 · 대법원이 원심을 파기했습니다'}
+,'case_prec_614347':{n:'2025도8460',c:'대법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=614347&type=HTML',x:'확정 전 · 대법원이 원심을 파기했습니다'}
+,'case_prec_613245':{p:'가장 무거운 형 징역 2년',n:'2022노1482',c:'수원지방법원',f:'2024도11353',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=614449&type=HTML',x:'확정'}
+,'case_prec_613197':{n:'2023도12127',c:'대법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=613197&type=HTML',x:'확정 전 · 대법원이 원심을 파기했습니다'}/*AUTO-PEN-END*/};
+(function(){var _m={};N.forEach(function(n){_m[n.id]=n});
+  Object.keys(PEN).forEach(function(k){var n=_m[k];if(!n)return;var v=PEN[k];
+    n.pen=v.p; n.penNo=v.n; n.penCourt=v.c; n.penFinal=v.f; n.penUrl=v.u; n.penFix=v.x;
+    if(v.l)n.lab=v.l;
+  });})();
 var map={};N.forEach(function(n){map[n.id]=n});
+/* ── 한쪽 끝이 없는 선은 **버린다** ──
+   손으로 넣은 선이 자동 노드(id 에 번호가 붙는다)를 가리킬 수 있는데,
+   도구가 다시 돌면 그 번호가 바뀔 수 있다. 그때 `adj[없는id].push` 가
+   TypeError 를 내고 **스크립트가 통째로 죽는다** — 함수는 호이스팅되어 있어
+   화면은 멀쩡해 보이고 그 뒤 초기화만 안 돈다 (이 파일이 겪은 5번 사고와 같은 종류).
+   한쪽 끝이 없는 선은 관계가 아니므로 조용히 버리는 것이 맞다. **몇 개를 버렸는지 남긴다.** */
+var dropL=0;
+for(var _i=L.length-1;_i>=0;_i--){ if(!map[L[_i][0]]||!map[L[_i][1]]){ L.splice(_i,1); dropL++ } }
 var adj={};N.forEach(function(n){adj[n.id]=[]});
 L.forEach(function(l){adj[l[0]].push(l);adj[l[1]].push(l)});
 
@@ -18358,8 +19279,8 @@ N.forEach(function(n){
      노드가 많아지면 고리가 커지고 배율이 0.44 → 0.30 으로 준다.
      크기를 그대로 두면 화면에서 사람 원이 7 → 4px 이 되어 다시 안 보인다.
      1/0.68 ≒ 1.47 을 곱해 **화면상 크기를 지킨다.** */
-  var grow=Math.sqrt(deg)*(n.t==='result'?3.1:n.prez?2.4:isWho?2.2:1.6);
-  var GROW_CAP=(n.t==='result')?12:isWho?10:7;
+  var grow=Math.sqrt(deg)*(n.t==='result'?1.6:n.prez?2.4:isWho?2.2:1.6);
+  var GROW_CAP=(n.t==='result')?6:isWho?10:7;
   if(grow>GROW_CAP)grow=GROW_CAP;
   /* 실측 (1440×786 · 배율 0.45): 화면상 반지름
        isWho 8  → 4~6px   법(4.5)과 구별이 안 된다
@@ -18371,7 +19292,13 @@ N.forEach(function(n){
        사람 19+cap10 → 5.7~8.7px   법(사각형)과 확실히 갈린다
        법   6.6      → 2.0px       가로로 누운 사각형이라 넓이가 있다
      사람이 결과와 비슷한 크기인 것은 맞다 — 빈 원이라 같은 크기에서 덜 띈다. */
-  n.r0=(n.t==='post'?14:n.t==='event'?8.8:n.t==='result'?16:n.prez?23:isWho?19:n.t==='bill'?6.6:6)+grow;
+  /* ── 결과 원을 **절반으로** 줄였다 (16+cap12 → 8+cap6) ──
+     이름표가 이미 그 자리에 있으므로 원이 클 이유가 없다. 실측 (1440×900 · 배율 0.40):
+       | 결과 기본 | 화면 지름 | 눈으로 본 것 |
+       | 16 + cap12 | 15~22px | 노란 원이 이름표만큼 커서 화면을 먹는다 |
+       | **8 + cap6** | **7~11px** | **점으로 읽히고 이름표가 산다** |
+     순위(이웃 수)는 그대로 남는다 — 자라는 몫만 줄였다. */
+  n.r0=(n.t==='post'?14:n.t==='event'?8.8:n.t==='result'?8:n.prez?23:isWho?19:n.t==='bill'?6.6:6)+grow;
   n.r=n.r0;n.lw=60});
 
 /* 좁은 화면에서는 점을 줄인다. 같은 배율이면 폰에서 점이 화면을 더 많이 먹고,
@@ -20353,28 +21280,25 @@ function mixWithBg(col,k){
   var out='rgb('+Math.round(14+(r-14)*k)+','+Math.round(15+(g-15)*k)+','+Math.round(18+(b-18)*k)+')';
   autoMixCache[key]=out; return out;
 }
-function autoFill(n,col){
-  cx.fillStyle=mixWithBg(col,AUTO_MIX);cx.fill();
-  /* **점선은 화면에서 같은 굵기여야 한다.** `lineWidth` 는 월드 단위라 배율을 탄다 —
-     배율 0.35 에서 1.5 는 화면에서 0.5px 이라 점선이 실선처럼 보였다.
-     이름표가 배율과 무관하게 12.5px 인 것과 같은 이유다. */
-  var k=1/Math.max(cam.s,0.05);
-  cx.strokeStyle=col;cx.lineWidth=Math.max(1.5,1.4*k);
-  cx.setLineDash([2.6*k,2.4*k]);cx.stroke();cx.setLineDash([]);
-}
-/* ── 사람이 확인해 넣은 것에는 **밝은 테두리**를 두른다 ──
-   전에는 자동/사람을 「옅은 회색 + 점선」 과 「진한 회색 + 실선」 으로만 갈랐다.
-   실측 픽셀: 자동 (82,87,95) · 사람 (138,146,158) — **한눈에 안 갈린다.**
-   색의 밝기만 다르면 배경·겹침·화면 밝기에 묻힌다.
-   밝은 테두리는 채움과 다른 축이라 어떤 색 위에서도 보인다.
-   굵기는 화면 기준으로 지킨다 (배율을 타면 축소했을 때 사라진다). */
-function handFill(n,col){
+/* ── 지도에서는 자동/사람을 **안 가른다** ──
+   전에는 자동은 점선, 사람 확인은 흰 테두리로 갈랐다. 그런데 **범례에 없는 표시는
+   보는 사람에게 그냥 다른 그림일 뿐이다.** 「저 점선은 뭐지」 를 물어볼 곳이 없다.
+
+   그리고 그 구분은 **카드가 이미 말한다** — 「이름이 맞아 자동으로 이었습니다」·
+   「사람이 근거를 확인해 넣었습니다」. 글로 말할 수 있는 것을 지도에서 또 나눌 이유가 없다.
+   나누는 순간 모양이 두 가지 뜻(종류·근거)을 한꺼번에 지게 되고, 종류가 안 읽힌다.
+
+   남는 것은 **어두운 테두리 하나**다. 이건 뜻이 아니라 배경에서 도형을 떼어 놓는 선이다. */
+function nodeFill(n,col){
   cx.fillStyle=col;cx.fill();
-  var k=1/Math.max(cam.s,0.05);
-  cx.strokeStyle='rgba(226,232,240,0.85)';
-  cx.lineWidth=Math.max(1,1.5*k);
+  /* 굵기는 **화면 기준**으로 지킨다. `lineWidth` 는 월드 단위라 배율을 타서,
+     배율 0.35 에서 1.5 는 화면 0.5px 이 된다 (점선이 실선으로 보이던 것과 같은 원인). */
+  cx.strokeStyle='#0E0F12';
+  cx.lineWidth=Math.max(1.2,1.6/Math.max(cam.s,0.05));
   cx.stroke();
 }
+function autoFill(n,col){ nodeFill(n,col) }
+function handFill(n,col){ nodeFill(n,col) }
 function draw(){
   edgeLab.length=0;
   cx.setTransform(DPR,0,0,DPR,0,0);cx.clearRect(0,0,W,H);
@@ -20445,7 +21369,11 @@ function draw(){
        근거는 데이터의 `against` 이지 우리 판단이 아니다. */
     if(opp)tw*=1.8;
     if(opp)cx.setLineDash([7/cam.s,5/cam.s]);
-    else if(isAuto)cx.setLineDash(tw>1?[7/cam.s,4/cam.s]:[3/cam.s,4/cam.s]);
+    /* ── 자동 선의 **점선은 뺐다** ──
+       범례에 없는 표시였다. 그리고 **같은 것을 두 번 말하고 있었다** —
+       자동/사람 확인은 이미 **굵기**가 가른다(tierOf: 손확인 2.1배 · 조문 1.5배 · 자동 1배)
+       그리고 그 뜻은 범례에 「굵을수록 근거가 셈」 으로 적혀 있다.
+       점선은 뜻을 하나도 더 보태지 않으면서 물어볼 곳만 없었다. */
     cx.lineWidth*=tw;
     cx.beginPath();cx.moveTo(a.x,a.y);cx.lineTo(b.x,b.y);cx.stroke();
     if(flow){
@@ -20841,11 +21769,11 @@ function draw(){
         cx.globalAlpha=Math.max(0,Math.min(1,n.a))*0.65;cx.stroke();
         cx.globalAlpha=Math.max(0,Math.min(1,n.a))}}
     }
-    if(focus&&ring[n.id]===1&&roles[n.id]&&n.a>0.4){
-      /* **덮지 않고 두른다.** 원으로 그리면 사각형·삼각형을 감싸 모양이 사라진다. */
-      shapePath(n,4);
-      cx.strokeStyle=ROLE[roles[n.id]].c;cx.lineWidth=2.6;cx.stroke();
-    }
+    /* ── 역할 테두리는 **뺐다** ──
+       초점을 켜면 이웃에 역할 색 테두리를 둘렀다. 그런데 「같은 주제」의 색이
+       **파랑(#7FB2EE)** 이라 회색 법 노드에 파란 테두리가 붙었고, 범례 어디에도 없었다.
+       뜻이 있는 관계(그 뒤에·반대·밀어붙임·그때 정권)는 **알약에 글자로** 적는다 —
+       글자는 배우지 않아도 읽히고, 색은 배워야 읽힌다. */
     if(n.fixed&&n.a>0.3){shapePath(n,3.5);
       cx.strokeStyle='rgba(227,174,85,'+(n.a*0.55).toFixed(2)+')';cx.lineWidth=1.1;cx.stroke()}
     if(labelOn(n)&&n.a>0.16){
@@ -22239,10 +23167,21 @@ function render(id){
          `tools/sentence.mjs` 가 한 줄로 줄인다. 「주범」 이라고도 안 쓴다 —
          어느 피고인이 주범인지는 주문에 안 적혀 있고 우리가 정할 값이 아니다.
          **확정된 것만 (규칙 1).** 대법원 사건번호가 있는 것만 여기 온다. */
-      (n.pen?'<div class="pen"><p class="pen-lab">확정 판결</p>'+
-        '<p class="pen-n">'+esc(n.pen)+'</p>'+
+      /* ── 확정 여부를 **머리에 그대로 적는다** ──
+         「확정 판결」 이라고 크게 써 놓고 사실은 확정 전이면 그게 제일 나쁜 거짓말이다.
+         penFix 는 tools/verdict.mjs 가 대법원 주문을 보고 정한다:
+           확정                — 대법원이 「상고를 기각한다」 (원심이 그대로 확정)
+           확정 전             — 대법원이 원심을 파기했다. 형량을 **안 쓴다**
+           확정 여부 확인 못 함 — 하급심 주문만 있고 그 뒤를 못 찾았다
+         **형량이 없어도 「확정 전」 은 보여준다** — 그것도 답이다. */
+      ((n.pen||n.penFix)?'<div class="pen"><p class="pen-lab">'+esc(n.penFix||'확정 판결')+'</p>'+
+        (n.pen?'<p class="pen-n">'+esc(n.pen)+'</p>':
+               '<p class="pen-n">형량은 아직 정해지지 않았습니다</p>')+
         '<p class="pen-x">'+esc(n.penCourt||'')+' '+esc(n.penNo||'')+
-        (n.penFinal?' · 대법원 '+esc(n.penFinal)+' 확정':'')+'</p>'+
+        (n.penFinal?' · 대법원 '+esc(n.penFinal)+(n.penFix==='확정'?' 상고기각':''):'')+'</p>'+
+        (n.penFix&&n.penFix.indexOf('확인 못 함')>=0
+          ? '<p class="pen-x">이 판결이 그대로 확정됐는지는 확인하지 못했습니다 — '
+            +'대법원 판결을 못 찾았습니다. 지어내지 않고 비워 둡니다</p>':'')+
         (n.penUrl?'<p class="pen-x"><a href="'+esc(n.penUrl)+'" target="_blank" rel="noopener">판결 원문</a>'+
           ' · 주문에 적힌 것만 옮겼습니다. 범죄사실·당사자 이름은 받지 않습니다</p>':'')+
         '</div>':'')+
@@ -22630,23 +23569,44 @@ function navSentinel(){ try{ history.pushState({why:navHist.length}, '') }catch(
    지도에 올라간 것만 담는다(실측 139개). 전체 2,876개를 담을 이유가 없다 —
    지도에 없는 노드는 사람이 옮길 수도 없다.
    이력은 60칸이 상한이므로 최대 139×2×60 개의 수다. */
+/* ── 무엇을 담아야 「그 시점」 인가 ──
+   처음엔 **좌표만** 담았다. 그랬더니 뒤로 갔을 때 자리는 0px 로 정확한데
+   **화면이 딴 데 있었다** — 카메라(배율·위치)를 안 담았기 때문이다.
+   앞 노드를 눌렀을 때 카메라가 그쪽으로 옮겨 가 있으므로, 좌표만 되돌리면
+   「같은 자리를 다른 창으로 보는」 꼴이 된다. 사람 눈에는 배치가 통째로 달라 보인다.
+
+   그리고 되돌릴 때 `orb`(둘레로 모은 자리)를 **지우고 있었다.** 그러면 원이 풀려
+   「클릭하면 예쁘게 모이는데 뒤로 가면 엉망」 이 된다.
+   자리를 되돌리려면 **그 자리를 붙잡고 있던 것까지** 되돌려야 한다. */
 function navSnap(){
   var m={};
   for(var i=0;i<A.length;i++){ var n=A[i];
-    if(isFinite(n.x)&&isFinite(n.y)) m[n.id]=[n.x,n.y,n.fixed?1:0] }
-  return m;
+    if(isFinite(n.x)&&isFinite(n.y))
+      m[n.id]=[n.x,n.y,n.fixed?1:0,n.orb||0,n.orb0||0] }
+  return {pos:m, cam:[cam.x,cam.y,cam.s], user:camUser?1:0};
 }
 function navRestore(snap){
   if(!snap) return 0;
-  var moved=0;
-  for(var id in snap){ var n=map[id]; if(!n)continue;
-    var v=snap[id];
+  /* 옛 이력(좌표만 담긴 것)도 받아 준다 */
+  var pos=snap.pos||snap, moved=0;
+  for(var id in pos){ var n=map[id]; if(!n)continue;
+    var v=pos[id];
     if(Math.abs(n.x-v[0])>0.5||Math.abs(n.y-v[1])>0.5)moved++;
-    /* **자리를 잡아 둔다.** 그냥 좌표만 넣으면 물리가 다음 틱에 도로 끌고 간다.
-       사람이 놓았던 자리이므로 그때처럼 고정 여부까지 되돌린다. */
+    /* **자리를 잡아 둔다.** 그냥 좌표만 넣으면 물리가 다음 틱에 도로 끌고 간다. */
     n.x=v[0]; n.y=v[1]; n.vx=0; n.vy=0;
     if(v[2])n.fixed=1; else delete n.fixed;
-    delete n.__pulling; delete n.orb; delete n.orb0;
+    if(v[3])n.orb=v[3]; else delete n.orb;
+    if(v[4])n.orb0=v[4]; else delete n.orb0;
+    delete n.__pulling;
+  }
+  /* ── 카메라도 되돌린다 ──
+     **목표값(tx·ty·ts)까지 같이 놓는다.** 현재값만 놓으면 다음 프레임에
+     이징이 목표값으로 도로 끌고 간다 — 되돌린 것이 한 프레임만 살아 있게 된다. */
+  if(snap.cam&&isFinite(snap.cam[0])){
+    cam.x=cam.tx=snap.cam[0]; cam.y=cam.ty=snap.cam[1]; cam.s=cam.ts=snap.cam[2];
+    /* 사람이 그때 화면을 만진 상태였으면 그것도 되돌린다 —
+       안 그러면 자동 맞춤이 되살아나 카메라를 다시 민다. */
+    camUser=snap.user?1:camUser;
   }
   return moved;
 }

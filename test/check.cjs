@@ -4408,6 +4408,104 @@ const TKN = { result:'결과', bill:'법·정책', person:'인물', party:'정�
     }
   }
 
+  /* ── 69. 종류마다 **다른 모양**으로 그리나 ──
+     「정책·당·법·사건이 다 비슷하게 생겨서 구분이 안 된다」 가 요구였다. 실측으로 갈랐다:
+       판례 2,819 · 사건 162  → 둘 다 **마름모**. 색만 달랐다 (청록 대 갈색)
+       정당 13 · 기관 7       → 둘 다 **빈 원**
+       이력기록 16            → 45도 돌린 사각형 = 사건의 마름모와 같은 실루엣
+     「색만 살짝 다른 건 안 갈린다. 전에 옅은 회색·진한 회색이 그랬다」 이므로 **모양**으로 가른다.
+
+     그리고 **shapePath 가 아니라 그리는 경로를 잰다.** shapePath 는 선택·커서 테두리용이고
+     실제 도형은 draw() 안의 분기가 그린다 — 둘이 갈라지면 검사만 통과한다.
+     이 파일이 이미 여러 번 겪은 「그리는 곳과 재는 곳이 갈라진다」 이다. */
+  {
+    const d69 = boot(1440, 900);
+    await new Promise(r => setTimeout(r, 1300));
+    const r = d69.window.eval(`(function(){
+      if(typeof nodeKind!=='function')return {no:'nodeKind 가 없다'};
+      var want=['result','law','policy','detc','prec','event','person','party','org','rec'];
+      var by={}; N.forEach(function(n){ var k=nodeKind(n); if(!by[k])by[k]=n });
+      var miss=want.filter(function(k){return !by[k]});
+      if(miss.length)return {no:'그리는 종류인데 노드가 없다: '+miss.join(' ')};
+
+      /* 카메라를 원점에 고정한다 — 같은 자리·같은 크기여야 모양만 남는다 */
+      var sv={x:cam.x,y:cam.y,s:cam.s,tx:cam.tx,ty:cam.ty,ts:cam.ts,A:A,AL:AL,fo:focus,dm:DRAWMODE};
+      cam.x=cam.tx=W/2; cam.y=cam.ty=H/2; cam.s=cam.ts=1; focus=null;
+      AL=[];
+      /* **DRAWMODE=0 으로 재야 도형이 나온다.** 평소(=1)에는 이름표가 없는 노드를
+         흐린 점 하나로 그린다 — 멀리서 보는 화면이 그렇게 설계돼 있다.
+         그대로 재면 열 종류 중 여덟이 **같은 점**으로 나와서, 모양을 아무리 갈라도
+         「전부 같다」 는 값이 나온다. 재려는 것은 그 노드의 도형이다. */
+      DRAWMODE=0;
+      function trace(n){
+        var keepPos={x:n.x,y:n.y,r:n.r,a:n.a,gl:n.gl,pulse:n.pulse,au:n.auto};
+        n.x=0;n.y=0;n.r=14;n.a=1;n.gl=0;n.pulse=0;
+        /* **auto 도 같게 맞춘다.** 자동은 점선(setLineDash), 사람 확인은 테두리라
+           경로가 달라진다 — 판례를 사건과 **똑같은 마름모로 되돌려도 통과**했다.
+           그건 모양이 갈린 게 아니라 자동/사람이 갈린 것이다 (그건 검사 67 이 본다).
+           재려는 것은 도형이다. 실패 주입이 통과하면 검사를 의심한다. */
+        n.auto=0;
+        A=[n];
+        var ops=[], keep={};
+        /* **칠하기까지 받아 적는다.** 경로만 세면 「채운 원」과 「빈 원」이 같아진다 —
+           결과(노란 채움)와 정당(빈 원)이 둘 다 arc 하나라 같은 종류로 나온다. */
+        ['beginPath','moveTo','lineTo','roundRect','rect','arc','closePath','fillRect','strokeRect',
+         'fill','stroke','clip','drawImage','setLineDash']
+        .forEach(function(k){
+          keep[k]=cx[k];
+          cx[k]=function(){ ops.push(k+'('+[].slice.call(arguments).map(function(v){
+            return (typeof v==='number')?v.toFixed(1):String(v)}).join(',')+')');
+            return keep[k]&&keep[k].apply(cx,arguments) };
+        });
+        try{ draw() }catch(e){ ops.push('ERR '+e.message) }
+        Object.keys(keep).forEach(function(k){ cx[k]=keep[k] });
+        n.x=keepPos.x;n.y=keepPos.y;n.r=keepPos.r;n.a=keepPos.a;n.gl=keepPos.gl;n.pulse=keepPos.pulse;
+        n.auto=keepPos.au;
+        return ops.join(' ');
+      }
+      var tr={}; want.forEach(function(k){ tr[k]=trace(by[k]) });
+      cam.x=sv.x;cam.y=sv.y;cam.s=sv.s;cam.tx=sv.tx;cam.ty=sv.ty;cam.ts=sv.ts;
+      A=sv.A; AL=sv.AL; focus=sv.fo; DRAWMODE=sv.dm;
+
+      /* **같은 경로를 그리는 짝**을 전부 찾는다 */
+      var dup=[];
+      for(var i=0;i<want.length;i++)for(var j=i+1;j<want.length;j++)
+        if(tr[want[i]]===tr[want[j]])dup.push(want[i]+'='+want[j]);
+
+      var cnt={}; N.forEach(function(n){ var k=nodeKind(n); cnt[k]=(cnt[k]||0)+1 });
+      /* 범례에 **그리는 종류가 전부** 있나. 이스케이프 없이 글자로 찾는다.
+         **body 전체가 아니라 그 상자 안에서만 찾는다** — body 로 찾으면 범례 글자가
+         서랍 검사까지 통과시킨다. 아무것도 안 잡는 검사가 된다. */
+      var lgd=(document.getElementById('lgd')||{}).textContent||'';
+      var dr=(document.querySelector('.shapelist')||{}).textContent||'';
+      var LGW={result:'결과',law:'국회가 만든 법',policy:'정부가 정한 정책',detc:'헌재 결정',
+        prec:'법원 판례',event:'사건',person:'사람',party:'정당',org:'기관',rec:'이력'};
+      var DRW={result:'결과 숫자',law:'국회가 만든 법',policy:'정부가 정한 정책',
+        detc:'헌법재판소 결정',prec:'법원 판례',event:'사건',person:'사람',party:'정당',
+        org:'기관',rec:'이력'};
+      var lgMiss=want.filter(function(k){ return lgd.indexOf(LGW[k])<0 });
+      var drMiss=want.filter(function(k){ return dr.indexOf(DRW[k])<0 });
+      return {dup:dup, cnt:cnt, lgMiss:lgMiss, drMiss:drMiss,
+        n:want.length, lens:want.map(function(k){return k+':'+tr[k].length})};
+    })()`);
+    d69.window.close();
+    if (!r) F('69. 못 쟀다');
+    else if (r.no) F(`69. ${r.no}`);
+    else {
+      console.log(`69. 종류별 모양      ${r.n}종 · ` + Object.keys(r.cnt).sort()
+        .map(k => `${k} ${r.cnt[k]}`).join(' · '));
+      console.log(`69. 같은 모양인 짝    ${r.dup.length ? r.dup.join(' · ') : '없음'}`);
+      console.log(`69. 범례            ${r.lgMiss.length ? '빠짐: ' + r.lgMiss.join(' ') : '10종 전부 ○'}` +
+        ` · 서랍 ${r.drMiss.length ? '빠짐: ' + r.drMiss.join(' ') : '○'}`);
+      if (r.dup.length)
+        F(`69. 종류가 다른데 **같은 경로**로 그린다 (${r.dup.join(' · ')}). 색만 다르면 한눈에 안 갈린다`);
+      if (r.lgMiss.length)
+        F(`69. 그리는 종류인데 범례에 없다: ${r.lgMiss.join(' ')}. 실제로 그리는 종류를 전부 넣어야 한다`);
+      if (r.drMiss.length)
+        F(`69. 그리는 종류인데 '보는 법' 서랍에 없다: ${r.drMiss.join(' ')}`);
+    }
+  }
+
   /* ── 요약 ── */
   console.log('\n' + '─'.repeat(50));
   console.log('노드 진영 분포:', JSON.stringify(bySide));

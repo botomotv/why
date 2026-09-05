@@ -611,8 +611,23 @@ body.popfull .pexp .pex-i{transform:rotate(180deg)}
 .lg-law{width:14px;height:8px;border-radius:2px}
 .lg-detc{background:transparent;width:0;height:0;border-left:6px solid transparent;
   border-right:6px solid transparent;border-bottom:11px solid #8A929E}
-.lg-prec{transform:rotate(45deg);width:9px;height:9px;background:#3FA9A6}
-.lg-per{border-radius:50%;background:transparent;border:1.8px solid #7FB2EE}
+/* ── 아래 네 개는 화면의 도형(precPath·orgPath·recPath)과 **같은 비율**이다 ──
+   두 벌이 되면 갈라진다. 좌표를 그대로 백분율로 옮긴다. */
+/* 판례 — 방패(아래가 뾰족). 전에는 사건과 **똑같은 마름모**였고 색만 달랐다 */
+.lg-prec{width:10px;height:11px;background:#3FA9A6;
+  clip-path:polygon(0 0, 100% 0, 100% 57.5%, 50% 100%, 0 57.5%)}
+/* 사건 — 마름모 */
+.lg-evt{transform:rotate(45deg);width:9px;height:9px;background:#C08A5E}
+/* 사람 — 채운 원(지도에서는 그 자리에 사진이 들어간다) */
+.lg-per{border-radius:50%;background:#7FB2EE;width:11px;height:11px}
+/* 정당 — 빈 원. 사람과 채움으로 갈린다 */
+.lg-party{border-radius:50%;background:transparent;border:2px solid #7FB2EE;width:11px;height:11px}
+/* 기관 — 사다리꼴(건물). 전에는 정당과 **똑같은 빈 원**이었다 */
+.lg-org{width:12px;height:10px;background:transparent;border:0;
+  clip-path:polygon(19% 0, 81% 0, 100% 100%, 0 100%);background-color:#8A929E}
+/* 이력 — 육각형. 전에는 45° 돌린 사각형이라 사건(마름모)과 안 갈렸다 */
+.lg-rec{width:11px;height:11px;background:#C08A5E;
+  clip-path:polygon(93.3% 75%, 50% 100%, 6.7% 75%, 6.7% 25%, 50% 0, 93.3% 25%)}
 /* 국민 관심 근거 — 「왜 이걸 보고 있나」 에 대한 답이라 제목 바로 아래다 */
 .cnclist{list-style:none;margin:8px 0 10px;padding:0;display:flex;flex-direction:column;gap:6px}
 .cnclist li{font-size:12.5px;color:var(--t2);line-height:1.5}
@@ -876,8 +891,15 @@ body.legendon .hint{opacity:0}
   clip-path:polygon(0 0, 62% 0, 100% 50%, 62% 100%, 0 100%)}
 .sg-detc{background:transparent;width:0;height:0;border-left:9px solid transparent;
   border-right:9px solid transparent;border-bottom:15px solid #8A929E}
-.sg-prec{transform:rotate(45deg);width:12px;height:12px}
-.sg-per{border-radius:50%;background:transparent;border:2px solid #7FB2EE}
+.sg-prec{width:14px;height:15px;background:#3FA9A6;
+  clip-path:polygon(0 0, 100% 0, 100% 57.5%, 50% 100%, 0 57.5%)}
+.sg-evt{transform:rotate(45deg);width:12px;height:12px;background:#C08A5E}
+.sg-per{border-radius:50%;background:#7FB2EE;width:16px;height:16px}
+.sg-party{border-radius:50%;background:transparent;border:2px solid #7FB2EE;width:16px;height:16px}
+.sg-org{width:17px;height:14px;background-color:#8A929E;
+  clip-path:polygon(19% 0, 81% 0, 100% 100%, 0 100%)}
+.sg-rec{width:16px;height:16px;background:#C08A5E;
+  clip-path:polygon(93.3% 75%, 50% 100%, 6.7% 75%, 6.7% 25%, 50% 0, 93.3% 25%)}
 .legendbtn{display:flex;position:fixed;left:14px;bottom:16px;z-index:36;
   align-items:center;gap:7px;height:42px;padding:0 15px;border-radius:8px;
   border:1px solid var(--line2);background:rgba(21,23,27,.92);color:var(--t2);
@@ -1237,8 +1259,16 @@ body.hasundo .rolebar{top:232px;width:calc(100vw - 24px);max-height:96px;overflo
     <!-- 「탈원전 선언」은 정책이지 법이 아니다. 국회를 거쳤나 하나로 가른다 (isPolicy). -->
     <span class="lgi"><i class="lg lg-pol"></i>정부가 정한 정책</span>
     <span class="lgi lgi-s"><i class="lg lg-detc"></i>헌재 결정</span>
-    <span class="lgi lgi-s"><i class="lg lg-prec"></i>판례·사건</span>
-    <span class="lgi lgi-s"><i class="lg lg-per"></i>사람·정당</span>
+    <!-- ── 판례와 사건은 **다른 것**이다 ──
+         전에는 둘 다 마름모였고 색만 달랐다 (판례 2,819 · 사건 162).
+         밝기만 다른 색은 한눈에 안 갈린다 — 옅은 회색·진한 회색에서 이미 겪었다. -->
+    <span class="lgi lgi-s"><i class="lg lg-prec"></i>법원 판례</span>
+    <span class="lgi lgi-s"><i class="lg lg-evt"></i>사건</span>
+    <span class="lgi lgi-s"><i class="lg lg-per"></i>사람</span>
+    <span class="lgi lgi-s"><i class="lg lg-party"></i>정당</span>
+    <!-- 기관은 정당과 **똑같은 빈 원**이었다. 사다리꼴(건물)로 가른다 -->
+    <span class="lgi lgi-s"><i class="lg lg-org"></i>기관</span>
+    <span class="lgi lgi-s"><i class="lg lg-rec"></i>이력·직위</span>
     <!-- ── 진영 색이 뜻하는 것 ──
          색은 이미 사람·정당의 테두리와 선에 쓰고 있는데 어디에도 안 적혀 있었다.
          **뜻을 안 밝히면 색이 그냥 장식이 된다** (굵기 범례를 넣은 것과 같은 이유).
@@ -1283,8 +1313,12 @@ body.hasundo .rolebar{top:232px;width:calc(100vw - 24px);max-height:96px;overflo
       <li><span class="sg sg-pol"></span><b>정부가 정한 정책</b> — 오른쪽이 뾰족한 깃발
         (대통령령·시행령·훈령·긴급명령·정책·제도)</li>
       <li><span class="sg sg-detc"></span><b>헌법재판소 결정</b> — 삼각형</li>
-      <li><span class="sg sg-prec"></span><b>법원 판례 · 사건</b> — 마름모</li>
-      <li><span class="sg sg-per"></span><b>사람 · 정당 · 기관</b> — 원</li>
+      <li><span class="sg sg-prec"></span><b>법원 판례</b> — 아래가 뾰족한 방패</li>
+      <li><span class="sg sg-evt"></span><b>사건</b> — 마름모</li>
+      <li><span class="sg sg-per"></span><b>사람</b> — 채운 원 (사진이 있으면 사진)</li>
+      <li><span class="sg sg-party"></span><b>정당</b> — 빈 원 + 진영 색</li>
+      <li><span class="sg sg-org"></span><b>기관</b> — 사다리꼴 (건물)</li>
+      <li><span class="sg sg-rec"></span><b>이력 · 직위</b> — 육각형 (그 사람에 딸린 줄)</li>
     </ul>
     <p class="linesub"><b>점선 테두리는 자동으로 이은 것</b>입니다 — 법 이름과 결과의 핵심어가
       맞아 기계가 이었습니다. <b>흰 테두리는 사람이 근거를 확인해 넣은 것</b>입니다.
@@ -1295,7 +1329,9 @@ body.hasundo .rolebar{top:232px;width:calc(100vw - 24px);max-height:96px;overflo
       그래서 이름을 「법」·「정책」이 아니라 <b>「국회가 만든 것」·「정부가 정한 것」</b>으로 씁니다.</p>
     <p class="linesub">색은 진영입니다 — 파랑은 민주당 계열, 빨강은 국민의힘 계열,
       <b>보라는 그 밖의 정당</b>(정의당·조국혁신당·개혁신당)입니다. 금색은 결과 숫자입니다.
-      법·헌재·판례는 진영이 없어 회색이고 모양으로만 갈립니다.
+      법·정책·헌재·기관은 진영이 없어 회색이고 모양으로만 갈립니다.
+      <b>판례는 청록</b>입니다 — 진영이 아니라 그 종류의 색입니다.
+      사건·이력은 진영이 있으면 그 색, 없으면 갈색입니다.
       노조·시민단체도 진영 축에 없어 회색입니다 — 어느 편이라고 우리가 정하지 않습니다.</p>
   </details>
   <!-- ── 첫 화면을 무엇으로 골랐나 ──
@@ -20187,6 +20223,81 @@ function arrow(ax,ay,bx,by,rr,col,wid){
    **한 곳에서 정한다** — 그리기·모양·범례·카드가 이 함수를 부른다. 두 벌이면 갈라진다. */
 var GOV_KIND={'대통령령':1,'시행령':1,'훈령':1,'긴급명령':1,'정책':1,'제도':1,'고시':1,'예규':1,'기본계획':1};
 function isPolicy(n){ return !!(n&&n.t==='bill'&&GOV_KIND[n.kind]) }
+/* ── 노드 종류를 **한 곳에서** 정한다 ──
+   그리기·모양·범례·검사가 전부 이 함수를 부른다. 갈라지면 「범례에는 있는데 화면엔 없는」
+   모양이 생긴다 — 실제로 그랬다.
+
+   ── 무엇이 겹쳐 있었나 (실측 2026-09) ──
+   | 종류 | 개수 | 그때 모양 |
+   |---|---:|---|
+   | 판례 | 2,819 | **마름모** ← 사건과 같음 |
+   | 사건 | 162 | **마름모** |
+   | 이력기록 | 16 | **회전 사각형**(=마름모) |
+   | 기관 | 7 | **빈 원** ← 정당과 같음 |
+   | 정당 | 13 | **빈 원** |
+   색만 달랐다(청록·갈색·회색). **밝기만 다른 색은 한눈에 안 갈린다** —
+   이 파일이 옅은 회색·진한 회색으로 이미 겪은 일이다.
+
+   판례는 `evk==='record'` 로 가르고 있었는데 그건 **개인 이력 기록**(전과·활동)이고
+   진짜 판례는 `case_prec_` 다. 열쇠를 잘못 보고 있었다 — 16개와 2,819개를 바꿔 세었다. */
+function nodeKind(n){
+  if(!n)return 'other';
+  var id=String(n.id||'');
+  if(n.t==='result')return 'result';
+  if(n.t==='bill')return isPolicy(n)?'policy':'law';
+  if(id.lastIndexOf('case_detc_',0)===0)return 'detc';
+  if(id.lastIndexOf('case_prec_',0)===0)return 'prec';
+  if(n.t==='event'&&/헌법재판소/.test(n.ekind||''))return 'detc';
+  if(n.t==='event'&&/법원 판례/.test(n.ekind||''))return 'prec';
+  if(n.t==='event'&&n.evk==='record')return 'rec';
+  if(n.t==='post')return 'rec';
+  if(n.t==='event')return 'event';
+  if(n.t==='person')return 'person';
+  if(n.t==='party')return 'party';
+  if(n.t==='org')return 'org';
+  return 'other';
+}
+/* ── 판례 — **아래가 뾰족한 방패** ──
+   헌재(위가 뾰족한 삼각형)와 위아래가 반대라 작은 크기에서도 갈린다.
+   마름모(사건)와도 실루엣이 다르다 — 위가 평평하기 때문이다. */
+function precPath(n,pad){
+  pad=pad||0;
+  var r=n.r+pad, w=r*1.05, h=r*1.15;
+  cx.beginPath();
+  cx.moveTo(n.x-w,n.y-h);
+  cx.lineTo(n.x+w,n.y-h);
+  cx.lineTo(n.x+w,n.y+h*0.15);
+  cx.lineTo(n.x,n.y+h);
+  cx.lineTo(n.x-w,n.y+h*0.15);
+  cx.closePath();
+}
+/* ── 기관 — **사다리꼴(건물)** ──
+   정당(빈 원)과 갈라야 한다. 위가 좁은 사다리꼴은 건물로 읽히고,
+   법(사각형)·정책(깃발)과도 실루엣이 다르다. */
+function orgPath(n,pad){
+  pad=pad||0;
+  var r=n.r+pad, w=r*1.15, h=r*0.95;
+  cx.beginPath();
+  cx.moveTo(n.x-w*0.62,n.y-h);
+  cx.lineTo(n.x+w*0.62,n.y-h);
+  cx.lineTo(n.x+w,n.y+h);
+  cx.lineTo(n.x-w,n.y+h);
+  cx.closePath();
+}
+/* ── 사람에 딸린 이력(직위·전과·활동) — **육각형** ──
+   전에는 회전 사각형이라 사건(마름모)과 안 갈렸다.
+   직위(post)와 기록(record)은 같은 것이다 — 둘 다 「그 사람의 이력」이다. */
+function recPath(n,pad){
+  pad=pad||0;
+  var r=n.r+pad;
+  cx.beginPath();
+  for(var i=0;i<6;i++){
+    var a=Math.PI/6+i*Math.PI/3;
+    var px=n.x+Math.cos(a)*r, py=n.y+Math.sin(a)*r;
+    if(i===0)cx.moveTo(px,py);else cx.lineTo(px,py);
+  }
+  cx.closePath();
+}
 /* 정책 도형 — 오른쪽 끝이 뾰족한 가로 사각형(깃발).
    **작은 크기에서 갈려야 한다.** 모서리를 조금 깎는 정도로는 6px 에서 안 보인다 —
    실루엣 자체가 달라야 한다. 뾰족한 쪽은 「방향을 정했다」 는 뜻으로도 읽힌다. */
@@ -20208,7 +20319,11 @@ function policyPath(n,pad){
 }
 function shapePath(n,pad){
   pad=pad||0;
-  if(isPolicy(n)){ policyPath(n,pad); return }
+  var K=nodeKind(n);
+  if(K==='policy'){ policyPath(n,pad); return }
+  if(K==='prec'){ precPath(n,pad); return }
+  if(K==='org'){ orgPath(n,pad); return }
+  if(K==='rec'){ recPath(n,pad); return }
   if(n.t==='bill'){
     var bw=n.r*1.55+pad, bh=n.r*0.78+pad, rr=Math.min(3+pad,n.r*0.28+pad);
     cx.beginPath();
@@ -20543,11 +20658,11 @@ function draw(){
       cx.restore();
       cx.globalAlpha=Math.max(0,Math.min(1,n.a));
     }
-    if(n.t==='event'&&n.evk==='record'){
-      cx.save();cx.translate(n.x,n.y);cx.rotate(Math.PI/4);
-      cx.fillStyle=col;cx.fillRect(-n.r*0.8,-n.r*0.8,n.r*1.6,n.r*1.6);
-      cx.strokeStyle='#0E0F12';cx.lineWidth=2;cx.strokeRect(-n.r*0.8,-n.r*0.8,n.r*1.6,n.r*1.6);
-      cx.restore();
+    if(nodeKind(n)==='rec'&&n.t==='event'){
+      /* 회전 사각형은 사건(마름모)과 안 갈렸다 — 육각형으로 바꾼다 (recPath 주석 참조).
+         직위(post)와 같은 모양이다: 둘 다 「그 사람의 이력」이다. */
+      recPath(n,0);
+      if(n.auto)autoFill(n,col); else handFill(n,col);
       if(labelOn(n)&&n.a>0.16){
         /* 다른 노드와 **같은 자리**에 그린다 — labelBox 가 좌우로 뻗은 자리를 잡는다.
            여기만 노드 아래 가운데에 그리고 있었고, 그래서 겹침 검사가 0 인데 화면은 겹쳤다
@@ -20595,7 +20710,7 @@ function draw(){
 
        **채움/빔은 그대로 둔다** — 자동으로 들어온 것과 사람이 확인한 것의 구분이라
        모양과 다른 뜻이다. 두 가지를 한꺼번에 읽을 수 있다. */
-    if(n.t==='event'&&/헌법재판소/.test(n.ekind||'')){
+    if(nodeKind(n)==='detc'&&n.t==='event'){   /* 헌재 결정 — 삼각형 */
       var tr=n.r*1.30;      /* 삼각형은 같은 넓이라도 작아 보인다 — 조금 키운다 */
       cx.beginPath();
       cx.moveTo(n.x,n.y-tr);cx.lineTo(n.x+tr*0.92,n.y+tr*0.62);cx.lineTo(n.x-tr*0.92,n.y+tr*0.62);
@@ -20618,6 +20733,19 @@ function draw(){
         cx.font='400 '+(13.5*LST)+"px 'Noto Sans KR',sans-serif";
         cx.fillStyle='rgba(120,128,140,'+Math.min(1,n.a).toFixed(2)+')';
         cx.fillText(evSub(n),lxT,yyT+14*LST)}
+      cx.globalAlpha=1;return}
+    /* ── 판례는 **방패**, 사건은 **마름모** ──
+       전에는 둘 다 마름모였다 (판례 2,819 · 사건 162). 색만 달랐고(청록 대 갈색)
+       밝기만 다른 색은 한눈에 안 갈린다. */
+    if(nodeKind(n)==='prec'){
+      precPath(n,0);
+      if(n.auto)autoFill(n,col); else handFill(n,col);
+      if(labelOn(n)&&n.a>0.16){
+        var sdP=labelSide(n), LSP=labelFontScale();
+        cx.textAlign=(sdP>0)?'left':'right';
+        cx.fillStyle=n.gl>.5?'#F2F4F7':'rgba(190,197,207,'+Math.min(1,n.a).toFixed(2)+')';
+        cx.font=(n.gl>.5?'500 ':'400 ')+((n.gl>.5?13:12)*LSP)+"px 'Noto Sans KR',sans-serif";
+        cx.fillText(mapLab(n),n.x+sdP*((n.r||8)+7*LSP),n.y)}
       cx.globalAlpha=1;return}
     if(n.t==='event'){
       cx.beginPath();
@@ -20658,6 +20786,17 @@ function draw(){
     } else {
     cx.beginPath();cx.arc(n.x,n.y,n.r,0,7);
     if(n.t==='result'){cx.fillStyle=col;cx.fill();cx.strokeStyle='#0E0F12';cx.lineWidth=2.4;cx.stroke()}
+    else if(nodeKind(n)==='org'){
+      /* 기관 — 사다리꼴(건물). 정당(빈 원)과 갈라야 한다 (orgPath 주석 참조).
+         **원을 먼저 그려 놓고 덮으면 안 된다** — 위에서 arc 로 시작했으므로 경로를 새로 연다. */
+      orgPath(n,0);
+      cx.fillStyle='#0E0F12';cx.fill();
+      cx.globalAlpha=Math.max(0,Math.min(1,n.a))*0.42;cx.fillStyle=col;cx.fill();
+      cx.globalAlpha=Math.max(0,Math.min(1,n.a));
+      cx.strokeStyle=col;
+      cx.lineWidth=Math.max(2.6,2.4/Math.max(cam.s,0.05));
+      cx.stroke();
+    }
     else if(n.auto){ autoFill(n,col) }
     else if(n.t==='bill'||n.t==='event'){handFill(n,col)}
     else{cx.fillStyle='#0E0F12';cx.fill();
@@ -20674,6 +20813,20 @@ function draw(){
            이 파일이 이미 겪은 일이다(「어두운 배경에서 옅게 칠하기는 검게 칠하는 것」).
            그리고 `globalAlpha` 가 이미 `n.a` 인데 거기 또 곱해서 두 번 흐려졌다. */
         cx.fillStyle=mixWithBg(col,n.prez?0.42:0.30);cx.fill();
+        /* ── 사진이 없어도 **사람으로 읽혀야 한다** ──
+           사진이 없으면 빈 원이 되어 **정당과 똑같았다** (실측: 그리는 경로가 완전히 같다).
+           사진 자리에 사람 실루엣(머리+어깨)을 그린다 — 「동그란 사진」 이라는
+           약속을 사진이 없을 때도 지키는 방법이다. 정당은 그냥 빈 원이라 갈린다. */
+        if(n.t==='person'){
+          cx.save();
+          cx.beginPath();cx.arc(n.x,n.y,n.r-1,0,7);cx.clip();
+          cx.fillStyle=col;
+          cx.globalAlpha=Math.max(0,Math.min(1,n.a))*0.72;
+          cx.beginPath();cx.arc(n.x,n.y-n.r*0.22,n.r*0.30,0,7);cx.fill();
+          cx.beginPath();cx.arc(n.x,n.y+n.r*0.62,n.r*0.56,Math.PI,0);cx.fill();
+          cx.restore();
+          cx.globalAlpha=Math.max(0,Math.min(1,n.a));
+        }
       }
       /* ── 테두리 두께는 **화면 기준**이다 ──
          `lineWidth` 는 월드 단위라 배율을 탄다. 배율 0.28 에서 2.9 는 **화면 0.8px** 이다 —

@@ -4657,6 +4657,107 @@ const TKN = { result:'결과', bill:'법·정책', person:'인물', party:'정�
     }
   }
 
+  /* ── 71. 사건 하나를 누르면 **사슬 전체**가 나오나 ──
+       사건 발생 → 가해자 처벌 → 만들어진 법 → 피해자 보상 → 그 뒤 수치
+     전에는 형량만 있고 나머지가 없었다.
+
+     **없는 칸을 비워두지 않는다.** 「아직 확인하지 못했습니다」 와 **왜** 없는지를 적는다 —
+     비워두면 「없다」 와 「우리가 못 찾았다」 가 구별되지 않는다.
+
+     그리고 「그 뒤에 만들어진 법」 과 「이 사건에 적용된 법」 은 **다른 사실이다.**
+     국회가 그 사건 이름으로 법을 만든 것과, 재판부가 그 법을 적용한 것은 근거가 다르다.
+     한 칸에 뭉치면 같아 보인다.
+
+     별명(4번)도 여기서 함께 본다 — 사람들은 「도로교통법」이 아니라 「민식이법」을 친다. */
+  {
+    const d71 = boot(1440, 900);
+    await new Promise(r => setTimeout(r, 1300));
+    const r = d71.window.eval(`(function(){
+      if(typeof evChain!=='function')return {no:'evChain 이 없다'};
+      var ev=N.filter(function(n){return n.t==='event'});
+      var open=ev.filter(function(n){var c=evChain(n);return c&&(c.pen||c.made.length)});
+      var cnt={pen:0,made:0,used:0,relief:0,res:0,full:0};
+      open.forEach(function(n){var c=evChain(n);
+        if(c.pen)cnt.pen++; if(c.made.length)cnt.made++; if(c.used.length)cnt.used++;
+        if(c.relief.length)cnt.relief++; if(c.res.length)cnt.res++;
+        if(c.pen&&c.laws.length&&c.relief.length&&c.res.length)cnt.full++; });
+
+      /* ── 카드가 실제로 그리나 ── 기록만 하고 화면에 안 내보내면 없는 것과 같다 */
+      var best=null, bs=-1;
+      open.forEach(function(n){var c=evChain(n);
+        var sc=(c.pen?1:0)+(c.laws.length?1:0)+(c.relief.length?1:0)+(c.res.length?1:0);
+        if(sc>bs){bs=sc;best=n} });
+      var card='';
+      try{ setFocus(best.id); card=(document.getElementById('pop')||document.body).textContent||'' }catch(e){}
+
+      /* ── 없는 칸을 밝히나 ── 한 칸이라도 빈 노드를 골라 카드를 본다 */
+      var gap=open.filter(function(n){var c=evChain(n);
+        return !(c.pen&&c.laws.length&&c.relief.length&&c.res.length) })[0];
+      var gcard='';
+      try{ if(gap){ setFocus(gap.id); gcard=(document.getElementById('pop')||document.body).textContent||'' } }catch(e){}
+
+      /* ── 별명 ── */
+      var al=N.filter(function(n){return n.alias&&n.alias.length});
+      var qa={};
+      ['민식이법','김용균법','태완이법'].forEach(function(q){
+        try{ var hit=N.filter(function(x){
+          return (x.alias||[]).some(function(a){return a.indexOf(q)>=0}) });
+          qa[q]=hit.length }catch(e){ qa[q]=-1 } });
+      /* ── **검색창에 실제로 쳐 본다** ──
+         전에는 내부 변수(__hay)를 찔러 봤는데, 그건 검색이 한 번 돌아야 채워지는 값이라
+         ── 주석에 백틱을 쓰면 이 템플릿 리터럴이 그 자리에서 끊긴다. 이 파일이 세 번째다 ──
+         **검색은 되는데 검사만 ✗** 가 났다 (브라우저에서 「민식이법」→도로교통법 확인함).
+         이 파일이 정한 대로 사람이 하는 짓을 흉내 낸다 — 입력창에 글자를 넣고 목록을 본다. */
+      var inHay=false;
+      try{
+        var inp=document.querySelector('.search input')||document.querySelector('input');
+        if(inp){
+          inp.value='민식이법';
+          inp.dispatchEvent(new Event('input',{bubbles:true}));
+          var box=document.querySelector('.qlist,.qbox,.suggest,.results')||inp.parentElement;
+          inHay=(box.textContent||'').indexOf('도로교통법')>=0;
+          inp.value=''; inp.dispatchEvent(new Event('input',{bubbles:true}));
+        }
+      }catch(e){}
+
+      return {ev:ev.length, open:open.length, cnt:cnt,
+        best:best?best.lab:'', bestScore:bs,
+        cardChain:card.indexOf('사건에서 지금까지')>=0,
+        cardMade:card.indexOf('만들어진 법')>=0||card.indexOf('적용된 법')>=0,
+        gapSays:gcard.indexOf('아직 확인하지 못했습니다')>=0,
+        alias:al.length, qa:qa, inHay:inHay,
+        cardAlias:(function(){ try{ var b=al[0]; setFocus(b.id);
+          var t=(document.getElementById('pop')||document.body).textContent||'';
+          return t.indexOf('흔히')>=0 }catch(e){ return false } })()};
+    })()`);
+    d71.window.close();
+    if (!r) F('71. 못 쟀다');
+    else if (r.no) F(`71. ${r.no}`);
+    else {
+      console.log(`71. 사슬            사건 노드 ${r.ev}개 중 사슬이 뜨는 것 ${r.open}개 · ` +
+        `처벌 ${r.cnt.pen} · 만든법 ${r.cnt.made} · 적용법 ${r.cnt.used} · 보상 ${r.cnt.relief} · 수치 ${r.cnt.res} · ` +
+        `다섯 칸 전부 ${r.cnt.full}`);
+      console.log(`71. 화면에 나오나    사슬 ${r.cardChain ? '○' : '✗'} · 법 칸 ${r.cardMade ? '○' : '✗'} · ` +
+        `빈 칸을 밝힘 ${r.gapSays ? '○' : '✗'}  (가장 꽉 찬 것: ${r.best})`);
+      console.log(`71. 별명            ${r.alias}개 법에 붙음 · ` +
+        Object.keys(r.qa).map(k => `${k} ${r.qa[k]}`).join(' · ') +
+        ` · 「민식이법」→도로교통법 ${r.inHay ? '○' : '✗'} · 카드 ${r.cardAlias ? '○' : '✗'}`);
+      if (!r.open) F('71. 사슬이 뜨는 사건이 하나도 없다');
+      if (!r.cnt.made) F('71. 「그 뒤에 만들어진 법」 이 붙은 사건이 하나도 없다');
+      if (!r.cnt.relief) F('71. 보상·지원이 붙은 사건이 하나도 없다. 법 조문에서 뽑을 수 있는데 안 뽑았다');
+      if (!r.cnt.full) F('71. 다섯 칸이 전부 찬 사슬이 하나도 없다');
+      /* **기록만 하고 화면에 안 내보내면 없는 것과 같다** */
+      if (!r.cardChain) F('71. 카드가 사슬을 안 그린다');
+      if (!r.cardMade) F('71. 카드가 법 칸을 안 그린다');
+      if (!r.gapSays) F('71. 빈 칸에 「아직 확인하지 못했습니다」 를 안 적는다. 비워두면 「없다」 와 「못 찾았다」 가 구별되지 않는다');
+      /* ── 별명 ── */
+      if (!r.alias) F('71. 별명이 붙은 법이 하나도 없다. 「민식이법」으로 못 찾으면 그 법은 없는 것과 같다');
+      if (!r.qa['민식이법'] || !r.qa['김용균법']) F('71. 「민식이법」·「김용균법」이 어느 법에도 안 붙었다');
+      if (!r.inHay) F('71. 검색창에 「민식이법」을 쳤는데 도로교통법이 안 나온다. 카드에만 있고 검색이 안 되면 못 찾는다');
+      if (!r.cardAlias) F('71. 카드가 별명을 안 보여준다');
+    }
+  }
+
   /* ── 요약 ── */
   console.log('\n' + '─'.repeat(50));
   console.log('노드 진영 분포:', JSON.stringify(bySide));

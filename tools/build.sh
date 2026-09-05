@@ -46,6 +46,14 @@ node tools/hand-law-url.mjs
 # **link-case 뒤에 돌린다.** 판례 노드가 확정된 뒤라야 어느 노드에 붙일지 알 수 있다.
 # db/verdicts.json 에 받아 둔 것은 다시 안 받는다 (843건 · 처음 한 번 15분).
 node tools/verdict.mjs
+# ── 법의 별명 ── 「민식이법」으로 검색이 돼야 한다. 법 노드가 확정된 뒤에 돌린다.
+node tools/alias.mjs
+# ── 「피해자는 어떻게 보상받았나」 ──
+# 법 제1조와 조문 제목을 먼저 받고(피해구제법이 여기서 들어온다), 그다음 보상 조문을 뽑는다.
+# **순서가 곧 의존이다** — relief 는 law_articles 를 읽는다.
+node tools/collect-purpose.mjs
+node tools/collect-articles.mjs
+node tools/relief.mjs
 # 첫 화면을 무엇으로 골랐나 — db/public_concern.json 을 index.html 로 내보낸다.
 # **결과 노드가 다 만들어진 뒤에** 돌린다: 없는 id 를 만나면 멈춘다.
 node tools/concern.mjs

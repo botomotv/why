@@ -42,7 +42,15 @@ const db = new DatabaseSync(DB, DRY ? { readOnly: true } : {});
 if (!DRY) db.exec(fs.readFileSync(path.join(ROOT, 'db', 'schema.sql'), 'utf8'));
 
 const html = fs.readFileSync(path.join(ROOT, 'index.html'), 'utf8');
-const laws = [...new Set([...html.matchAll(/\{id:'auto_[^']*',t:'bill',auto:1[^}]*?lab:'([^']*)'/g)].map(m => m[1]))];
+/* ── **`aft_` 법도 대상이다** ──
+   전에는 `auto_` 만 봤다. 그래서 「그 뒤에」로 이어진 피해구제법 24개가 통째로 빠졌고,
+   「세월호 특별법이 무엇을 지원하나」 를 답할 재료가 창고에 없었다.
+
+   그리고 **`lab` 이 아니라 `title` 로 찾는다.** `lab` 은 지도용으로 줄인 이름이라
+   (「4·16세월호참사 피해구제법」) 법제처가 모른다. 정식 이름이어야 찾는다. */
+const laws = [...new Set(
+  [...html.matchAll(/\{id:'(?:auto|aft)_[^']*',t:'bill'[^\n]*?title:'([^']*)'/g)].map(m => m[1])
+)];
 console.log(`법 제1조(목적) · 대상 ${laws.length}개${DRY ? '  (--dry)' : ''}\n`);
 
 const have = new Set(DRY ? [] : db.prepare('SELECT law_nm FROM law_purpose').all().map(r => r.law_nm));

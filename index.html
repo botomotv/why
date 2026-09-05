@@ -644,6 +644,31 @@ body.popfull .pexp .pex-i{transform:rotate(180deg)}
 .cnc-s{font-size:11.5px;margin:4px 0 0}
 .cnc-s a{color:#7FB2EE}
 /* 확정 판결 — 헌재 결론 배지(.vd)와 같은 자리·같은 무게다 */
+/* ── 사슬 ── 사건 → 처벌 → 법 → 보상 → 수치. 없는 칸은 흐리게, 그러나 보인다 */
+.chain{list-style:none;margin:8px 0 0;padding:0;display:flex;flex-direction:column;gap:0}
+.ch-i{display:flex;gap:10px;padding:0 0 12px;position:relative}
+.ch-i::before{content:'';position:absolute;left:10px;top:22px;bottom:0;width:2px;background:var(--line2,#333)}
+.ch-i:last-child::before{display:none}
+.ch-n{flex:none;width:21px;height:21px;border-radius:50%;background:#E3AE55;color:#14151A;
+  font-size:12px;font-weight:700;display:flex;align-items:center;justify-content:center;z-index:1}
+.ch-no .ch-n{background:var(--line2,#3A3F48);color:var(--t3,#8A929E)}
+.ch-b{flex:1;min-width:0}
+.ch-l{font-size:11.5px;letter-spacing:.03em;color:var(--t3,#8A929E);margin:2px 0 3px}
+.ch-t{font-size:13.5px;color:var(--t1);margin:0 0 2px;line-height:1.5}
+.ch-t a{color:#7FB2EE;text-decoration:none}
+.ch-t a:hover{text-decoration:underline}
+.ch-al{color:#E3AE55;font-size:12.5px}
+.ch-s{font-size:11.5px;color:var(--t3,#8A929E);margin:0 0 4px;line-height:1.5}
+.ch-x{font-size:12.5px;color:var(--t2);margin:0;line-height:1.55}
+.ch-no .ch-t,.ch-no .ch-l{color:var(--t3,#8A929E)}
+.ch-note{font-size:11.5px;color:var(--t3,#8A929E);margin:6px 0 0;line-height:1.5}
+/* 흔히 부르는 이름 — 제목 바로 아래. 「이게 그거였구나」 가 먼저 와야 한다 */
+.alias{font-size:14px;color:#E3AE55;margin:3px 0 0;font-weight:600}
+.alias b{color:#E3AE55;font-weight:700}
+.aliasbox{margin:10px 0;padding:9px 12px;border-radius:9px;
+  background:rgba(227,174,85,.09);border:1px solid rgba(227,174,85,.30)}
+.alias-w{font-size:13px;color:var(--t1);margin:0;line-height:1.55}
+.alias-s{font-size:11.5px;color:var(--t3,#8A929E);margin:4px 0 0;line-height:1.5}
 .pen{margin:12px 0;padding:11px 13px;border-radius:10px;
   background:rgba(192,138,94,.10);border:1px solid rgba(192,138,94,.38)}
 .pen-lab{font-size:11.5px;letter-spacing:.04em;color:#C08A5E;margin:0 0 4px}
@@ -16760,6 +16785,85 @@ if(AUTO_N.length||CASE_N.length||KOSIS_N.length){
    사람 이름이 섞인 문장은 통째로 버린다 (규칙 8).
 
    **여기는 tools/verdict.mjs 가 쓴다. 손으로 고치지 마라** — 다음 실행 때 덮어쓴다. */
+/* ── 법의 **별명** ──
+   「민식이법」이 검색이 안 됐다. 사람들은 정식 이름을 모른다 —
+   **검색에서 안 나오면 없는 것과 같다.**
+
+   규칙 8(사람 이름을 안 올린다)의 **예외**다. 우리가 붙인 이름이 아니라
+   국회·정부·언론이 그 법을 부르는 통칭이고, 주인이 그 예외를 정했다.
+   **법의 별명에만** 쓴다 — 판결·사건·피해자 설명에는 여전히 안 쓴다.
+
+   열쇠는 **정식 법 이름**(띄어쓰기·가운뎃점 제거)이다. 노드 id 는 도구가 다시 돌면 바뀐다.
+   **여기는 tools/alias.mjs 가 쓴다. 손으로 고치지 마라** */
+var ALIAS={/*AUTO-ALIAS-START*/'도로교통법':{a:['민식이법'],w:'2019년 어린이보호구역 사망사고 뒤 2020년에 고친 두 법 가운데 하나입니다. 이 법은 어린이보호구역에 신호등과 과속단속 장비를 두도록 했습니다.',s:'국회 의안정보시스템 · 법제처 국가법령정보'}
+,'특정범죄가중처벌등에관한법률':{a:['민식이법','윤창호법'],w:'「민식이법」의 나머지 한 축으로 어린이보호구역 치사상을 무겁게 벌하는 조문(제5조의13)이 들어갔고, 2018년에는 음주운전 치사상을 무겁게 하는 조문(제5조의11)이 들어가 「윤창호법」으로도 불립니다.',s:'국회 의안정보시스템 · 법제처 국가법령정보'}
+,'산업안전보건법':{a:['김용균법'],w:'2018년 발전소 하청 노동자 사망사고 뒤 2020년에 전부개정됐습니다. 도급인의 안전보건 책임을 넓혔습니다.',s:'국회 의안정보시스템 · 법제처 국가법령정보'}
+,'형사소송법':{a:['태완이법'],w:'2015년 개정으로 사람을 죽여 사형에 해당하는 범죄의 공소시효를 없앴습니다(제253조의2).',s:'국회 의안정보시스템 · 법제처 국가법령정보'}
+,'성폭력범죄의처벌등에관한특례법':{a:['n번방 방지법'],w:'2020년 성착취물 사건 뒤 고친 여러 법 가운데 하나입니다. 성착취물을 가지고만 있어도 벌하도록 했습니다.',s:'국회 의안정보시스템 · 법제처 국가법령정보'}
+,'중대재해처벌등에관한법률':{a:['중대재해처벌법'],w:'줄여 부르는 이름입니다. 2021년에 만들어져 2022년부터 시행됐습니다.',s:'법제처 국가법령정보'}
+,'416세월호참사피해구제및지원등을위한특별법':{a:['세월호 특별법','세월호 피해구제법'],w:'2015년에 만들어진 두 「세월호 특별법」 가운데 배상·보상을 정한 쪽입니다.',s:'법제처 국가법령정보'}
+,'416세월호참사진상규명및안전사회건설등을위한특별법':{a:['세월호 특별법','세월호 진상규명법'],w:'2014년에 만들어진 두 「세월호 특별법」 가운데 진상조사를 정한 쪽입니다.',s:'법제처 국가법령정보'}
+,'가습기살균제피해구제를위한특별법':{a:['가습기살균제 피해구제법'],w:'2017년에 만들어졌습니다. 피해를 인정받은 사람에게 구제급여를 줍니다.',s:'법제처 국가법령정보'}
+,'스토킹범죄의처벌등에관한법률':{a:['스토킹처벌법'],w:'줄여 부르는 이름입니다. 2021년에 만들어졌습니다.',s:'법제처 국가법령정보'}
+,'국가정보원법':{a:['국정원법'],w:'줄여 부르는 이름입니다.',s:'법제처 국가법령정보'}/*AUTO-ALIAS-END*/};
+/* ── 그 법이 정한 **보상·지원** ──
+   법이 스스로 적은 **조문 제목 그대로**다. 우리가 요약하지 않는다 —
+   「배상금 및 위로지원금의 지급대상」·「생활지원금 등」·「구제급여의 종류」.
+   근거가 세다: 국회가 그 법에 그렇게 써 넣었다.
+   **여기는 tools/relief.mjs 가 쓴다. 손으로 고치지 마라** */
+var RELIEF={/*AUTO-RELIEF-START*/'감염병의예방및관리에관한법률':['손실보상금의 긴급지원']
+,'경북경남울산초대형산불피해구제및지원등을위한특별법':['심리상담 등의 지원','추모사업 등 시행']
+,'공무원재해보상법':['요양급여','요양급여의 산정','심리상담비','행방불명자에 대한 장해급여 등','간병급여','순직유족보상금','위험직무순직유족보상금','건강손상자녀에 대한 장해급여의 지급']
+,'공무원연금법':['대여학자금의 부담']
+,'공익사업을위한토지등의취득및보상에관한법률':['보상금의 지급 또는 공탁','담보물권과 보상금']
+,'교육기본법':['장학제도 등']
+,'국가배상법':['신청인의 동의와 배상금 지급']
+,'국민평생직업능력개발법':['재해 위로금']
+,'국민연금법':['일시보상금에 대한 평가']
+,'군인사법':['군 가산복무 지원금의 지급']
+,'근로기준법':['장례비']
+,'근로자직업능력개발법':['재해 위로금']
+,'노인장기요양보험법':['장기요양급여 제공의 기본원칙','장기요양급여에 관한 국가정책방향','장기요양급여의 종류','장기요양급여의 제공','장기요양급여의 월 한도액','장기요양급여비용 등의 산정','장기요양급여심사위원회의 설치','장기요양급여의 관리ㆍ평가']
+,'농수산물유통및가격안정에관한법률':['의무자조금에 대한 지원금 납부']
+,'농어업농어촌및식품산업기본법':['치유농업의 진흥']
+,'농업농촌및식품산업기본법':['치유농업의 진흥']
+,'모자보건법':['난임ㆍ임산부심리상담센터의 설치ㆍ운영 등']
+,'부패방지및국민권익위원회의설치와운영에관한법률':['보상금의 지급결정 등','보상금등의 중복 지급 금지 등']
+,'산업재해보상보험법':['요양급여','요양급여의 신청','요양급여 범위 여부의 확인 등','추가상병 요양급여의 신청','장해급여','재요양에 따른 장해급여','간병급여','유족급여']
+,'소방공무원법':['특별위로금']
+,'수산업법':['보상금의 공탁']
+,'약사법':['의약품 부작용 피해구제사업','의약품 부작용 피해구제 부담금','의약품 부작용 피해구제급여','의약품 부작용 피해구제 절차 등','피해구제급여의 지급중단 결정 및 부당이득의 징수 등','피해구제급여권의 보호']
+,'양식산업발전법':['보상금의 공탁']
+,'임금채권보장법':['체불 임금등 및 생계비 융자']
+,'전기통신금융사기피해방지및피해금환급에관한특별법':['피해구제의 신청 등','채권소멸절차 개시 이후의 피해구제','거짓 피해구제 신청에 따른 손해배상책임']
+,'전기통신금융사기피해금환급에관한특별법':['피해구제의 신청 등','채권소멸절차 개시 이후의 피해구제','거짓 피해구제 신청에 따른 손해배상책임']
+,'전세사기피해자지원및주거안정에관한특별법':['최소지원금 및 선지급금의 반납']
+,'지방공무원법':['장학금 지급']
+,'지방세특례제한법':['전세사기피해자 지원을 위한 감면','학술단체 및 장학법인에 대한 감면']
+,'체육인복지법':['장학사업']
+,'최저임금법':['생계비 및 임금실태 등의 조사']
+,'취업후학자금상환특별법':['취업 후 상환 학자금대출 대상']
+,'치료감호등에관한법률':['근로보상금 등의 지급']
+,'치료감호법':['근로보상금 등의 지급']
+,'치유관광산업육성에관한법률':['치유관광산업 육성 기본계획의 수립ㆍ시행','치유관광산업 육성 시행계획의 수립ㆍ시행','치유관광사업자의 등록','치유관광사업자의 지위 승계','우수치유관광시설 인증','치유관광산업 종합정보체계 구축ㆍ운영','치유관광산업 전문지원기관 등','치유관광산업의 연구ㆍ개발']
+,'치유농업연구개발및육성에관한법률':['치유농업 정보망 구축 및 운영','지방자치단체의 치유농업 관련 사업 수행','치유농업사의 자격 취득 등','치유농업사의 자격 취소 등','치유농업사 양성기관의 지정 등','우수 치유농업시설의 인증 등']
+,'특허법':['대가 및 보상금액에 대한 집행권원','보상금 또는 대가에 관한 불복의 소','보상금 또는 대가에 관한 소송에서의 피고']
+,'하천편입토지보상등에관한특별조치법':['보상금의 공탁']
+,'한국장학재단설립등에관한법률':['학자금 지원 대상','학자금 지원의 범위','한국장학재단의 설립','학자금대출계정의 설치','학자금대출 신용보증계정의 설치','장학금 지원계정의 설치','장학금계정의 조성','장학금계정의 용도 등']
+,'형사보상및명예회복에관한법률':['보상금 지급청구','보상금 지급기한 등','보상금 지급의 효과']
+,'노근리사건희생자심사및명예회복에관한특별법':['의료지원금']
+,'한센인피해사건의진상규명및피해자생활지원등에관한법률':['의료지원금등']
+,'제주43사건진상규명및희생자명예회복에관한특별법':['보상금','보상금의 신청','신청인의 동의와 보상금등의 지급','보상금등을 지급받을 권리의 보호','의료지원금 및 생활지원금','제주4ㆍ3트라우마 치유사업']
+,'대일항쟁기강제동원피해조사및국외강제동원희생자등지원에관한특별법':['위로금','미수금 지원금','의료지원금','위로금등 지급의 제외','위로금등의 지급 신청','위로금등 지급 신청의 심의와 결정','신청인의 동의와 위로금등의 지급','위로금등을 지급받을 권리의 보호']
+,'지뢰피해자지원에관한특별법':['피해자 지원 심의위원회','위로금','의료지원금','위로금등의 지급신청','위로금등의 지급 등','위로금등에 대한 권리보호']
+,'416세월호참사피해구제및지원등을위한특별법':['4ㆍ16세월호참사 배상 및 보상 심의위원회','배상금 및 위로지원금의 지급대상','손실의 보상 등','배상금 등의 지급신청','신청인의 동의와 배상금 등의 지급 등','배상금 상속의 특례','생활지원금 등','심리상담 등의 지원']
+,'한국인원자폭탄피해자지원을위한특별법':['한국인원자폭탄피해자지원협의회']
+,'가습기살균제피해구제를위한특별법':['가습기살균제피해구제위원회 등','피해구제위원회의 기능 등','구제급여 지급신청 등','구제급여 지급결정 과정에서의 통지 의무','구제급여 지급결정의 유효기간 등','구제급여의 종류','요양급여','장해급여']
+,'포항지진의진상조사및피해구제등을위한특별법':['포항지진피해구제심의위원회','피해구제를 위한 지원금']
+,'여수순천1019사건진상규명및희생자명예회복에관한특별법':['의료지원금 및 생활지원금','의료지원금 및 생활지원금 지급신청']
+,'천안함피격사건피해구제및지원등을위한특별법':['심리상담 등의 지원']
+,'1029이태원참사피해자권리보장과진상규명및재발방지를위한특별법':['10ㆍ29이태원참사피해구제심의위원회','생활지원금 등','심리상담 등의 지원','근로자의 치유휴직','근로자의 치유휴직 지원','추모사업 등 시행','10ㆍ29이태원참사 희생자 추모위원회','추모공원 등의 명칭 및 위치']
+,'1229여객기참사피해구제및지원등을위한특별법':['생활지원금 등','15세 미만 희생자 특별지원금','심리상담 등 지원','근로자의 치유휴직','근로자의 치유휴직 지원','추모사업 및 장기 추적 연구 등 시행','12ㆍ29여객기참사 피해자 지원 및 희생자 추모위원회','12ㆍ29여객기참사 피해자 지원단']/*AUTO-RELIEF-END*/};
 var PEN={/*AUTO-PEN-START*/'case_prec_621917':{n:'2025도16733',c:'대법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=621917&type=HTML',x:'확정 전 · 대법원이 원심을 파기했습니다'}
 ,'case_prec_621925':{n:'2025도15459',c:'대법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=621925&type=HTML',x:'확정 전 · 대법원이 원심을 파기했습니다'}
 ,'case_prec_613001':{f:'2025도13198',x:'확정'}
@@ -17586,7 +17690,13 @@ var PEN={/*AUTO-PEN-START*/'case_prec_621917':{n:'2025도16733',c:'대법원',u:
 ,'case_prec_614347':{n:'2025도8460',c:'대법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=614347&type=HTML',x:'확정 전 · 대법원이 원심을 파기했습니다'}
 ,'case_prec_613245':{p:'가장 무거운 형 징역 2년',n:'2022노1482',c:'수원지방법원',f:'2024도11353',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=614449&type=HTML',x:'확정'}
 ,'case_prec_613197':{n:'2023도12127',c:'대법원',u:'https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=613197&type=HTML',x:'확정 전 · 대법원이 원심을 파기했습니다'}/*AUTO-PEN-END*/};
-(function(){var _m={};N.forEach(function(n){_m[n.id]=n});
+(function(){
+  /* 별명을 법 노드에 붙인다 — 검색(hay)과 카드가 그것을 쓴다 */
+  var _nz=function(s){return String(s||'').replace(/[\s·ㆍ]/g,'')};
+  N.forEach(function(n){ if(n.t!=='bill')return;
+    var v=ALIAS[_nz(n.title||n.lab)]; if(!v)return;
+    n.alias=v.a; n.aliasWhy=v.w; n.aliasSrc=v.s; });
+  var _m={};N.forEach(function(n){_m[n.id]=n});
   Object.keys(PEN).forEach(function(k){var n=_m[k];if(!n)return;var v=PEN[k];
     n.pen=v.p; n.penNo=v.n; n.penCourt=v.c; n.penFinal=v.f; n.penUrl=v.u; n.penFix=v.x;
     if(v.l)n.lab=v.l;
@@ -17602,6 +17712,51 @@ var dropL=0;
 for(var _i=L.length-1;_i>=0;_i--){ if(!map[L[_i][0]]||!map[L[_i][1]]){ L.splice(_i,1); dropL++ } }
 var adj={};N.forEach(function(n){adj[n.id]=[]});
 L.forEach(function(l){adj[l[0]].push(l);adj[l[1]].push(l)});
+
+/* ── 사건 하나를 누르면 **전체 사슬**이 나온다 ──
+     사건 발생 → 가해자 처벌 → 만들어진 법 → 피해자 보상 → 그 뒤 수치
+
+   **없는 칸을 비워두지 않는다.** 「아직 확인하지 못했습니다」 라고 밝히고
+   **왜** 없는지 적는다. 비워두면 「없다」 와 「우리가 못 찾았다」 가 구별되지 않는다 —
+   이 파일이 근거 링크·핵심어에서 이미 정한 규칙이다.
+
+   근거는 우리가 만들지 않는다:
+     처벌 = 판례 주문 (tools/verdict.mjs · 대법원 상고기각으로 확정 확인)
+     법   = 법 이름이나 법제처 제·개정이유에 그 사건이 적혀 있다 (`after`)
+     보상 = 그 법의 조문 제목 (RELIEF)
+     수치 = 그 법에 이어진 결과 노드 */
+/* **이름을 `chainOf` 로 지었다가 이미 있는 함수(이웃 목록)와 부딪혔다.**
+   함수 선언은 통째로 호이스팅되어 뒤엣것이 이긴다 — 에러가 안 나고
+   `c.laws` 가 undefined 가 되어서야 드러났다. 이 파일이 이미 적어 둔
+   「짧은 이름은 전역과 부딪힌다」 와 같은 종류다. 새로 지을 때 먼저 세어 본다. */
+function evChain(n){
+  if(!n||n.t!=='event')return null;
+  /* ── 법으로 가는 길이 **두 가지**다. 뜻이 달라서 따로 센다 ──
+       made  「그 뒤에 만들어진 법」 — 법 이름이나 제·개정이유에 그 사건이 적혀 있다(`after`)
+       used  「이 사건에 적용된 법」  — 재판부가 사건명·참조조문에 그 법을 적었다(`topic`)
+     둘을 한 칸에 뭉치면 **국회가 만든 것과 법원이 적용한 것이 같아 보인다.** 다른 사실이다.
+     그리고 172개 판례 노드는 `after` 가 없고 `topic` 만 있다 — 뭉개면 사슬이 처벌에서 끊긴다. */
+  var made=[], used=[];
+  (adj[n.id]||[]).forEach(function(l){
+    var o=map[l[0]===n.id?l[1]:l[0]];
+    if(!o||o.t!=='bill')return;
+    if(l[3]==='after'){ if(made.indexOf(o)<0)made.push(o) }
+    else if(l[3]==='topic'){ if(used.indexOf(o)<0)used.push(o) }
+  });
+  var laws=made.concat(used.filter(function(o){return made.indexOf(o)<0}));
+  /* 법에 이어진 결과 수치 · 그 법이 정한 보상 */
+  var res=[], relief=[], nz=function(x){return String(x||'').replace(/[\s·ㆍ]/g,'')};
+  laws.forEach(function(b){
+    (adj[b.id]||[]).forEach(function(l){
+      var o=map[l[0]===b.id?l[1]:l[0]];
+      if(o&&o.t==='result'&&res.indexOf(o)<0)res.push(o);
+    });
+    var r=RELIEF[nz(b.title||b.lab)];
+    if(r&&r.length)relief.push({law:b,arts:r});
+  });
+  return {ev:n, pen:n.pen||null, penFix:n.penFix||null,
+    made:made, used:used, laws:laws, relief:relief, res:res};
+}
 
 /* 분야 배정 — 정당·인물은 이웃에서 물려받는다 */
 N.forEach(function(n){n.cats=[]});
@@ -22386,11 +22541,14 @@ function matchNodes(text){
   var sc={};
   N.forEach(function(x){
     if(/^v_/.test(x.id))return;
-    var hay=((x.lab||'')+' '+(x.title||'')+' '+(x.tip||'')+' '+(x.off||'')+' '+(x.body||'')).toLowerCase();
+    /* **별명도 뒤진다.** 「민식이법」으로 못 찾으면 그 법은 없는 것과 같다 */
+    var _al=(x.alias||[]).join(' ');
+    var hay=((x.lab||'')+' '+(x.title||'')+' '+_al+' '+(x.tip||'')+' '+(x.off||'')+' '+(x.body||'')).toLowerCase();
     var s2=0;
     toks.forEach(function(w){
       var lw=w.toLowerCase();
-      if((x.lab||'').toLowerCase().indexOf(lw)>=0)s2+=5;
+      if(_al&&_al.toLowerCase().indexOf(lw)>=0)s2+=6;   /* 별명이 제일 세다 — 그 말로 찾아온 것이다 */
+      else if((x.lab||'').toLowerCase().indexOf(lw)>=0)s2+=5;
       else if((x.title||'').toLowerCase().indexOf(lw)>=0)s2+=3;
       else if(hay.indexOf(lw)>=0)s2+=1;
       var ym=w.match(/^((?:19|20)\d{2})/);
@@ -22512,6 +22670,7 @@ function qHay(n){
   /* **판시사항(gist)도 뒤진다.** 재판부가 쓴 요약이라 사건 이름에 없는 말이 들어 있다.
      사건번호(off)도 이미 넣고 있다 — 「2024헌마682」로도 찾을 수 있어야 한다. */
   return n.__hay||(n.__hay=(n.lab+' '+(n.title||'')+' '+(n.sub||'')+' '+
+    (n.alias||[]).join(' ')+' '+
     (n.pres||'')+' '+(n.off||'')+' '+(n.gist||'')).toLowerCase())}
 var qMore=0;
 /* 종류 우선순위 — 작을수록 앞. **판단이 아니라 자리다.**
@@ -23034,7 +23193,17 @@ function render(id){
     html='<div class="c-head"><div class="meta"><span class="year">'+n.yr+'</span>'+
       '<span class="badge '+(n.kind==='법률'?'b-law':'b-decree')+'">'+n.kind+'</span>'+
       '<span class="badge b-pass">'+n.st+'</span>'+(n.check?'<span class="badge b-chk">확인 중</span>':'')+'</div>'+
-      '<h2 class="title">'+n.title+'</h2><p class="official">'+n.off+'</p></div>'+
+      '<h2 class="title">'+n.title+'</h2><p class="official">'+n.off+'</p>'+
+      /* ── **흔히 부르는 이름** ──
+         사람들은 「도로교통법 일부개정법률안」이 아니라 「민식이법」으로 기억한다.
+         제목 바로 아래에 둔다 — 「이게 그거였구나」 가 먼저 와야 나머지가 읽힌다.
+         우리가 붙인 이름이 아니라는 것을 밝힌다 (규칙 8 의 예외라서 더 그렇다). */
+      (n.alias&&n.alias.length?'<p class="alias">흔히 <b>'+
+        n.alias.map(function(a){return '「'+esc(a)+'」'}).join(' · ')+
+        '</b>이라고 부릅니다</p>':'')+'</div>'+
+      (n.alias&&n.aliasWhy?'<div class="aliasbox"><p class="alias-w">'+esc(n.aliasWhy)+'</p>'+
+        (n.aliasSrc?'<p class="alias-s">'+esc(n.aliasSrc)+'</p>':'')+
+        '<p class="alias-s">이 별명은 우리가 붙인 것이 아니라 국회·정부·언론이 그 법을 부르는 이름입니다.</p></div>':'')+
       /* ① 제일 먼저 — 이게 무슨 법인지. 이게 없으면 나머지가 의미가 없다. */
       (tipOf(n)?'<div class="oneline">'+tipOf(n)+
         /* ── **이름을 풀어 쓴 것은 그렇다고 밝힌다** ──
@@ -23160,6 +23329,66 @@ function render(id){
         '당사자 실명이 있어 받지 않습니다 — 정확한 주문은 아래 원문 링크에서 보세요.</p></div>':'')+
       /* 결론 배지가 있으면 한 줄 설명은 안 쓴다 — 같은 말이 두 번 나온다 */
       (!n.verdict&&tipOf(n)?'<div class="oneline">'+tipOf(n)+'</div>':'')+
+      /* ── **전체 사슬** ──
+           사건 발생 → 가해자 처벌 → 만들어진 법 → 피해자 보상 → 그 뒤 수치
+         없는 칸을 비워두지 않는다. **무엇이 없는지 보여준다.** */
+      (function(){
+        var c=(typeof evChain==='function')?evChain(n):null; if(!c||!c.laws)return '';
+        /* **보여줄 게 하나도 없으면 안 그린다.** 판례 노드 2,819개에
+           「아직 확인하지 못했습니다」 세 줄을 띄우면 그건 정직이 아니라 소음이다.
+           처벌이나 법 가운데 하나라도 있을 때만 사슬을 편다. */
+        /* 문은 **처벌이 있거나 그 사건으로 법이 만들어졌을 때**만 연다.
+           `topic`(적용된 법)까지 문으로 삼으면 판례 노드 5,382개에 사슬이 뜬다 —
+           그중 4,173개는 처벌 칸이 비어 있어 「아직 확인 못 함」 이 화면을 채운다.
+           정직하게 비우는 것과 빈 칸을 잔뜩 띄우는 것은 다르다. */
+        if(!c.pen&&!c.made.length)return '';
+        function step(no,lab,body,got){
+          return '<li class="ch-i'+(got?'':' ch-no')+'"><span class="ch-n">'+no+'</span>'+
+            '<div class="ch-b"><p class="ch-l">'+lab+'</p>'+body+'</div></li>';
+        }
+        var none=function(w){return '<p class="ch-x">아직 확인하지 못했습니다 — '+w+'</p>'};
+        var out='';
+        out+=step(1,'사건','<p class="ch-t">'+esc(n.lab)+'</p><p class="ch-s">'+esc(n.yr||'')+'</p>',1);
+        /* ② 처벌 */
+        out+= c.pen
+          ? step(2,'가해자 처벌','<p class="ch-t">'+esc(c.pen)+'</p>'+
+              '<p class="ch-s">'+esc(c.penFix||'확정')+(n.penNo?' · '+esc(n.penCourt||'')+' '+esc(n.penNo):'')+
+              (n.penFinal?' · 대법원 '+esc(n.penFinal):'')+
+              (n.penUrl?' · <a href="'+esc(n.penUrl)+'" target="_blank" rel="noopener">판결 원문</a>':'')+'</p>',1)
+          : step(2,'가해자 처벌',none('이 사건의 확정 판결을 법제처에서 찾지 못했습니다. '+
+              '판례의 사건명은 죄명이라 사건 이름으로는 못 찾고, 사건번호가 있어야 합니다'),0);
+        /* ③ 만들어진 법 */
+        var lawRow=function(b,why){
+          return '<p class="ch-t"><a href="#" data-go="'+esc(b.id)+'">'+esc(b.lab)+'</a>'+
+            (b.alias&&b.alias.length?' <span class="ch-al">흔히 「'+esc(b.alias[0])+'」</span>':'')+'</p>'+
+            '<p class="ch-s">'+esc(b.off||'')+(why?' · '+why:'')+'</p>' };
+        out+= c.made.length
+          ? step(3,'그 뒤에 만들어진 법', c.made.map(function(b){
+              return lawRow(b,'법 이름이나 제·개정이유에 이 사건이 적혀 있습니다') }).join(''),1)
+          : (c.used.length
+             ? step(3,'이 사건에 적용된 법', c.used.map(function(b){
+                 return lawRow(b,'재판부가 사건명·참조조문에 이 법을 적었습니다') }).join('')+
+                 '<p class="ch-x">이 사건을 계기로 <b>새로 만들어진 법</b>은 찾지 못했습니다 — '+
+                 '법 이름에도 법제처 제·개정이유에도 이 사건이 적혀 있지 않습니다.</p>',1)
+             : step(3,'그 뒤에 만들어진 법',none('법 이름에도 법제처 제·개정이유에도 이 사건이 적혀 있지 않습니다'),0));
+        /* ④ 보상 — **법이 스스로 적은 조문 제목** */
+        out+= c.relief.length
+          ? step(4,'피해자 보상·지원', c.relief.map(function(r){
+              return '<p class="ch-t">'+r.arts.map(function(a){return '「'+esc(a)+'」'}).join(' · ')+'</p>'+
+                '<p class="ch-s">'+esc(r.law.lab)+'이 정한 것입니다 · 조문 제목 그대로이고 금액은 시행령에 있습니다</p>' }).join(''),1)
+          : step(4,'피해자 보상·지원',none(
+              c.laws.length? '이어진 법의 조문에 보상·지원이 없습니다. 민사 배상은 형사와 별개 재판이라 '+
+                '판결문끼리 이어지는 경우가 드뭅니다'
+                : '이어진 법이 없어 보상을 찾을 곳이 없습니다'),0);
+        /* ⑤ 그 뒤 수치 */
+        out+= c.res.length
+          ? step(5,'그 뒤 수치', c.res.slice(0,4).map(function(r){
+              return '<p class="ch-t"><a href="#" data-go="'+esc(r.id)+'">'+esc(r.lab)+'</a></p>'+
+                (r.big?'<p class="ch-s">'+esc(r.big)+'</p>':'') }).join(''),1)
+          : step(5,'그 뒤 수치',none('이어진 법에 붙은 결과 수치가 없습니다'),0);
+        return '<div class="sec"><p class="sec-lab">사건에서 지금까지</p><ol class="chain">'+out+'</ol>'+
+          '<p class="ch-note">선은 관련이 있다는 표시입니다. <b>이 법 때문에 저 숫자가 됐다는 뜻이 아닙니다.</b></p></div>';
+      })()+
       /* ── 그때 그 사건은 **어떤 판결을 받았나** ──
          이 사이트가 답하려는 두 가지 중 하나다. 결론이 먼저다 — 헌재 결정과 같은 자리다.
 
@@ -23174,7 +23403,13 @@ function render(id){
            확정 전             — 대법원이 원심을 파기했다. 형량을 **안 쓴다**
            확정 여부 확인 못 함 — 하급심 주문만 있고 그 뒤를 못 찾았다
          **형량이 없어도 「확정 전」 은 보여준다** — 그것도 답이다. */
-      ((n.pen||n.penFix)?'<div class="pen"><p class="pen-lab">'+esc(n.penFix||'확정 판결')+'</p>'+
+      /* 사슬이 형량을 이미 말했으면 여기서 또 말하지 않는다 — 같은 말이 두 번 나온다.
+         **조건이 사슬의 문과 똑같아야 한다.** 처음에 여기만 `laws.length`(적용된 법 포함)로
+         두었더니, 사슬은 안 뜨는데 형량 블록만 사라져서 **「확정 전」 안내가 통째로 없어졌다**
+         (검사 70 이 잡았다). 한 값을 두 곳에서 정하면 갈라진다 — 이 파일의 오래된 병이다. */
+      ((n.pen||n.penFix)&&!(typeof evChain==='function'&&(function(){
+          var c=evChain(n); return c&&(c.pen||c.made.length) })())
+        ?'<div class="pen"><p class="pen-lab">'+esc(n.penFix||'확정 판결')+'</p>'+
         (n.pen?'<p class="pen-n">'+esc(n.pen)+'</p>':
                '<p class="pen-n">형량은 아직 정해지지 않았습니다</p>')+
         '<p class="pen-x">'+esc(n.penCourt||'')+' '+esc(n.penNo||'')+

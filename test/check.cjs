@@ -4894,6 +4894,56 @@ const TKN = { result:'결과', bill:'법·정책', person:'인물', party:'정�
     }
   }
 
+  /* ── 73. **한 사건에 대통령이 둘 붙으면 FAIL** (규칙 3) ──
+     이태원 참사(2022-10-29)에 문재인과 윤석열이 **둘 다** 붙어 있었다.
+     `term-events.mjs` 가 연도만 보고, 그 해에 정권이 바뀌면 둘 다 붙였기 때문이다.
+     「하나를 고르면 그게 우리 판단이다」 라고 적어 두고 그렇게 만들었는데 —
+     **연도는 사건이 아니다.** 그날 대통령은 한 사람이고, 둘 다 붙이는 것은
+     겸손이 아니라 사실 오류다. 문재인은 5월 9일에 임기가 끝났다.
+
+     그리고 규칙 3 의 원래 걱정도 함께 잰다 — **발의자·소관부처에서 대통령을 끌어오는
+     경로가 생기지 않았나.** `term` 이 아닌 역할로 사건과 대통령이 이어지면 그것이다.
+     (`lead`·`against` 는 공식 기록이므로 뺀다.) */
+  {
+    const r = w0.eval(`(function(){
+      var pz={}; N.forEach(function(n){ if(n.prez)pz[n.id]=n.lab });
+      var byEv={}, other=[];
+      L.forEach(function(l){
+        var a=map[l[0]], b=map[l[1]]; if(!a||!b)return;
+        var p=pz[l[0]]?l[0]:(pz[l[1]]?l[1]:null); if(!p)return;
+        var e=(p===l[0])?b:a; if(e.t!=='event')return;
+        if(l[3]==='term'){ (byEv[e.id]=byEv[e.id]||{})[p]=1 }
+        /* ── **손 링크는 공식 기록이라 그대로 둔다** (규칙 3 이 그렇게 적혀 있다) ──
+           처음엔 손 링크까지 잡았더니 「헌법재판소가 2017년 3월 10일 파면을 결정했습니다
+           (2016헌나1)」 세 건을 규칙 3 위반으로 지목했다. **그건 그 사람에 대한 결정이고
+           헌재 사건번호까지 붙은 기록이다.** 규칙 3 이 막으려는 것은 그게 아니라
+           **발의자·소관부처 같은 칸에서 대통령을 끌어오는 자동 경로**다.
+           거짓 경보는 거짓 통과만큼 나쁘다 — 자동으로 만든 것만 본다. */
+        else if(l[7]==='auto'&&!e.owner&&!e.ghost)
+          other.push(e.id+' ↔ '+pz[p]+' role='+(l[3]||'(빈값)'));
+      });
+      var bad=Object.keys(byEv).filter(function(id){return Object.keys(byEv[id]).length>1})
+        .map(function(id){return (map[id].lab||id)+' ← '+Object.keys(byEv[id]).map(function(p){return pz[p]}).join(', ')});
+      /* 날짜를 아는 사건이 몇 개인가 — 0 이면 「안 보고 있음」 이다 */
+      /* **정규식을 안 쓴다.** 템플릿 리터럴이 이스케이프를 삼켜 /^d{4}-d{2}-d{2}$/ 가 된다 —
+         문법 오류가 안 나서 조용히 0 이 나왔다. 이 파일이 적어 둔 것과 같은 사고다. */
+      var isDt=function(v){v=String(v||'');return v.length===10&&v.charAt(4)==='-'&&v.charAt(7)==='-'};
+      var withDt=N.filter(function(n){return n.t==='event'&&!n.auto&&!n.ghost&&!n.owner&&isDt(n.dt)}).length;
+      return {ev:Object.keys(byEv).length, bad:bad, other:other.slice(0,5), otherN:other.length, withDt:withDt};
+    })()`);
+    if (!r) F('73. 못 쟀다');
+    else {
+      console.log(`73. 그때 정권       사건 ${r.ev}개에 붙음 · 날짜(dt)로 고른 사건 ${r.withDt}개 · ` +
+        `대통령이 둘 붙은 사건 ${r.bad.length}개 · term 아닌 경로 ${r.otherN}개`);
+      if (r.bad.length)
+        F(`73. 한 사건에 대통령이 둘 붙었다 (규칙 3): ${r.bad.join(' / ')}. ` +
+          `그날 대통령은 한 사람이다 — 날짜를 알면 노드에 dt 를 적고, 모르면 안 붙인다`);
+      if (r.otherN)
+        F(`73. 사건과 대통령이 term 이 아닌 경로로 이어졌다 ${r.otherN}개 (규칙 3): ${r.other.join(' / ')}. ` +
+          `그런 경로가 생기면 「그 시기였다」 가 「그가 한 일이다」 로 바뀐다`);
+    }
+  }
+
   /* ── 요약 ── */
   console.log('\n' + '─'.repeat(50));
   console.log('노드 진영 분포:', JSON.stringify(bySide));

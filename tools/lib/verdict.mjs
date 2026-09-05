@@ -28,6 +28,17 @@ export const hasName = s => NAME_RE.test(s) || MASK_RE.test(s);
 export const PENAL = /(징역|금고|벌금|구류|사형|무기|집행을?\s*[0-9]*\s*년?간?\s*유예|무죄|면소|공소기각|기각한다|파기|환송|형(?:의\s*선고)?을\s*면제)/;
 export const NOTPENAL = /(몰수한다|추징한다|압수|가납|소송비용|보호관찰을\s*명|이수를\s*명|취업제한|공개를?\s*명|고지를?\s*명)/;
 
+/** 판례내용에서 **【주 문】 구간만** 잘라 문장으로 나눈다.
+ *  확정 여부는 반드시 이 구간으로만 가린다 — 이유 본문에는 「파기」 가 판단 기준을
+ *  설명하는 말로 흔히 나온다. 판결문 전체를 넘기면 상고기각 판결이 파기로 읽힌다
+ *  (실측: 삼풍백화점 96도1231 이 그랬다). */
+export function junLines(body) {
+  const m = String(body || '').match(/【\s*주\s*문\s*】([\s\S]*?)(?=【\s*이\s*유\s*】|$)/);
+  if (!m) return [];
+  return m[1].replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim()
+    .split(/(?<=다\.)\s+/).map(x => x.trim()).filter(Boolean);
+}
+
 /** 판례내용에서 【주 문】 구간만 잘라 형량 문장을 뽑는다 */
 export function pickVerdict(body) {
   const m = String(body || '').match(/【\s*주\s*문\s*】([\s\S]*?)(?=【\s*이\s*유\s*】|$)/);

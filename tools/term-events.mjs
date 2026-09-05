@@ -78,42 +78,70 @@ N.filter(n => n.prez).forEach(n => { prez[n.lab] = n.id });
                  (ghost 표시는 선언에만 있다. 런타임 파생(v_p4_2 …)은 owner 로 걸러야 한다.)
      · yr 없음 — 아래에서 센다 */
 const events = N.filter(n => n.t === 'event' && !n.auto && !n.ghost && !n.owner)
-  .map(n => ({ id: n.id, yr: /^\d{4}$/.test(String(n.yr || '')) ? Number(n.yr) : null, lab: n.lab || n.id }));
+  .map(n => ({ id: n.id, yr: /^\d{4}$/.test(String(n.yr || '')) ? Number(n.yr) : null,
+               dt: /^\d{4}-\d{2}-\d{2}$/.test(String(n.dt || '')) ? String(n.dt) : null,
+               lab: n.lab || n.id }));
 dom.window.close();
 
-/* 그 해에 재임한 대통령들. 연도만 있으므로 **해가 걸치면 둘 다** 나온다 —
-   그때는 문장에 "이 해에 정권이 바뀌었습니다" 를 적는다. 하나를 고르면 그게 우리 판단이다. */
+/* ── **연도는 사건이 아니다** ──
+   전에는 해가 걸치면 **둘 다** 붙이고 "이 해에 정권이 바뀌었습니다" 라고 적었다.
+   「하나를 고르면 그게 우리 판단이다」 라고 생각했는데, 그게 아니었다.
+
+   이태원 참사는 2022년 **10월 29일**이다. 그날 대통령은 윤석열 한 사람이고
+   문재인은 5월 9일에 임기가 끝났다. **둘 다 붙이는 것은 겸손이 아니라 사실 오류다.**
+   화면에는 「이태원 참사 ↔ 문재인 · 그때 정권」 이 그대로 떴다 — 규칙 3 위반이다.
+
+   그래서 두 갈래로 나눈다.
+     · **날짜를 아는 사건**(`dt`)은 날짜로 고른다 — 언제나 한 사람이다
+     · **연도만 아는데 그 해에 정권이 바뀐 사건**은 **안 붙인다.**
+       「그때 정권을 아직 확인하지 못했습니다」 가 정직한 답이다.
+       r3·q5 의 핵심어를 비우고 이유를 적은 것과 같은 처리다. */
+function onDate(d) {
+  return terms.filter(t => t.from_dt <= d && d <= t.to_dt).filter(t => prez[t.president]);
+}
 function inYear(y) {
   return terms.filter(t => Number(t.from_dt.slice(0, 4)) <= y && y <= Number(t.to_dt.slice(0, 4)))
               .filter(t => prez[t.president]);          /* 지도에 노드가 있는 사람만 */
 }
 
 const links = [];
-let noYear = 0, tooOld = 0, split = 0, noNode = 0;
+const ambig = [];
+let noYear = 0, tooOld = 0, split = 0, noNode = 0, byDate = 0;
 for (const e of events) {
-  if (!e.yr) { noYear++; continue }
-  const hit = inYear(e.yr);
+  if (!e.yr && !e.dt) { noYear++; continue }
+  let hit;
+  if (e.dt) { hit = onDate(e.dt); byDate++ }
+  else {
+    hit = inYear(e.yr);
+    /* **그 해에 정권이 바뀌었으면 안 붙인다.** 날짜를 알면 dt 를 적어라. */
+    if (hit.length > 1) { ambig.push(e); continue }
+  }
   if (!hit.length) {
     /* 재임표에 있는데 노드가 없는 것과, 재임표 자체가 그 시기를 안 담는 것을 가른다 */
-    const any = terms.some(t => Number(t.from_dt.slice(0, 4)) <= e.yr && e.yr <= Number(t.to_dt.slice(0, 4)));
+    const yy = e.yr || Number(String(e.dt).slice(0, 4));
+    const any = terms.some(t => Number(t.from_dt.slice(0, 4)) <= yy && yy <= Number(t.to_dt.slice(0, 4)));
     if (any) noNode++; else tooOld++;
     continue;
   }
+  /* 여기까지 왔으면 hit 는 **언제나 한 사람**이다 — 날짜로 골랐거나, 안 걸친 해다 */
   if (hit.length > 1) split++;
   for (const t of hit) {
     const yFrom = t.from_dt.slice(0, 4), yTo = t.to_dt.slice(0, 4);
     const span = yTo === '2099' ? `${yFrom}년~` : `${yFrom}~${yTo}`;
-    const why = hit.length > 1
-      ? `이 시기 대통령은 {a}였습니다 (${span}). ${e.yr}년에 정권이 바뀌어 두 정부에 걸칩니다. 그 정부가 한 일이라는 뜻이 아닙니다`
-      : `이 시기 대통령은 {a}였습니다 (${span}). 그 정부가 한 일이라는 뜻이 아니라 그 시기였다는 뜻입니다`;
-    links.push([prez[t.president], e.id, '그때 정권', 'term', why, `${e.yr}년 · 재임표 ${t.from_dt}~${t.to_dt}`, '', 'auto']);
+    const why = `이 시기 대통령은 {a}였습니다 (${span}). 그 정부가 한 일이라는 뜻이 아니라 그 시기였다는 뜻입니다`;
+    const ev = e.dt ? `${e.dt} · 재임표 ${t.from_dt}~${t.to_dt}`
+                    : `${e.yr}년 · 재임표 ${t.from_dt}~${t.to_dt}`;
+    links.push([prez[t.president], e.id, '그때 정권', 'term', why, ev, '', 'auto']);
   }
 }
 
 console.log(`손으로 넣은 사건 ${events.length}개`);
 console.log(`  → 그때 정권을 붙인 사건 ${new Set(links.map(l => l[1])).size}개 · 링크 ${links.length}개`);
 console.log(`  붙이지 못한 것: 연도 없음 ${noYear} · 재임표보다 이른 시기 ${tooOld} (재임표는 ${terms[0].from_dt} 부터다) · 지도에 대통령 노드 없음 ${noNode}`);
-console.log(`  해가 걸쳐 두 정부가 붙은 사건 ${split}개`);
+console.log(`  날짜(dt)로 고른 사건 ${byDate}개 · 해가 걸쳐 두 정부가 붙은 사건 ${split}개 (0 이어야 한다)`);
+console.log(`  **그 해에 정권이 바뀌어 안 붙인 사건 ${ambig.length}개**` +
+  (ambig.length ? ` — ${ambig.map(e => `${e.lab}(${e.yr})`).join(', ')}. 날짜를 알면 노드에 dt:'YYYY-MM-DD' 를 적어라` : ''));
+if (split) { console.error('한 사건에 두 정부를 붙였다 — 규칙 3 위반이다'); process.exit(1) }
 console.log(`  판례·헌재결정 10,364개에는 **안 붙였다** — 선고연도가 사건 발생과 28.7%에서 2년 이상 벌어진다`);
 
 if (DRY) process.exit(0);

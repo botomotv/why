@@ -52,6 +52,11 @@ node tools/alias.mjs
 # 법 제1조에서 날짜·장소를 가져오므로 collect-purpose 뒤에 있어도 되지만,
 # db/event_easy.json 은 사람이 쓴 것이라 순서에 매이지 않는다.
 node tools/event-easy.mjs
+# 사람들이 아는 이름의 사건. 확정 여부·형량은 법제처 판례 주문에서 직접 읽는다
+node tools/famous.mjs
+# 「그때 정권」 — 사건의 **날짜**(dt) × 재임표로만 만든다 (규칙 3).
+# famous.mjs 뒤에 둔다: 새 사건 노드가 생긴 뒤에 붙여야 빠지지 않는다
+node tools/term-events.mjs
 # ── 「피해자는 어떻게 보상받았나」 ──
 # 법 제1조와 조문 제목을 먼저 받고(피해구제법이 여기서 들어온다), 그다음 보상 조문을 뽑는다.
 # **순서가 곧 의존이다** — relief 는 law_articles 를 읽는다.

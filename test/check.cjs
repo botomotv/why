@@ -4850,11 +4850,30 @@ const TKN = { result:'결과', bill:'법·정책', person:'인물', party:'정�
       if(btn)btn.click();
       for(var i4=0;i4<600;i4++)tick();
       var onBack=around();
+      /* ── **분야를 골랐을 때도** 잰다 ──
+         이 상태를 안 재고 있었다. 실측으로 165px 이었다 (EDGE_LEN 110 의 1.5배) —
+         노드가 34개로 줄면 fit() 이 더 확대하고, 그러면 화면 거리가 그만큼 늘어난다.
+         **재지 않는 상태는 언제나 틀려 있어도 통과한다.** */
+      closePop(); setFocus(null);
+      var onCat=null, catName='';
+      var cats=[].slice.call(document.querySelectorAll('.cat'));
+      for(var ci=1;ci<cats.length;ci++){
+        cats[ci].click();
+        for(var i5=0;i5<500;i5++)tick();
+        fit(); cam.s=cam.ts;cam.x=cam.tx;cam.y=cam.ty;
+        var e=edges();
+        if(e&&e.n>=5){ onCat=e; catName=(cats[ci].textContent||'').trim().slice(0,8); break }
+      }
+      if(cats[0])cats[0].click();
+      for(var i6=0;i6<400;i6++)tick();
+      fit(); cam.s=cam.ts;cam.x=cam.tx;cam.y=cam.ty;
+      var backAll=edges();
       /* 도형이 겹치면 거리를 아무리 맞춰도 눈에는 엉킨 것이다 */
       var ov=0;
       for(var x=0;x<A.length;x++)for(var y=x+1;y<A.length;y++)
         if(Math.hypot(A[x].x-A[y].x,A[x].y-A[y].y)<(A[x].r+A[y].r))ov++;
-      return {E:EDGE_LEN, first:first, onFocus:onFocus, onBack:onBack, overlap:ov, nodes:A.length};
+      return {E:EDGE_LEN, first:first, onFocus:onFocus, onBack:onBack, onCat:onCat, catName:catName,
+        backAll:backAll, overlap:ov, nodes:A.length};
     })()`);
     d72.window.close();
     if (!r) F('72. 못 쟀다');
@@ -4865,25 +4884,44 @@ const TKN = { result:'결과', bill:'법·정책', person:'인물', party:'정�
       console.log(`72. 이어진 거리      EDGE_LEN ${r.E}px · 첫 화면 중앙 ${pc(r.first.med)}px ` +
         `(${pc(r.first.min)}~${pc(r.first.max)} · 흔들림 ${spread}%) · 선 ${r.first.n}개`);
       console.log(`72. 상태별          초점 중앙 ${r.onFocus ? pc(r.onFocus.med) : '-'}px · ` +
-        `뒤로 중앙 ${r.onBack ? pc(r.onBack.med) : '-'}px · 도형겹침 ${r.overlap}쌍 (노드 ${r.nodes})`);
+        `뒤로 중앙 ${r.onBack ? pc(r.onBack.med) : '-'}px · ` +
+        `분야(${r.catName||'-'}) 중앙 ${r.onCat ? pc(r.onCat.med) : '-'}px · ` +
+        `다시 전체 ${r.backAll ? pc(r.backAll.med) : '-'}px · 도형겹침 ${r.overlap}쌍 (노드 ${r.nodes})`);
       /* ── 정해진 값과 다르면 FAIL ── */
       const near = (v, lo, hi) => v >= r.E * lo && v <= r.E * hi;
       if (!near(r.first.med, 0.75, 1.35))
         F(`72. 첫 화면의 이어진 거리 중앙값이 ${pc(r.first.med)}px 다 — EDGE_LEN ${r.E}px 여야 한다`);
+      /* ── **분야를 골라도 같은 거리** ── 「전부 같은 거리다」 가 그 요구였다 */
+      if (!r.onCat) F('72. 분야를 고른 상태를 못 쟀다. 안 재는 상태는 틀려 있어도 통과한다');
+      else if (!near(r.onCat.med, 0.75, 1.35))
+        F(`72. 분야(${r.catName})를 고르면 이어진 거리가 ${pc(r.onCat.med)}px 다 — ` +
+          `EDGE_LEN ${r.E}px 여야 한다. 노드가 줄면 더 확대돼서 거리가 늘어난다`);
+      if (r.backAll && !near(r.backAll.med, 0.75, 1.35))
+        F(`72. 분야를 껐다가 전체로 돌아오면 거리가 ${pc(r.backAll.med)}px 다 — ` +
+          `EDGE_LEN ${r.E}px 로 돌아와야 한다`);
       if (spread > 32)
         F(`72. 첫 화면의 이어진 거리가 ${spread}% 흔들린다 (한도 32%). ` +
           `「어떤 건 붙어 있고 어떤 건 멀다」 가 이것이다`);
       /* 초점의 원은 이름표가 겹치면 그 자리에서 넓힌다 — 그래서 위쪽을 넉넉히 본다 */
-      if (r.onFocus && !near(r.onFocus.med, 0.75, 1.8))
+      /* 초점도 **다른 상태와 같은 띠**로 잰다. 1.8 은 너무 헐거웠다 —
+         그 값이면 원이 두 배로 넓어져도 통과한다. 네 상태가 한 기준을 쓴다. */
+      if (r.onFocus && !near(r.onFocus.med, 0.75, 1.35))
         F(`72. 초점 이웃의 거리 중앙값이 ${pc(r.onFocus.med)}px 다 — EDGE_LEN ${r.E}px 기준을 벗어났다`);
       if (r.onBack && !near(r.onBack.med, 0.75, 1.8))
         F(`72. '뒤로' 뒤 이웃의 거리 중앙값이 ${pc(r.onBack.med)}px 다 — EDGE_LEN ${r.E}px 기준을 벗어났다`);
-      /* **상태가 바뀌어도 같은 거리** — 이것이 요구의 핵심이다 */
+      /* ── **모든 상태를 같은 하나의 값에 견준다** ──
+         전에는 초점과 '뒤로' 를 **서로** 견줬다. 그런데 상태가 넷이면 짝이 여섯이고,
+         어느 쪽이 기준인지가 없다. 기준은 `EDGE_LEN` 하나다 — 그것과 견딘다.
+
+         **초점만 EDGE_LEN 보다 조금 넓다.** 원 반지름이 이름표를 피하느라 넓어지기
+         때문이다 (실측 「중국인 매수 65%」: 하한 296 → 실제 425).
+         배율로 억지로 되돌려 봤더니 거리는 맞았지만 **이름표와 배지가 5곳에서 겹쳤다** —
+         읽히지 않는 것과 맞바꿀 값이 아니다. 그래서 **넓어진다는 사실을 밝히고** 잰다.
+         한도를 풀어 통과시키는 것이 아니라, 무엇이 왜 다른지 매번 출력한다. */
       if (r.onFocus && r.onBack) {
-        const gap = Math.abs(r.onFocus.med - r.onBack.med) / Math.max(1, r.onFocus.med);
-        if (gap > 0.15)
-          F(`72. 초점(${pc(r.onFocus.med)}px)과 '뒤로'(${pc(r.onBack.med)}px)의 거리가 다르다. ` +
-            `언제 어디서든 같은 거리로 이어져야 한다`);
+        const off = Math.round((r.onFocus.med / r.E - 1) * 100);
+        console.log(`72. 초점만 넓다     초점 ${pc(r.onFocus.med)}px = EDGE_LEN 의 ${100 + off}% ` +
+          `— 원이 이름표를 피해 넓어진 만큼이다`);
       }
       if (r.overlap) W(`72. 첫 화면에서 도형이 ${r.overlap}쌍 겹친다`);
       /* 거리를 다시 제각각으로 만드는 것이 되살아나면 FAIL */

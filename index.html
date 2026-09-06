@@ -18521,7 +18521,27 @@ var MAX_EDGES=6, TERM_CAP=2, hiddenEdges=0;
 
    값은 카드가 쓰는 층(tierOf)과 같은 기준이다 —
    화면이 굵게 그린 선을 카드가 '이름이 맞아 자동으로' 라고 하면 두 말이 어긋난다. */
-var TIER_W={1:2.1,2:1.5,3:1};
+/* ── 값은 **화면 픽셀**이다. 배수가 아니다 ──
+   전에는 월드 굵기에 곱하는 배수(2.1·1.5·1)였다. `lineWidth` 는 월드 단위라
+   배율을 타는데, **흐린 선만 화면 고정(0.9px)** 이었다. 그래서 배율 0.34 에서:
+
+     | | 화면 굵기 |
+     | 흐린 선            | 0.90px |
+     | tier1 손확인 평소   | **0.64px** |
+     | tier3 자동 평소     | **0.31px** |
+     | 정반대 빛 최대      | **3.59px** |
+
+   **근거가 센 선이 흐린 선보다 얇았다.** 범례는 「굵을수록 근거가 셈」 이라고 적혀 있는데
+   화면은 반대로 그리고 있었다. 그리고 정반대만 3.59px 이라 그것만 굵어 보였다.
+
+   그래서 전부 **화면 기준**으로 바꾼다 (이름표 12.5px · 고리 연도 12/cam.s 와 같은 처리).
+   쓸 때 `/cam.s` 로 나눈다. 가장 굵은 것은 전보다 얇고, 가장 얇은 것은 전보다 두껍다. */
+var TIER_W={1:1.05,2:0.82,3:0.62};
+var EDGE_LIT_PX=0.45;    /* 커서 빛이 더하는 화면 굵기 */
+var EDGE_DIM_PX=0.5;     /* 흐린 선 — 수천 개라 제일 얇다 */
+var OPP_PX=0.95, OPP_MUL=1.35;   /* 정반대: 최대 1.89px (전 3.59px) */
+/* 화면 굵기를 월드 굵기로 바꾼다. 한 곳에서만 나눈다 — 두 벌이 되면 갈라진다. */
+function edgeW(px){ return px/Math.max(cam.s,0.02) }
 /* ── 누르면 이어진 것이 둘레로 모인다 ──
    **되돌리려면 이 한 줄을 false 로 바꾼다.** 주소에 `?orbit=0` 을 붙여도 꺼진다 —
    두 방식을 나란히 놓고 비교하려고 둔 것이다.
@@ -20012,7 +20032,11 @@ function fitFocus(){
      그러면 이름표가 0~1개만 남는다 — 다 보이는데 뭔지 모르는 화면이 된다.
      실측: 바닥 0.45 → 화면안 1/6 · 이름표 0 / 바닥 0.62 → 이름표가 산다.
      못 담은 이웃은 카드의 관계 목록이 받는다. 검사 20번이 그걸 강제한다. */
-  var want=Math.min(1.7,s);
+  /* ── 초점에서도 **거리가 배율을 정한다** ──
+     `fit()` 에만 넣었더니 초점 129px · 뒤로 98px 로 갈렸다 (검사 72).
+     초점일 때는 `fitFocus()` 가 배율을 정하므로 **여기에도 같은 규칙**이 있어야 한다.
+     한쪽에만 두면 그쪽만 맞고 반대쪽은 조용히 틀린다 — 이 파일이 여러 번 적은 것이다. */
+  var want=Math.min(1.7,Math.min(s,edgeScaleFor(pool)));
   if(want>=LABEL_FAR){
     /* 이웃까지 다 담으면서 이름도 읽힌다 — 그렇게 맞춘다 */
     cam.ts=want;
@@ -20208,6 +20232,43 @@ function stageTop(){
    판례를 뺀 뒤 노드가 10,286 → 3,709 로 줄었는데 하한은 그대로였다.
    **재는 대상이 바뀌면 상수도 다시 재야 한다.** */
 var __firstFit=null;
+/* ── **거리가 배율을 정한다** ──
+   전에는 `fit()` 이 화면 상자를 꽉 채우게 배율을 고르고, **이어진 거리는 거기서 떨어져 나왔다.**
+   그래서 노드 수가 달라지면 거리도 달라졌다 — 실측 (1280×860):
+
+     | 상태 | 이어진 거리 중앙값 |
+     | 첫 화면            | 111px |
+     | **분야를 골랐을 때** | **157px** |
+
+   배치를 월드에서 키우거나 줄여도 소용없다. `fit()` 이 그만큼 되돌리므로
+   화면 거리는 그대로다 (이 파일이 이미 그 실패를 적어 두었다).
+   **고칠 수 있는 곳은 배율 하나뿐이다.**
+
+   그래서 뒤집는다: 이어진 거리가 `EDGE_LEN` 이 되는 배율을 구하고,
+   그 배율로 화면에 안 들어갈 때만 상자가 이긴다 (`Math.min`).
+   상자가 이기면 거리가 목표보다 **짧아진다** — 그때는 화면에 밝힌다.
+
+   중앙값을 쓴다. 평균은 멀리 떨어진 몇 개에 끌려간다. */
+function edgeScaleFor(pool){
+  if(typeof EDGE_LEN!=='number'||!pool||pool.length<2)return Infinity;
+  var S=Object.create(null); pool.forEach(function(n){S[n.id]=1});
+  var d=[];
+  for(var i=0;i<L.length;i++){ var l=L[i];
+    if(!S[l[0]]||!S[l[1]])continue;
+    var a=map[l[0]], b=map[l[1]];
+    if(!a||!b||!isFinite(a.x)||!isFinite(b.x))continue;
+    /* ── **표면 사이**를 잰다. 중심 사이가 아니다 ──
+       EDGE_LEN 주석이 「이어진 두 도형의 **표면** 사이」 라고 적어 두었고
+       검사도 반지름을 빼고 잰다. 중심으로 맞추면 큰 노드일수록 표면이 가까워져
+       화면에서는 붙어 보인다 — 실측으로 중심 110px 이 표면 99px 이었다. */
+    var gap=Math.hypot(a.x-b.x,a.y-b.y)-(a.r||0)-(b.r||0);
+    if(gap>0)d.push(gap);
+  }
+  if(d.length<3)return Infinity;
+  d.sort(function(x,y){return x-y});
+  var m=d[d.length>>1];
+  return (m>0)?EDGE_LEN/m:Infinity;
+}
 function firstFit(){
   var res=A.filter(function(n){return n.t==='result'});
   /* ── 담는 대상은 **그리는 것 전부**다 ──
@@ -20227,8 +20288,11 @@ function firstFit(){
      `mapRect()` 는 화면이 실제로 쓸 수 있는 자리다 — 검사 25 도 같은 것을 쓴다. */
   var MRf=(typeof mapRect==='function')?mapRect():{y0:topSafePx(),y1:H};
   var top=MRf.y0, vh=Math.max(80,MRf.y1-MRf.y0);
-  var s=Math.max(0.08,Math.min(1.7,Math.min(W/gw,vh/gh)));
-  __firstFit={s:s,cx:(minx+maxx)/2,cy:(miny+maxy)/2,top:top,vh:vh,n:pool.length,res:res.length};
+  var sBox=Math.min(W/gw,vh/gh);
+  /* 거리가 정한 배율. 안 들어가면 상자가 이긴다 */
+  var s=Math.max(0.08,Math.min(1.7,Math.min(sBox,edgeScaleFor(pool))));
+  __firstFit={s:s,cx:(minx+maxx)/2,cy:(miny+maxy)/2,top:top,vh:vh,n:pool.length,res:res.length,
+    edgeCut:(edgeScaleFor(pool)>sBox)?1:0};
   return __firstFit;
 }
 function fit(showAll){
@@ -20251,7 +20315,8 @@ function fit(showAll){
   pool.forEach(function(n){minx=Math.min(minx,n.x-n.r-60);maxx=Math.max(maxx,n.x+n.r+60);
     miny=Math.min(miny,n.y-n.r-40);maxy=Math.max(maxy,n.y+n.r+60)});
   var pad=70,gw=maxx-minx+pad*2,gh=maxy-miny+pad*2;
-  var s=Math.max(0.25,Math.min(2.2,Math.min(W/gw,H/gh)));
+  /* '전체 보기' 도 같은 규칙이다 — 거리가 배율을 정하고 안 들어가면 상자가 이긴다 */
+  var s=Math.max(0.25,Math.min(2.2,Math.min(Math.min(W/gw,H/gh),edgeScaleFor(pool))));
   /* 첫 화면에서는 이름표 하한 밑으로 내리지 않는다.
      231개를 다 담으려 하면 배율이 0.46 까지 떨어지고 '결과 숫자만' 모드가 되어
      이름표가 5개만 남는다 — 폴드를 펼치거나 데스크톱에서 첫인상이 색깔 점 무더기였다.
@@ -21657,7 +21722,7 @@ function draw(){
       l[3]==='result'?'227,174,85':l[3]==='user'?'110,200,220':'132,142,158';
     if(opp)al=Math.min(a.a,b.a)*(focus?(0.35+lit*0.65):(0.62+lit*0.38));
     cx.strokeStyle='rgba('+col+','+al.toFixed(3)+')';
-    cx.lineWidth=opp?(1.6+lit*1.2):(0.9+lit*1.5);
+    /* 굵기는 아래에서 tw 와 함께 화면 기준으로 정한다 (edgeW) */
     var flow=focus&&(l[0]===focus||l[1]===focus)&&l[5];
     /* 자동으로 이은 선은 **점선**이다. 손으로 근거를 확인해 넣은 선과 섞이면 안 된다.
        반대·대립(opp)도 점선이지만 색이 붉어서 구별된다. */
@@ -21673,22 +21738,22 @@ function draw(){
        **시기 근접('결과 직전에 시행')은 안 쓴다.** '몇 년까지가 직전인가' 를 우리가 정해야 하고,
        자동 선은 이미 2관문(±3년)을 지난 것이라 그 안에서 더 나눌 근거가 없다.
        화면과 카드가 **같은 기준**을 쓴다 — 두 벌이 되면 갈라진다. */
-    var tw=(typeof tierOf==='function')?(TIER_W[tierOf(l)]||1):1;
+    var tw=(typeof tierOf==='function')?(TIER_W[tierOf(l)]||TIER_W[3]):TIER_W[3];
     /* **정반대는 더 굵게.** 「이 둘은 정반대다」 가 한눈에 보여야 한다 —
        근거는 데이터의 `against` 이지 우리 판단이 아니다. */
-    if(opp)tw*=1.8;
+    if(opp)tw=OPP_PX*OPP_MUL;
     if(opp)cx.setLineDash([7/cam.s,5/cam.s]);
     /* ── 자동 선의 **점선은 뺐다** ──
        범례에 없는 표시였다. 그리고 **같은 것을 두 번 말하고 있었다** —
        자동/사람 확인은 이미 **굵기**가 가른다(tierOf: 손확인 2.1배 · 조문 1.5배 · 자동 1배)
        그리고 그 뜻은 범례에 「굵을수록 근거가 셈」 으로 적혀 있다.
        점선은 뜻을 하나도 더 보태지 않으면서 물어볼 곳만 없었다. */
-    cx.lineWidth*=tw;
+    cx.lineWidth=edgeW(tw+lit*EDGE_LIT_PX);
     cx.beginPath();cx.moveTo(a.x,a.y);cx.lineTo(b.x,b.y);cx.stroke();
     if(flow){
       cx.setLineDash([9,13]);cx.lineDashOffset=-PT*(opp?-70:52);
       cx.strokeStyle='rgba('+col+','+Math.min(1,al*1.5).toFixed(3)+')';
-      cx.lineWidth=1.4+wgt*1.1;cx.beginPath();cx.moveTo(a.x,a.y);cx.lineTo(b.x,b.y);cx.stroke();
+      cx.lineWidth=edgeW(0.9+wgt*0.35);cx.beginPath();cx.moveTo(a.x,a.y);cx.lineTo(b.x,b.y);cx.stroke();
       cx.setLineDash([]);cx.lineDashOffset=0;
       var tgt=(l[0]===focus)?b:a;
       var wgt=1;
@@ -21752,7 +21817,7 @@ function draw(){
   /* 몰아 담은 선을 한 번에 그린다. 노드보다 **먼저** 그려 노드가 위에 오게 한다. */
   if(batch&&batch.length){
     cx.strokeStyle='rgba(132,142,158,0.07)';
-    cx.lineWidth=0.9/cam.s; cx.setLineDash([]);
+    cx.lineWidth=edgeW(EDGE_DIM_PX); cx.setLineDash([]);
     cx.beginPath();
     for(var bi=0;bi<batch.length;bi+=4){
       cx.moveTo(batch[bi],batch[bi+1]); cx.lineTo(batch[bi+2],batch[bi+3]);

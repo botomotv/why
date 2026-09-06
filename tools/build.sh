@@ -54,6 +54,10 @@ node tools/alias.mjs
 node tools/event-easy.mjs
 # 사람들이 아는 이름의 사건. 확정 여부·형량은 법제처 판례 주문에서 직접 읽는다
 node tools/famous.mjs
+# 사건 후보 목록(db/event_candidates.json) → 지도. 「이게 뭔지」 한 줄도 여기서 나온다
+node tools/events.mjs
+# 손으로 넣은 사건에 「이게 뭔지」 한 줄 — events.mjs 뒤에 둔다(새 노드가 생긴 뒤에 훑어야 한다)
+node tools/event-what.mjs
 # 「그때 정권」 — 사건의 **날짜**(dt) × 재임표로만 만든다 (규칙 3).
 # famous.mjs 뒤에 둔다: 새 사건 노드가 생긴 뒤에 붙여야 빠지지 않는다
 node tools/term-events.mjs

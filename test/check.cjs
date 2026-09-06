@@ -263,12 +263,26 @@ const TKN = { result:'결과', bill:'법·정책', person:'인물', party:'정�
      경우이고, 실제로 「주택임대차보호법」이 법제사법위원회 소관이라 land 와 안 겹쳐
      자가점유율이 통째로 0건이었다. 그런 것은 그대로 FAIL 로 잡는다. */
   const emptyKeys = n => n.t === 'result' && (!n.keys || !n.keys.length);
-  const iso = isoAll.filter(n => !emptyKeys(n));
+  /* ── **사건이 아무 데도 안 이어진 것 자체가 사실이다** ──
+     사건 목록에서 온 노드(`chain:1`)는 셋 다 없을 수 있다 —
+     관련 법이 지도에 없고, 판례 사건번호를 아직 못 찾았고,
+     그 해에 정권이 바뀌어 「그때 정권」도 못 붙인 경우다.
+
+     그때 억지로 이으면 **우리가 만든 연결**이 된다 (「글자가 같은 것과 주제가 같은 것은 다르다」).
+     빼면 「이 사건 뒤에 아무 법도 안 만들어졌다」 는 사실이 사라진다.
+     그래서 **FAIL 로 잡지 않되 몇 개인지 매번 출력한다** — 말없이 두지 않는다.
+     카드의 사슬이 칸마다 왜 비었는지 적는다. */
+  const lonelyEv = n => n.chain && n.t === 'event';
+  const iso = isoAll.filter(n => !emptyKeys(n) && !lonelyEv(n));
   const isoOk = isoAll.filter(emptyKeys);
+  const isoEv = isoAll.filter(lonelyEv);
   iso.forEach(n => F(`고립 노드: ${n.id} (${n.lab})`));
   if (isoOk.length)
     console.log(`   [핵심어를 비워 자동 연결이 없는 결과 ${isoOk.length}개 — 이유는 db/picked_index.json 에 있다]\n` +
       `     ${isoOk.map(n => n.lab).join(' · ')}`);
+  if (isoEv.length)
+    console.log(`   [아무 데도 안 이어진 사건 ${isoEv.length}개 — 관련 법이 지도에 없고 판례도 못 찾았다.\n` +
+      `     「이 사건 뒤에 아무 법도 안 만들어졌다」 도 사실이라 지우지 않는다. 카드가 칸마다 이유를 적는다]`);
   const isoGhost = N.filter(n => deg[n.id] === 0 && (n.owner || n.ghost));
   console.log(`2. 고립 노드        ${iso.length === 0 ? 'PASS' : 'FAIL (' + iso.length + ')'}   [owner/ghost로 붙는 노드 ${isoGhost.length}개는 제외]`);
 
@@ -4929,6 +4943,43 @@ const TKN = { result:'결과', bill:'법·정책', person:'인물', party:'정�
         F("72. 초점에서 tier 별로 거리를 다르게 준다. 거리는 하나여야 한다 — 근거의 세기는 굵기가 말한다");
       if (/var ORBIT_ZIG=0\./.test(html))
         F('72. 지그재그가 되살아났다. 같은 초점의 이웃인데 거리가 두 가지가 된다');
+    }
+  }
+
+  /* ── 74. **사건 카드 맨 위에 「이게 뭔지」 한 줄이 있나** ──
+     전에는 「1995년 6월 29일 서울 서초구의 백화점 건물이 무너졌습니다」 로 시작했다.
+     날짜와 장소가 먼저 나오고 무슨 일인지는 그다음이었다 —
+     사람들이 먼저 알고 싶은 것은 「이게 무슨 사건인가」 다.
+     법 카드가 제1조(무슨 법인지)를 맨 위에 두는 것과 같은 자리를 사건에도 만든다.
+
+     **한 개라도 빠지면 FAIL.** 「대부분 있다」 는 없는 것과 구별되지 않는다. */
+  {
+    const r = w0.eval(`(function(){
+      var ev=N.filter(function(n){return n.t==='event'&&!n.auto&&!n.ghost&&!n.owner&&
+        (typeof nodeKind!=='function'||nodeKind(n)==='event')});
+      var no=ev.filter(function(n){return !(n.w&&String(n.w).trim().length>4)});
+      /* 날짜로 시작하면 「이게 뭔지」 가 아니다 — 그건 언제인지다 */
+      var dateFirst=ev.filter(function(n){return n.w&&/^\\s*[0-9]{4}년/.test(String(n.w))});
+      /* 카드가 실제로 그리는지 본다. 데이터에만 있고 안 그리면 없는 것과 같다 */
+      var drew=false;
+      try{ var one=ev.filter(function(n){return n.w})[0];
+        if(one){ setFocus(one.id);
+          var t=(document.getElementById('pop')||document.body).textContent||'';
+          drew=t.indexOf(String(one.w).slice(0,12))>=0 } }catch(e){}
+      return {ev:ev.length, no:no.length, dateFirst:dateFirst.length, drew:drew,
+        보기:no.slice(0,5).map(function(n){return n.lab||n.id})};
+    })()`);
+    if (!r) F('74. 못 쟀다');
+    else {
+      console.log(`74. 이게 뭔지      사건 ${r.ev}개 · 한 줄이 있는 것 ${r.ev - r.no}개 · ` +
+        `없는 것 ${r.no}개 · 날짜로 시작하는 것 ${r.dateFirst}개 · 카드가 그린다 ${r.drew ? '○' : '✗'}`);
+      if (!r.ev) F('74. 사건 노드를 하나도 못 찾았다. 0 은 「문제 없음」 이 아니라 「안 보고 있음」 이다');
+      if (r.no)
+        F(`74. 사건 ${r.no}개에 「이게 뭔지」 한 줄이 없다 (${r.보기.join(', ')}${r.no > 5 ? ' 외' : ''}). ` +
+          `사건이 뭔지 모르면 그 뒤를 볼 이유가 없다`);
+      if (r.dateFirst)
+        F(`74. 「이게 뭔지」 가 날짜로 시작하는 사건이 ${r.dateFirst}개다. 그건 언제인지지 무엇인지가 아니다`);
+      if (!r.drew) F('74. 카드가 「이게 뭔지」 를 안 그린다. 데이터에만 있으면 없는 것과 같다');
     }
   }
 

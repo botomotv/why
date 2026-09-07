@@ -42,8 +42,8 @@ const mapLaw = new Set();
 for (const m of html.matchAll(/t:'bill'[^\n]*?title:'([^']*)'/g)) mapLaw.add(norm(m[1]));
 for (const m of html.matchAll(/title:'([^']*)'[^\n]*?t:'bill'/g)) mapLaw.add(norm(m[1]));
 
-const splitLaws = s => String(s || '').split(/\s*·\s*(?=[가-힣])/)
-  .map(x => x.trim()).filter(x => x.length > 2);
+/* 가운뎃점은 법 이름 안에도 있다 — ` · `(앞뒤 공백)로만 나눈다 */
+const splitLaws = s => String(s || '').split(/\s+·\s+/).map(x => x.trim()).filter(x => x.length > 2);
 
 let inWh = 0, inMap = 0, noLaw = 0;
 for (const e of E) {

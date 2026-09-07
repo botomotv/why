@@ -36,6 +36,12 @@ const slug = s => String(s).replace(/[^0-9A-Za-z가-힣]/g, '').slice(0, 24);
 
 const all = JSON.parse(fs.readFileSync(SRC, 'utf8'));
 const E = all.filter(e => !/이미 있음/.test(e.비고 || '')).slice(0, LIMIT);
+/* ── 지도에 **이미 있는 사건도 법에는 이어야 한다** ──
+   노드를 두 번 만들지 않으려고 건너뛰었더니, 그 사건의 관련 법만 올라가고
+   **아무 데도 안 이어진 법 11개**가 생겼다 (시설물안전법·계엄법·5·18보상법…).
+   삼풍·성수대교는 지도에 있는데 그 법으로 가는 길이 없었던 것이다.
+   노드는 안 만들고 **선만** 기존 노드에서 낸다. */
+const already = all.filter(e => /이미 있음/.test(e.비고 || ''));
 
 /* 지도의 법 노드 — **자기 블록은 빼고 본다** (도구가 자기 출력을 읽으면 두 번째부터 틀린다) */
 const raw = fs.readFileSync(HTML, 'utf8');
@@ -43,6 +49,11 @@ const cut = (t) => { const a = raw.indexOf(`/*AUTO-${t}-START*/`), b = raw.index
 let scan = raw;
 for (const t of ['EV230-N', 'EV230-L', 'EV230-PEN']) { const c = cut(t); if (c) scan = scan.slice(0, c[0]) + scan.slice(c[1]) }
 
+/* 지도에 이미 있는 사건 노드를 이름으로 찾는다 */
+const evByName = new Map();
+for (const m of scan.matchAll(/\{id:'([^']+)',t:'event'[^\n]*?(?:lab|title):'([^']*)'/g)) {
+  const k = norm(m[2]); if (!evByName.has(k)) evByName.set(k, m[1]);
+}
 const lawByName = new Map();
 for (const m of scan.matchAll(/\{id:'([^']+)'[^\n]*?t:'bill'[^\n]*?title:'([^']*)'/g)) lawByName.set(norm(m[2]), m[1]);
 for (const m of scan.matchAll(/\{id:'([^']+)'[^\n]*?title:'([^']*)'[^\n]*?t:'bill'/g)) lawByName.set(norm(m[2]), m[1]);
@@ -50,20 +61,26 @@ for (const m of scan.matchAll(/\{id:'([^']+)'[^\n]*?title:'([^']*)'[^\n]*?t:'bil
 /* 목록의 분류를 지도의 분야로 옮긴다. 없는 것은 안 붙인다 — 「모른다」 를 「같은 분야」 로 만들지 않는다. */
 const CAT = { 참사:'safe', 산업재해:'safe', 재해:'safe', 의료:'med', 북한:'sec', 간첩:'spy', 안보:'sec' };
 
+/* **짧게 쓴다.** 길면 변명처럼 읽힌다 — 없다는 사실과 그 이유만 한 줄로. */
 const PEN_TEXT = {
-  'need-no': '형량은 아직 확인하지 못했습니다 — 이 사건의 판례 사건번호를 아직 찾지 못했습니다. 판례의 사건명은 죄명이라 사건 이름으로는 찾을 수 없습니다',
-  ongoing: '확정 전 — 재판이 아직 진행 중입니다. 확정된 판결만 씁니다',
-  nolow: '이 사건의 판결문은 공개돼 있지 않습니다 — 법제처가 공개하는 판례는 선별된 것이고, 이 사건은 거기에 없습니다',
-  none: '형사 재판이 없는 일입니다 — 처벌을 적을 수 없습니다',
+  'need-no': '형량을 아직 확인하지 못했습니다',
+  ongoing: '재판이 진행 중입니다',
+  nolow: '이 사건의 판결문은 공개돼 있지 않습니다',
+  none: '형사 재판이 없었습니다',
   confirmed: '확정'
 };
 
 const nodes = [], links = [], pens = {};
-let linked = 0, onlyEv = 0, byPen = {};
+let linked = 0, onlyEv = 0, byPen = {}, srcOk = 0;
 for (const e of E) {
   const id = 'ev230_' + slug(e.이름);
   byPen[e.판례] = (byPen[e.판례] || 0) + 1;
-  const laws = String(e.관련법 || '').split(/\s*·\s*(?=[가-힣])/).map(x => x.trim()).filter(x => x.length > 2);
+  /* ── 가운뎃점은 **법 이름 안에도** 있다 ──
+     ` · ` (앞뒤 공백)로만 나눈다. 그냥 `·` 로 나누면
+     「진실·화해를 위한 과거사정리 기본법」 이 「화해를 위한…」 으로,
+     「아동·청소년의 성보호에 관한 법률」 이 「청소년의…」 로 잘린다.
+     그 이름으로는 법제처에도 지도에도 없다 — **조용히 안 이어진다.** */
+  const laws = String(e.관련법 || '').split(/\s+·\s+/).map(x => x.trim()).filter(x => x.length > 2);
   const hit = laws.map(l => [l, lawByName.get(norm(l))]).filter(x => x[1]);
   if (hit.length) linked++; else onlyEv++;
 
@@ -71,20 +88,31 @@ for (const e of E) {
      카드 맨 위에 노란 글씨로 온다. 날짜·장소는 그 아래 줄로 내린다.
      값은 새로 만들지 않는다 — 이미 적어 둔 한 줄에서 날짜·장소만 뗀 것이다. */
   const alias = Array.isArray(e.별명) ? e.별명.filter(Boolean) : [];
+  /* ── 근거 링크 ──
+     **국회가 이 사건을 법 이름에 넣어 법을 만들었으면**, 그 법의 원문이 곧
+     이 사건의 공식 기록이다 — 「4·16세월호참사 피해구제…특별법」·「제주4·3사건…특별법」.
+     그럴듯한 링크(기관 메인·보도자료 목록)는 안 쓴다 — 그건 「출처 있는 척」이다.
+     실측: 이렇게 채울 수 있는 사건은 12개뿐이다. 나머지는 비우고 이유를 적는다. */
+  const bare = norm(e.이름).replace(/(참사|사건|사고|사태|피격|폭파|붕괴|화재|침몰|추락|지진|테러|유출)$/, '');
+  const named = hit.find(([nm]) => bare.length >= 3 && norm(nm).includes(bare));
+  const evUrl = named ? 'https://www.law.go.kr/법령/' + encodeURIComponent(named[0]) : '';
+  if (evUrl) srcOk++;
   nodes.push('{' + [
     ['id', id], ['t', 'event'], ['side', 'gov'], ['lab', e.이름], ['title', e.이름],
     ['yr', String(e.연도)], ['ekind', e.연도 + '년 · 사건'],
     ['w', e.뭔지 || e.한줄],
     ['tip', e.한줄], ['body', e.한줄],
     ['cat', CAT[e.분류] || ''],
-    ['src', '출처 · 사건 이름과 시기는 공개 자료에서 옮겼습니다. 기사 본문은 싣지 않습니다'],
+    ['url', evUrl],
+    ['src', evUrl
+      ? '출처 · 법제처 국가법령정보 — 국회가 이 사건을 법 이름에 넣어 만든 법의 원문입니다'
+      : '출처 · 사건 이름과 시기는 공개 자료에서 옮겼습니다. 기사 본문은 싣지 않습니다'],
     /* ── **왜 근거 링크가 없는지 적는다** ──
        빈 것 자체는 잘못이 아니다. 말없이 비우면 「아직 안 찾았다」 와
        「찾아봤지만 없다」 가 구별되지 않는다 (검사 60).
        이 사건들은 목록에서 온 것이라 공식 기록 페이지를 **아직 하나씩 찾지 못했다.**
        그럴듯한 링크(기관 메인·보도자료 목록)를 넣으면 「출처 있는 척」이 된다. */
-    ['noUrl', '이 사건의 공식 기록 페이지를 아직 찾지 못했습니다 — 사건 이름과 시기만 공개 자료에서 옮겼고, ' +
-      '그럴듯한 링크를 대신 넣지 않습니다'],
+    ['noUrl', evUrl ? '' : '이 사건의 공식 기록 페이지를 아직 찾지 못했습니다 — 그럴듯한 링크를 대신 넣지 않습니다'],
     ['chain', 1]
   ].filter(([, v]) => v !== '' && v !== undefined)
     .map(([k, v]) => k + ':' + (k === 'chain' ? 1 : q(v))).join(',')
@@ -104,8 +132,28 @@ for (const e of E) {
       '', '']);
 }
 
+/* ── 이미 있는 사건에서도 법으로 선을 낸다 ── */
+let alsoLinked = 0;
+for (const e of already) {
+  /* 목록 이름과 지도 이름이 다른 것이 있다 — 「사드 배치 논란」 대 「사드 배치 결정」.
+     그 짝을 목록에 적어 둔다(`지도이름`). 안 적으면 그 법이 **아무 데도 안 이어진다.** */
+  const eid = evByName.get(norm(e.지도이름 || e.이름)) || evByName.get(norm(e.이름));
+  if (!eid) continue;
+  const laws = String(e.관련법 || '').split(/\s+·\s+/).map(x => x.trim()).filter(x => x.length > 2);
+  const hit = laws.map(l => [l, lawByName.get(norm(l))]).filter(x => x[1]);
+  for (const [name, lid] of hit) {
+    if (lid === eid) continue;
+    links.push([eid, lid, '관련된 법', 'topic',
+      `이 사건과 관련된 법으로 「${name}」 을 적어 두었습니다`,
+      '사람이 사건 목록(db/event_candidates.json)에 적은 값입니다 — 법 이름이나 법제처 제·개정이유에 이 사건이 적혀 있다는 뜻은 아닙니다',
+      '', '']);
+    alsoLinked++;
+  }
+}
+console.log(`  지도에 이미 있던 사건에서 낸 선 ${alsoLinked}개`);
 console.log(`사건 ${E.length}개 (목록 ${all.length} 중 지도에 이미 있는 것 ${all.length - all.filter(x => !/이미 있음/.test(x.비고 || '')).length}개는 뺐다)`);
 console.log(`  법으로 이어진 것 ${linked} · 사건만인 것 ${onlyEv} · 선 ${links.length}개`);
+console.log(`  근거 링크가 붙은 것 ${srcOk} · 없는 것 ${E.length-srcOk} (왜 없는지 카드가 적는다)`);
 console.log(`  처벌 칸: ` + Object.entries(byPen).map(([k, v]) => `${k} ${v}`).join(' · '));
 if (DRY) process.exit(0);
 

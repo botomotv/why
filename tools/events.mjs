@@ -36,6 +36,17 @@ const slug = s => String(s).replace(/[^0-9A-Za-z가-힣]/g, '').slice(0, 24);
 
 const all = JSON.parse(fs.readFileSync(SRC, 'utf8'));
 const E = all.filter(e => !/이미 있음/.test(e.비고 || '')).slice(0, LIMIT);
+/* ── 법제처에 없지만 **확정 사실은 공식 기록으로 아는 것** ──
+   사건번호·법원·확정일·출처만 적는다. **형량은 안 적는다** —
+   주문을 직접 읽은 것만 쓴다. 대법원 보도자료를 기계로 읽었더니
+   「징역 40년」 을 「징역 40개월」 로 잘못 읽었다. 그런 값은 우리가 만든 값이다. */
+const HANDV = (() => {
+  const f = path.join(ROOT, 'db', 'verdict_hand.json');
+  if (!fs.existsSync(f)) return {};
+  const o = {};
+  for (const c of JSON.parse(fs.readFileSync(f, 'utf8')).cases || []) o[c.이름] = c;
+  return o;
+})();
 /* ── 지도에 **이미 있는 사건도 법에는 이어야 한다** ──
    노드를 두 번 만들지 않으려고 건너뛰었더니, 그 사건의 관련 법만 올라가고
    **아무 데도 안 이어진 법 11개**가 생겼다 (시설물안전법·계엄법·5·18보상법…).
@@ -69,17 +80,23 @@ const CAT = {
   범죄: 'viol', 경제: 'econ', 정치: 'demo', 노동: 'labor', 사회: 'civic'
 };
 
-/* **짧게 쓴다.** 길면 변명처럼 읽힌다 — 없다는 사실과 그 이유만 한 줄로. */
+/* ── **「안 한 것」 과 「없는 것」 을 가른다** ──
+   전에는 둘 다 「아직 확인하지 못했습니다」 였다. 그건 우리가 안 한 것도,
+   법제처에 아예 없는 것도 같은 말로 덮는다.
+     need-no  우리가 사건번호를 못 찾았다        → **우리가 안 한 것**
+     nolow    사건번호를 알아도 법제처에 없다     → **없는 것**
+   실측: 윤 일병 사건(2016도8612)은 대법원에서 확정됐는데
+   창고 20만건에도 법제처 검색에도 **0건**이다. 공개 판례는 선별이다. */
 const PEN_TEXT = {
-  'need-no': '형량을 아직 확인하지 못했습니다',
+  'need-no': '형량을 아직 확인하지 못했습니다 — 사건번호를 못 찾았습니다',
   ongoing: '재판이 진행 중입니다',
-  nolow: '이 사건의 판결문은 공개돼 있지 않습니다',
+  nolow: '이 사건의 판결문은 법제처 공개 판례에 없습니다',
   none: '형사 재판이 없었습니다',
   confirmed: '확정'
 };
 
 const nodes = [], links = [], pens = {};
-let linked = 0, onlyEv = 0, byPen = {}, srcOk = 0;
+let linked = 0, onlyEv = 0, byPen = {}, srcOk = 0, handv = 0;
 for (const e of E) {
   const id = 'ev230_' + slug(e.이름);
   byPen[e.판례] = (byPen[e.판례] || 0) + 1;
@@ -109,7 +126,10 @@ for (const e of E) {
     ['id', id], ['t', 'event'], ['side', 'gov'], ['lab', e.이름], ['title', e.이름],
     ['yr', String(e.연도)], ['ekind', e.연도 + '년 · 사건'],
     ['w', e.뭔지 || e.한줄],
-    ['tip', e.한줄], ['body', e.한줄],
+    /* ── `body` 는 **자세한 설명**이 있으면 그것 ──
+       한 줄만 있으면 「이게 뭔지」 와 같은 문장이 두 번 나온다. 자세한 설명이 있으면
+       그것을 본문으로 쓰고, 없으면 한 줄만 쓴다 — **없는 것을 지어내지 않는다.** */
+    ['tip', e.한줄], ['body', e.자세히 || e.한줄],
     ['cat', CAT[e.분류] || ''],
     ['url', evUrl],
     ['src', evUrl
@@ -128,7 +148,13 @@ for (const e of E) {
 
   /* ── **조작으로 밝혀진 것은 반드시 그렇게 쓴다** ──
      간첩 사건과 조작 사건을 같은 말로 적으면 둘이 섞인다. 섞이면 둘 다 못 읽는다. */
-  pens[id] = e.조작
+  const hv = HANDV[e.이름];
+  if (hv) {
+    pens[id] = { n: hv.사건번호, c: hv.법원, u: hv.url,
+      x: `${hv.법원} ${hv.사건번호} 로 ${hv.확정일} 확정됐습니다. ` +
+         `다만 그 판결문이 법제처 공개 판례에 없어 형량은 적지 않습니다` };
+    handv++;
+  } else pens[id] = e.조작
     ? { x: '조작으로 밝혀진 사건입니다 — 재판에서 무죄가 확정됐거나 과거사 조사로 조작이 확인됐습니다. ' +
            (PEN_TEXT[e.판례] || PEN_TEXT['need-no']) }
     : { x: PEN_TEXT[e.판례] || PEN_TEXT['need-no'] };
@@ -161,6 +187,7 @@ for (const e of already) {
 console.log(`  지도에 이미 있던 사건에서 낸 선 ${alsoLinked}개`);
 console.log(`사건 ${E.length}개 (목록 ${all.length} 중 지도에 이미 있는 것 ${all.length - all.filter(x => !/이미 있음/.test(x.비고 || '')).length}개는 뺐다)`);
 console.log(`  법으로 이어진 것 ${linked} · 사건만인 것 ${onlyEv} · 선 ${links.length}개`);
+console.log(`  확정 사실을 공식 기록으로 밝힌 것 ${handv}개 (형량은 안 쓴다)`);
 console.log(`  근거 링크가 붙은 것 ${srcOk} · 없는 것 ${E.length-srcOk} (왜 없는지 카드가 적는다)`);
 console.log(`  처벌 칸: ` + Object.entries(byPen).map(([k, v]) => `${k} ${v}`).join(' · '));
 if (DRY) process.exit(0);

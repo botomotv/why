@@ -4946,6 +4946,59 @@ const TKN = { result:'결과', bill:'법·정책', person:'인물', party:'정�
     }
   }
 
+  /* ── 75. **쉬운 말이 원문에 없는 것을 만들지 않았나** (원칙 0-B) ──
+     법 제1조(목적)를 쉬운 말로 옮긴 문장이 카드에 나온다. 그건 **옮긴 것**이어야 하고
+     **지어낸 것**이면 안 된다. 사람이 눈으로 다 볼 수는 없으니 기계가 잡을 수 있는 것을 잡는다:
+
+       · 원문에 없는 **숫자**가 쉬운 말에 나오면 FAIL — 「3년」·「50만원」 같은 것
+       · 쉬운 말이 원문보다 **길면** FAIL — 옮긴 것이 원문보다 길 수는 없다
+
+     못 잡는 것도 있다. 숫자가 아닌 사실을 지어내면 이 검사는 못 잡는다 —
+     그래서 쉬운 말은 **사람이 쓴 것(db/law_easy.json)만** 쓰고, 도구가 그 자리에서
+     만들어 넣지 않는다. 검사는 그 약속이 깨졌는지 보는 것이지 약속을 대신하지 않는다. */
+  {
+    const r = w0.eval(`(function(){
+      var ls=N.filter(function(n){return n.t==='bill'});
+      var withEz=ls.filter(function(n){return n.lawEz});
+      var withP=ls.filter(function(n){return n.lawTip});
+      var bad=[], longer=[];
+      withEz.forEach(function(n){
+        /* ── **어느 원문에서 옮긴 것인지** 를 알고 대조한다 ──
+           처음엔 제1조하고만 대조해서 「기초연금법 : 65」 같은 멀쩡한 값을 지어낸 것으로 잡았다.
+           쉬운 말은 제·개정이유에서 옮긴 것이라 그 원문도 함께 봐야 한다.
+           **검사가 다른 것을 재면 없는 문제를 만든다.** */
+        /* **공백만 남으면 「있다」 로 읽힌다.** lawTip 이 없으면 이 값이 공백 한 칸이 되는데
+           if(!src) 는 그걸 통과시킨다 — 그래서 78자 쉬운 말이 1자보다 길다고 FAIL 했다.
+           빈 것을 판정하기 전에 **다듬는다.**
+           (주석에 백틱을 쓰면 이 템플릿 리터럴이 끊긴다 — 이 파일에서 다섯 번째다) */
+        var src=(String(n.lawTip||'')+' '+String(n.lawSrc2||'')).trim();
+        if(!src)return;
+        var nums=String(n.lawEz).match(/[0-9]+/g)||[];
+        for(var i=0;i<nums.length;i++) if(src.indexOf(nums[i])<0){ bad.push((n.title||n.lab)+' : '+nums[i]); break }
+        if(String(n.lawEz).length>src.length*1.2) longer.push(n.title||n.lab);
+      });
+      /* 카드가 실제로 그리나 — 데이터에만 있으면 없는 것과 같다 */
+      var drew=false;
+      try{ var one=withEz[0]; if(one){ setFocus(one.id);
+        var t=(document.getElementById('pop')||document.body).textContent||'';
+        drew=t.indexOf('쉽게 옮긴 말')>=0 } }catch(e){}
+      return {법:ls.length, 원문:withP.length, 쉬운말:withEz.length,
+        bad:bad.slice(0,5), badN:bad.length, longer:longer.slice(0,3), longerN:longer.length, drew:drew};
+    })()`);
+    if (!r) F('75. 못 쟀다');
+    else {
+      console.log(`75. 법 설명       법 ${r.법}개 · 제1조 원문 ${r.원문}개 · 쉬운 말 ${r.쉬운말}개 · ` +
+        `카드가 그린다 ${r.drew ? '○' : '✗'}`);
+      if (!r.원문) F('75. 제1조 원문이 붙은 법이 하나도 없다. 0 은 「문제 없음」 이 아니라 「안 보고 있음」 이다');
+      if (r.badN)
+        F(`75. 쉬운 말에 원문에 없는 숫자가 있다 ${r.badN}개: ${r.bad.join(' / ')}. ` +
+          `옮긴 것이어야지 지어낸 것이면 안 된다 (원칙 0-B)`);
+      if (r.longerN)
+        F(`75. 쉬운 말이 원문보다 길다 ${r.longerN}개: ${r.longer.join(' / ')}. 옮긴 것이 원문보다 길 수는 없다`);
+      if (r.쉬운말 && !r.drew) F('75. 카드가 쉬운 말을 안 그린다. 데이터에만 있으면 없는 것과 같다');
+    }
+  }
+
   /* ── 74. **사건 카드 맨 위에 「이게 뭔지」 한 줄이 있나** ──
      전에는 「1995년 6월 29일 서울 서초구의 백화점 건물이 무너졌습니다」 로 시작했다.
      날짜와 장소가 먼저 나오고 무슨 일인지는 그다음이었다 —

@@ -7,7 +7,8 @@
     "test": "node test/check.cjs && node test/warehouse.cjs",
     "count": "node tools/count.mjs",
     "collect": "node tools/collect.mjs",
-    "map": "node tools/map.mjs"
+    "map": "node tools/map.mjs",
+    "check:fast": "node test/fast.cjs"
   },
   "devDependencies": {
     "jsdom": "^26.1.0"

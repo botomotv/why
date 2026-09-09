@@ -32,7 +32,7 @@
 <style>
 :root{--bg:#0E0F12;--bg2:#16181D;--line:#23262C;--line2:#2E323A;
 --t1:#E8EAEE;--t2:#9CA3AE;--t3:#666C77;
---blue:#5B9BE5;--red:#E2635A;--gov:#8A929E;--gold:#E3AE55;--k-result:#E3AE55;--k-law:#9BD35A;--k-event:#F06BC0;--k-prec:#3FA9A6;--k-detc:#79E0DC;--k-person:#D9DEE6;--k-org:#8A929E;}
+--blue:#5B9BE5;--red:#E2635A;--gov:#8A929E;--gold:#E3AE55;--k-result:#FFB43D;--k-law:#AEB6C2;--k-event:#FF4FA3;--k-prec:#35C6C0;--k-detc:#7BE0FF;--k-person:#5B9BE5;--k-org:#8A929E;}
 *{box-sizing:border-box;margin:0;padding:0}
 html,body{height:100%;overflow:hidden;touch-action:manipulation}
 body{background:var(--bg);color:var(--t1);font-family:'Noto Sans KR',-apple-system,sans-serif;line-height:1.6;font-size:15.5px;-webkit-text-size-adjust:100%;overscroll-behavior:none}
@@ -2972,12 +2972,21 @@ var C={blue:'#5B9BE5',red:'#E2635A',gov:'#8A929E',gold:'#E3AE55',other:'#8B7BD8'
    둘은 이미 **모양**으로 갈린다(납작 사각 vs 오른쪽이 뾰족한 깃발).
    따로 주황을 줬더니 픽셀 거리가 국민의힘 빨강과 **44**, 금색과 **51** 이었다 —
    가장 가까운 두 짝이 전부 정책이었다. 색은 갈라야 할 것에만 쓴다. */
-var KC={result:'#E3AE55', law:'#9BD35A', policy:'#9BD35A', event:'#F06BC0',
-        prec:'#3FA9A6', detc:'#79E0DC', person:'#D9DEE6', org:'#8A929E', rec:'#C08A5E'};
+/* ── **눈에 띄어야 하는 것과 아닌 것** ──
+   사람들은 법을 보러 오는 게 아니다. 사건과 결과 숫자를 보러 온다.
+     사건 · 결과   → 반짝이는 따뜻한 색 (가장 먼저 보인다)
+     판례 · 헌재   → 중간 (청록 계열)
+     법 · 정책     → **밝은 회색** (있다는 것만 보이면 된다)
+     사람 · 정당   → 진영 색 그대로
+   앞서 법을 연두로 줬더니 법 510개가 화면에서 제일 먼저 보였다 — 순서가 거꾸로였다. */
+var KC={result:'#FFB43D', law:'#AEB6C2', policy:'#AEB6C2', event:'#FF4FA3',
+        prec:'#35C6C0', detc:'#7BE0FF', person:'#5B9BE5', org:'#8A929E', rec:'#C08A5E'};
 function nodeCol(n){
   var k=(typeof nodeKind==='function')?nodeKind(n):null;
-  /* 정당은 진영이 곧 정체성이다 — 그 색을 그대로 쓴다 */
-  if(k==='party')return C[n.side]||C.gov;
+  /* ── 정당과 **사람**은 진영 색을 그대로 쓴다 ──
+     사람을 밝은 회색으로 뒀더니 법(회색)과 픽셀 거리 **69** 로 붙었다.
+     그리고 사람은 진영이 붙는 몇 안 되는 종류다 — 그 색이 뜻을 가진다. */
+  if(k==='party'||k==='person')return C[n.side]||C.gov;
   if(k&&KC[k])return KC[k];
   if(n.id&&n.id.lastIndexOf('case_prec_',0)===0)return C.prec;
   if(n.t==='bill')return KC.law;
@@ -20014,10 +20023,15 @@ var MAX_EDGES=6, TERM_CAP=2, hiddenEdges=0;
 
    그래서 전부 **화면 기준**으로 바꾼다 (이름표 12.5px · 고리 연도 12/cam.s 와 같은 처리).
    쓸 때 `/cam.s` 로 나눈다. 가장 굵은 것은 전보다 얇고, 가장 얇은 것은 전보다 두껍다. */
-var TIER_W={1:1.05,2:0.82,3:0.62};
-var EDGE_LIT_PX=0.45;    /* 커서 빛이 더하는 화면 굵기 */
-var EDGE_DIM_PX=0.5;     /* 흐린 선 — 수천 개라 제일 얇다 */
-var OPP_PX=0.95, OPP_MUL=1.35;   /* 정반대: 최대 1.89px (전 3.59px) */
+/* ── **이어진 게 있는지 보여야 한다** ──
+   얇게 만든 뒤로 「이어진 게 있는지 모르겠다」 는 말을 들었다.
+   가장 얇은 것(자동 0.62px)이 어두운 배경에서 거의 안 보였다.
+   **순서는 그대로 두고 전체를 올린다** — 「굵을수록 근거가 셈」 은 유지된다.
+     흐림 0.50 → 0.85 · 자동 0.62 → 1.05 · 조문 0.82 → 1.35 · 손확인 1.05 → 1.75 */
+var TIER_W={1:1.75,2:1.35,3:1.05};
+var EDGE_LIT_PX=0.6;     /* 커서 빛이 더하는 화면 굵기 */
+var EDGE_DIM_PX=0.85;    /* 흐린 선 — 수천 개라 제일 얇지만 보여야 한다 */
+var OPP_PX=1.15, OPP_MUL=1.35;   /* 정반대 */
 /* 화면 굵기를 월드 굵기로 바꾼다. 한 곳에서만 나눈다 — 두 벌이 되면 갈라진다. */
 function edgeW(px){ return px/Math.max(cam.s,0.02) }
 /* ── 누르면 이어진 것이 둘레로 모인다 ──
@@ -23241,7 +23255,10 @@ function draw(){
   /* **지도에 올린 것만 그린다.** 전에는 L·N 전체를 돌았다 — 카드에만 있어야 할
      잎사귀 8,959개가 화면에 회색 고리를 만들었다. AL·A 는 planMap 이 고른 것이다. */
   AL.forEach(function(l){var a=map[l[0]],b=map[l[1]],lit=Math.max(a.gl,b.gl);
-    var al=Math.min(a.a,b.a)*(focus?(0.10+lit*0.85):(0.16+lit*0.72));
+    /* ── 진하기도 올린다 ──
+       굵기만 올려도 0.16 알파면 어두운 배경에서 거의 안 보인다.
+       평소 0.16 → 0.34, 초점 밖 0.10 → 0.20. 「이어진 게 있는지 모르겠다」 가 그것이었다. */
+    var al=Math.min(a.a,b.a)*(focus?(0.20+lit*0.78):(0.34+lit*0.60));
     if(al<0.02)return;
     /* ── 흐린 선은 **한 번에 몰아 그린다** ──
        이름표 없는 노드끼리 잇는 선은 색도 굵기도 사실상 같다. 그런데 선마다
@@ -23470,9 +23487,19 @@ function draw(){
        11,094개에서 그리기가 23.4ms 가 된다 (실측). 그 장식은
        **가까이서 하나를 볼 때 뜻이 있는 것**이지 멀리서 만 개를 볼 때는 안 보인다.
        원 하나면 '있다' 는 것은 그대로 보이고, 종류는 색으로 남는다. */
+    /* ── **한 종류 = 한 모양.** 이름표가 없다고 원으로 바꾸지 않는다 ──
+       전에는 여기서 `arc` 로 **원 하나만** 그렸다. 장식(후광·테두리)을 아끼려는 것이었는데,
+       그 바람에 **같은 사건이 원으로도 마름모로도** 그려졌다 —
+       이름표가 붙으면 마름모, 안 붙으면 원, 누르면 다시 마름모.
+       「클릭하면 동그라미가 다이아몬드로 바뀐다」 가 이것이었다.
+
+       모양은 **그 노드가 무엇인지**를 말한다. 이름표가 붙었는지는 화면 사정이지 그 노드의 성질이 아니다.
+       그래서 **모양은 그대로 그리고 장식만 뺀다** — 아끼려던 것은 장식이었지 모양이 아니었다.
+       (실측 주석: 비싼 것은 후광·테두리였고 537개에서 그리기 0.9ms 다.) */
     if(DRAWMODE&&noLabel(n)&&!n.pulse){
       cx.globalAlpha=Math.max(0,Math.min(1,n.a))*0.75;
-      cx.fillStyle=nodeCol(n);cx.beginPath();cx.arc(n.x,n.y,n.r,0,7);cx.fill();
+      cx.fillStyle=nodeCol(n);
+      shapePath(n,0); cx.fill();
       cx.globalAlpha=1;return;
     }
     var col=nodeCol(n);cx.globalAlpha=Math.max(0,Math.min(1,n.a));

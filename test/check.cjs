@@ -5031,6 +5031,99 @@ const TKN = { result:'결과', bill:'법·정책', person:'인물', party:'정�
     }
   }
 
+  /* ── 77. **한 종류 = 한 색 = 한 모양** ──
+     같은 사건이 **원으로도 마름모로도** 그려지고 있었다 —
+     이름표가 붙으면 제 모양, 안 붙으면 원(성능용 지름길), 누르면 다시 제 모양.
+     주인이 본 「클릭하면 동그라미가 다이아몬드로 바뀐다」 가 이것이다.
+
+     모양은 **그 노드가 무엇인지**를 말한다. 이름표가 붙었는지·초점인지는 화면 사정이지
+     그 노드의 성질이 아니다. 그래서 **같은 노드를 두 상태로 그려 경로를 비교**한다.
+     경로만 세면 「채운 원」 과 「빈 원」 이 같아지므로 fill·stroke 까지 받아 적는다. */
+  {
+    const r = w0.eval(`(function(){
+      var KINDS=['result','law','policy','event','prec','detc','person','party','org','rec'];
+      var pick={}; N.forEach(function(n){ var k=nodeKind(n); if(!pick[k])pick[k]=n });
+      var ops=[], rec=0;
+      var C2=cv.getContext('2d');
+      var raw={};
+      ['beginPath','arc','moveTo','lineTo','closePath','fill','stroke','rect','roundRect','ellipse','setLineDash','clip','drawImage'].forEach(function(m){
+        raw[m]=C2[m]; C2[m]=function(){ if(rec)ops.push(m); return raw[m]&&raw[m].apply(C2,arguments) };
+      });
+      /* ── **빈 화면을 빼야 노드만 남는다** ──
+         처음엔 A=[n] 으로 그린 경로를 통째로 비교했다. 그런데 draw() 는 고리·배지·
+         (주석에 백틱을 쓰면 이 템플릿 리터럴이 끊긴다 — 이 파일에서 여섯 번째다)
+         워터마크도 그린다 — 그 경로가 섞여 **열 종류가 전부 「다르다」** 고 나왔다.
+         노드를 하나도 안 둔 같은 상태를 먼저 그려 그 경로를 빼면 노드 것만 남는다. */
+      /* ── **기준은 shapePath 하나** ── (주석에 백틱 금지 — 일곱 번째다)
+         장면을 통째로 그려 빼는 방식은 잔여물이 남았다 (선·이름표가 노드 유무에 따라 달라진다).
+         모양을 만드는 함수는 shapePath 하나이므로 **그것만 따로 재서 기준으로 삼는다.**
+         그리고 실제 그리기가 그 기준만큼의 테두리 경로를 내는지 본다 —
+         옛 지름길(모양 대신 arc 하나)로 되돌리면 마름모 종류에서 그 수가 0 이 되어 FAIL 한다. */
+      function ref(n){ ops=[]; rec=1; try{ shapePath(n,0) }catch(e){} rec=0;
+        return ops.filter(function(o){return o==='lineTo'||o==='moveTo'||o==='rect'||o==='roundRect'||o==='ellipse'}).length }
+      /* ── **검사가 그 상황을 직접 만들어야 한다** ──
+         「흐린 노드」 분기는 noLabel(n) 이 참일 때만 탄다. 그런데 noLabel 은
+         planBright() 를 보고, 화면에 노드가 하나뿐이면 그 노드는 늘 밝다 —
+         그래서 옛 지름길을 주입해도 **그 분기를 안 타서 통과했다.**
+         이 파일이 적어 둔 그대로다: 검사가 상황을 못 만들면 실패를 주입해도 통과한다.
+         planBright 를 잠깐 빈 것으로 바꿔 **이름표 없는 상태**를 만든다. */
+      function drew(n,mode){
+        var keep=n.pulse, keepA=n.a, A0=A, dm=DRAWMODE, pb=planBright;
+        if(mode==='dim')planBright=function(){return {}};
+        n.a=1; n.pulse=(mode==='lit')?1:0; A=[n]; DRAWMODE=(mode==='dim')?1:0;
+        n.gl=0;
+        ops=[]; rec=1; try{ draw() }catch(e){} rec=0;
+        DRAWMODE=dm; A=A0; n.pulse=keep; n.a=keepA; planBright=pb;
+        return {poly:ops.filter(function(o){return o==='lineTo'||o==='moveTo'||o==='rect'||o==='roundRect'||o==='ellipse'}).length,
+                arc:ops.filter(function(o){return o==='arc'}).length};
+      }
+      var bad=[], cols={};
+      KINDS.forEach(function(k){
+        var n=pick[k]; if(!n)return;
+        cols[k]=nodeCol(n);
+        var need=ref(n), d=drew(n,'dim'), l=drew(n,'lit');
+        if(need>0){
+          /* 테두리가 있는 종류: 흐릴 때도 켤 때도 그 테두리를 그려야 한다 */
+          /* 결과는 noLabel 이 언제나 거짓이라 흐린 분기를 안 탄다 — 켤 때만 본다 */
+          if(k!=='result'&&d.poly<need) bad.push(k+' : 흐릴 때 테두리 '+d.poly+'개 (기준 '+need+'개) — 모양 대신 다른 것을 그린다');
+          else if(l.poly<need) bad.push(k+' : 켤 때 테두리 '+l.poly+'개 (기준 '+need+'개)');
+        }else{
+          /* 원인 종류: 양쪽 다 원을 그려야 한다 */
+          if(!d.arc||!l.arc) bad.push(k+' : 원을 그려야 하는데 흐릴 때 '+d.arc+' · 켤 때 '+l.arc);
+        }
+      });
+      /* 색이 겹치는 종류 */
+      var dup=[], ks=Object.keys(cols);
+      for(var i=0;i<ks.length;i++)for(var j=i+1;j<ks.length;j++)
+        /* 법·정책, 사람·정당은 **일부러 같은 색**이다 — 주인이 그렇게 정했고 모양으로 갈린다.
+           법·정책은 납작 사각 vs 깃발, 사람·정당은 사진 원 vs 빈 원이다. */
+        if(cols[ks[i]]&&cols[ks[i]]===cols[ks[j]]&&
+           !(ks[i]==='law'&&ks[j]==='policy')&&!(ks[i]==='policy'&&ks[j]==='law')&&
+           !(ks[i]==='person'&&ks[j]==='party')&&!(ks[i]==='party'&&ks[j]==='person'))
+          dup.push(ks[i]+'='+ks[j]+' '+cols[ks[i]]);
+      return {bad:bad, dup:dup, cols:cols};
+    })()`);
+    if (!r) F('77. 못 쟀다');
+    else {
+      console.log(`77. 한 종류 한 모양  종류 ${Object.keys(r.cols).length}개 · 모양이 두 가지인 것 ${r.bad.length}개 · 색이 겹치는 짝 ${r.dup.length}개`);
+      if (r.bad.length)
+        F(`77. 같은 종류가 상태에 따라 다른 모양으로 그려진다 ${r.bad.length}개: ${r.bad.join(' / ')}. ` +
+          `모양은 그 노드가 무엇인지를 말한다 — 화면 사정으로 바뀌면 안 된다`);
+      if (r.dup.length)
+        F(`77. 색이 겹치는 종류가 있다: ${r.dup.join(' / ')}. 일곱 갈래가 전부 달라야 한다`);
+      /* ── **소스로도 한 번 더 막는다** ──
+         위 그리기 비교는 「흐린 노드」 분기를 검사가 재현하지 못해
+         옛 지름길을 주입해도 통과했다. **재현을 못 하는 검사는 보증이 아니다.**
+         그래서 그 분기가 모양 함수를 부르는지 소스에서 직접 본다.
+         약한 검사지만 되돌림은 확실히 잡는다 — 주입으로 확인했다(깨끗 true → 주입 false). */
+      const dimBranch = html.match(/if\(DRAWMODE&&noLabel\(n\)&&!n\.pulse\)\{[\s\S]{0,400}?\n    \}/);
+      if (!dimBranch) F('77. 흐린 노드를 그리는 자리를 못 찾았다 — 검사가 낡았다');
+      else if (!/shapePath\(/.test(dimBranch[0]))
+        F('77. 이름표 없는 노드를 **모양 대신 원**으로 그린다. ' +
+          '같은 종류가 상태에 따라 원과 마름모로 갈린다 — 모양은 화면 사정으로 바뀌면 안 된다');
+    }
+  }
+
   /* ── 74. **사건 카드 맨 위에 「이게 뭔지」 한 줄이 있나** ──
      전에는 「1995년 6월 29일 서울 서초구의 백화점 건물이 무너졌습니다」 로 시작했다.
      날짜와 장소가 먼저 나오고 무슨 일인지는 그다음이었다 —

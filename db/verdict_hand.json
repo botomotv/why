@@ -57,6 +57,48 @@
    "확정": false,
    "url": "https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=241043&type=HTML",
    "비고": "피고인 1 부분 파기환송 — 확정 전이라 형량을 쓰지 않는다"
+  },
+  {
+   "이름": "국정농단 사건",
+   "사건번호": "2018도13792",
+   "법원": "대법원",
+   "확정일": "2019-08-29",
+   "확정": false,
+   "표지": "국정농단",
+   "url": "https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=225457&type=HTML",
+   "비고": "대법원이 원심을 파기했다 — 확정 전이라 형량을 쓰지 않는다"
+  },
+  {
+   "이름": "최순실 국정농단 재판",
+   "사건번호": "2018도13792",
+   "법원": "대법원",
+   "확정일": "2019-08-29",
+   "확정": false,
+   "표지": "국정농단·재판",
+   "url": "https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=225457&type=HTML",
+   "비고": "대법원이 원심을 파기했다 — 확정 전이라 형량을 쓰지 않는다"
+  },
+  {
+   "이름": "국정원 댓글 사건",
+   "사건번호": "2017도14322",
+   "법원": "대법원",
+   "확정일": "2018-04-19",
+   "확정": true,
+   "표지": "국정원·댓글",
+   "url": "https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=195408&type=HTML",
+   "비고": "확정은 확인했지만 형량은 원심(?) 주문에 있고 그 판결문이 법제처 공개 판례에 없다"
+  },
+  {
+   "이름": "일심회 사건",
+   "사건번호": "2007도7257",
+   "법원": "대법원",
+   "확정일": "2007-12-13",
+   "확정": true,
+   "표지": "일심회",
+   "url": "https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=85459&type=HTML",
+   "형량": "가장 무거운 형 징역 7년~3년 · 피고인 5명",
+   "형량출처": "서울고등법원 2007노929 주문",
+   "원심url": "https://www.law.go.kr/DRF/lawService.do?OC=botomotv&target=prec&ID=220563&type=HTML"
   }
  ]
 }

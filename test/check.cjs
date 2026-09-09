@@ -4999,6 +4999,38 @@ const TKN = { result:'결과', bill:'법·정책', person:'인물', party:'정�
     }
   }
 
+  /* ── 76. **범례 색이 화면 색과 같은가** ──
+     색을 종류별로 주면서 범례는 따로 박아 둔 값을 쓰고 있었다 —
+     사건은 화면이 분홍인데 범례는 **갈색**, 헌재는 밝은 청록인데 범례는 **회색**,
+     사람은 밝은 회색인데 범례는 **파랑**이었다.
+     범례가 틀리면 지도가 거짓말을 하는 것과 같다. 값을 두 곳에 두면 갈라지므로
+     CSS 변수 하나만 두고 화면(KC)과 범례가 그것을 같이 쓴다. 이 검사가 그 약속을 지킨다. */
+  {
+    const r = w0.eval(`(function(){
+      var cs=getComputedStyle(document.documentElement);
+      function hex(v){ v=String(v||'').trim();
+        var m=v.match(/rgb[a]?\\(([0-9]+)[, ]+([0-9]+)[, ]+([0-9]+)/);
+        if(m)return '#'+[m[1],m[2],m[3]].map(function(x){return ('0'+(+x).toString(16)).slice(-2)}).join('').toUpperCase();
+        return v.toUpperCase(); }
+      var pair=[['--k-result',KC.result],['--k-law',KC.law],['--k-event',KC.event],
+                ['--k-prec',KC.prec],['--k-detc',KC.detc],['--k-person',KC.person]];
+      var bad=[];
+      pair.forEach(function(p){
+        var got=hex(cs.getPropertyValue(p[0]));
+        if(got!==String(p[1]).toUpperCase())bad.push(p[0]+' 범례 '+got+' ≠ 화면 '+p[1]);
+      });
+      /* 범례가 실제로 그려지나 */
+      var n=document.querySelectorAll('#lgd .lg').length;
+      return {bad:bad, n:n};
+    })()`);
+    if (!r) F('76. 못 쟀다');
+    else {
+      console.log(`76. 범례 색        범례 조각 ${r.n}개 · 화면 색과 어긋난 것 ${r.bad.length}개`);
+      if (!r.n) F('76. 범례를 하나도 못 찾았다');
+      if (r.bad.length) F(`76. 범례 색이 화면과 다르다 ${r.bad.length}개: ${r.bad.join(' / ')}. 범례가 틀리면 지도가 거짓말을 한다`);
+    }
+  }
+
   /* ── 74. **사건 카드 맨 위에 「이게 뭔지」 한 줄이 있나** ──
      전에는 「1995년 6월 29일 서울 서초구의 백화점 건물이 무너졌습니다」 로 시작했다.
      날짜와 장소가 먼저 나오고 무슨 일인지는 그다음이었다 —

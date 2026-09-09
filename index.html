@@ -32,7 +32,7 @@
 <style>
 :root{--bg:#0E0F12;--bg2:#16181D;--line:#23262C;--line2:#2E323A;
 --t1:#E8EAEE;--t2:#9CA3AE;--t3:#666C77;
---blue:#5B9BE5;--red:#E2635A;--gov:#8A929E;--gold:#E3AE55}
+--blue:#5B9BE5;--red:#E2635A;--gov:#8A929E;--gold:#E3AE55;--k-result:#E3AE55;--k-law:#9BD35A;--k-event:#F06BC0;--k-prec:#3FA9A6;--k-detc:#79E0DC;--k-person:#D9DEE6;--k-org:#8A929E;}
 *{box-sizing:border-box;margin:0;padding:0}
 html,body{height:100%;overflow:hidden;touch-action:manipulation}
 body{background:var(--bg);color:var(--t1);font-family:'Noto Sans KR',-apple-system,sans-serif;line-height:1.6;font-size:15.5px;-webkit-text-size-adjust:100%;overscroll-behavior:none}
@@ -614,18 +614,18 @@ body.popfull .pexp .pex-i{transform:rotate(180deg)}
   border:1px solid var(--line);color:var(--t2)}
 .lg{flex:none;display:inline-block;width:11px;height:11px;background:#8A929E}
 .lg-res{width:12px;height:12px;border-radius:50%;background:var(--gold)}
-.lg-law{width:14px;height:8px;border-radius:2px}
+.lg-law{width:14px;height:8px;border-radius:2px;background:var(--k-law)}
 .lg-detc{background:transparent;width:0;height:0;border-left:6px solid transparent;
-  border-right:6px solid transparent;border-bottom:11px solid #8A929E}
+  border-right:6px solid transparent;border-bottom:11px solid var(--k-detc)}
 /* ── 아래 네 개는 화면의 도형(precPath·orgPath·recPath)과 **같은 비율**이다 ──
    두 벌이 되면 갈라진다. 좌표를 그대로 백분율로 옮긴다. */
 /* 판례 — 방패(아래가 뾰족). 전에는 사건과 **똑같은 마름모**였고 색만 달랐다 */
-.lg-prec{width:10px;height:11px;background:#3FA9A6;
+.lg-prec{width:10px;height:11px;background:var(--k-prec);
   clip-path:polygon(0 0, 100% 0, 100% 57.5%, 50% 100%, 0 57.5%)}
 /* 사건 — 마름모 */
-.lg-evt{transform:rotate(45deg);width:9px;height:9px;background:#C08A5E}
+.lg-evt{transform:rotate(45deg);width:9px;height:9px;background:var(--k-event)}
 /* 사람 — 채운 원(지도에서는 그 자리에 사진이 들어간다) */
-.lg-per{border-radius:50%;background:#7FB2EE;width:11px;height:11px}
+.lg-per{border-radius:50%;background:var(--k-person);width:11px;height:11px}
 /* 정당 — 빈 원. 사람과 채움으로 갈린다 */
 .lg-party{border-radius:50%;background:transparent;border:2px solid #7FB2EE;width:11px;height:11px}
 /* 기관 — 사다리꼴(건물). 전에는 정당과 **똑같은 빈 원**이었다 */
@@ -694,7 +694,7 @@ body.popfull .pexp .pex-i{transform:rotate(180deg)}
 .lg-so{border-radius:50%;background:transparent;border:2px solid #8B7BD8;width:11px;height:11px}
 /* 정책 — 오른쪽이 뾰족한 깃발. 화면의 도형(policyPath)과 같은 실루엣이다.
    두 벌이 되면 갈라지므로 비율(1.55 : 0.80, 꼭지 1.15)을 그대로 옮긴다. */
-.lg-pol{width:13px;height:10px;background:#8A929E;
+.lg-pol{width:13px;height:10px;background:var(--k-law);
   clip-path:polygon(0 0, 62% 0, 100% 50%, 62% 100%, 0 100%)}
 /* 사람이 확인한 것 — 채움 + 밝은 테두리 (화면의 handFill 과 같다) */
 .lg-hand{background:#8A929E;border:1.6px solid rgba(226,232,240,.85);border-radius:2px;
@@ -2957,9 +2957,30 @@ var C={blue:'#5B9BE5',red:'#E2635A',gov:'#8A929E',gold:'#E3AE55',other:'#8B7BD8'
 
    `C[n.side]` 가 undefined 를 돌려주면 캔버스는 **앞 노드 색을 그대로 쓴다**(에러가 안 난다).
    실제로 「민주노총」이 옆 노드 색으로 그려진 적이 있다. 그래서 폴백을 둔다. */
+/* ── **종류마다 다른 색** ──
+   전에는 색을 `side`(진영)로만 정했다. 그래서 법·정책·사건·기관이 **전부 같은 회색**
+   (#8A929E)이었다. 모양은 달랐지만 **모양보다 색이 훨씬 먼저 보인다.**
+
+   진영 색(파랑·빨강·보라)은 **정당과 인물에만** 쓴다. 나머지 종류는 그 색을 피한다 —
+   사건에 빨강을 주면 「국민의힘 계열」 이라는 거짓 신호가 된다.
+
+   색상환에서 서로 떨어뜨렸다 (어두운 배경 #0E0F12 에서 실제로 그려 픽셀을 읽고 골랐다):
+     결과 금색 45° · 정책 주황 25° · 법 연두 85° · 판례 청록 178° · 헌재 밝은 청록
+     사건 분홍 320° — **주인공이라 가장 눈에 띄는 자리**를 준다
+     사람은 무채색(사진·실루엣이 들어가는 자리다) · 기관은 회색 */
+/* 정책은 법과 **같은 색**이다 — 주인이 든 갈래에서 「법·정책」 은 한 항목이고,
+   둘은 이미 **모양**으로 갈린다(납작 사각 vs 오른쪽이 뾰족한 깃발).
+   따로 주황을 줬더니 픽셀 거리가 국민의힘 빨강과 **44**, 금색과 **51** 이었다 —
+   가장 가까운 두 짝이 전부 정책이었다. 색은 갈라야 할 것에만 쓴다. */
+var KC={result:'#E3AE55', law:'#9BD35A', policy:'#9BD35A', event:'#F06BC0',
+        prec:'#3FA9A6', detc:'#79E0DC', person:'#D9DEE6', org:'#8A929E', rec:'#C08A5E'};
 function nodeCol(n){
+  var k=(typeof nodeKind==='function')?nodeKind(n):null;
+  /* 정당은 진영이 곧 정체성이다 — 그 색을 그대로 쓴다 */
+  if(k==='party')return C[n.side]||C.gov;
+  if(k&&KC[k])return KC[k];
   if(n.id&&n.id.lastIndexOf('case_prec_',0)===0)return C.prec;
-  if(n.t==='bill')return C.gov;
+  if(n.t==='bill')return KC.law;
   return C[n.side]||C.gov;
 }
 var TK={bill:'법안',person:'인물',party:'정당',org:'기관',result:'결과 수치',event:'이력'};
@@ -21025,6 +21046,11 @@ function forceLayout(list,bw,eh,put){
 
 
 
+/* ── **쓰는 곳보다 앞에 선언한다** ──
+   `nodeKind()` 가 이 표를 쓴다. 그런데 표가 크기 루프보다 **뒤에** 있었다 —
+   `var` 는 선언만 끌어올리고 값은 안 끌어올리므로 `undefined['법률']` 로 죽었다.
+   화면이 통째로 비었고 콘솔에만 흔적이 남았다. 이 파일이 검사 24 로 막아 둔 사고다. */
+var GOV_KIND={'대통령령':1,'시행령':1,'훈령':1,'긴급명령':1,'정책':1,'제도':1,'고시':1,'예규':1,'기본계획':1};
 N.forEach(function(n){
   /* ── 사건·판례·헌재는 **크기가 달라야 한다** ──
      전에는 `t==='event'` 한 줄이 셋을 다 4.5 로 만들었다. 그래서
@@ -21046,9 +21072,29 @@ N.forEach(function(n){
      r0 도 같이 넣는다 — 안 넣으면 좁은 화면에서 혼자 안 줄어든다(applyNodeScale). */
   if(n.t==='event'){
     var K=(typeof nodeKind==='function')?nodeKind(n):'event';
-    n.r0 = (K==='prec'||K==='detc') ? 3.2 : (K==='rec'||n.evk==='record') ? 6 : 21;
+    /* ── **사건도 이어진 수만큼 자란다** ──
+       전에는 여기서 21 로 고정하고 곧장 return 했다. 그래서 아래에서 고친 크기 식이
+       **사건에 아예 닿지 않았고**, 첫 화면의 사건 83개가 화면 반지름 7.7 로 전부 똑같았다.
+       「같은 사건이라도 이어진 게 많으면 크게」 가 작동하지 않았던 것이다.
+       기준은 판단이 아니라 **이어진 선의 수**다. 판례·헌재는 안 센다(5,300개라 그것만 커진다). */
+    var dg=(adj[n.id]||[]).filter(function(l){
+      var o2=map[l[0]===n.id?l[1]:l[0]]; if(!o2)return false;
+      var k2=nodeKind(o2); return k2!=='prec'&&k2!=='detc' }).length;
+    n.r0 = (K==='prec'||K==='detc') ? 3.2
+         : (K==='rec'||n.evk==='record') ? 6
+         : 13 + Math.min(11, Math.sqrt(dg)*2.4);
     n.r=n.r0; n.lw=60; return }
-  var deg=adj[n.id].filter(function(l){return map[l[0]].t!=='event'&&map[l[1]].t!=='event'}).length;
+  /* ── **상대편**만 본다. 자기 자신을 보면 사건은 언제나 0 이 된다 ──
+     전에는 링크의 **양쪽 끝**이 사건이 아닐 것을 요구했다. 사건 노드는 모든 링크의
+     한쪽 끝이 자기 자신이라 **전부 걸러져 deg=0** 이 됐다 —
+     실측: 사건 83개가 화면 반지름 7.7 로 **전부 똑같았다.**
+     「이어진 게 많으면 크게」 가 사건에만 작동하지 않고 있었던 것이다.
+     세지 말아야 할 것은 판례·헌재다(5,300개라 세면 그것만 커진다). 그것만 뺀다. */
+  var deg=adj[n.id].filter(function(l){
+    var o=map[l[0]===n.id?l[1]:l[0]]; if(!o)return false;
+    var ok=(typeof nodeKind==='function')?nodeKind(o):null;
+    return ok!=='prec'&&ok!=='detc';
+  }).length;
   /* 기본 반지름은 여기서 정하고, 화면 폭에 따라 줄인다(applyNodeScale).
      폰에서 결과 노드가 너무 커서 글씨가 겹쳤다. */
   /* ── 크기는 순위를 보여주는 것이지 화면을 먹으라는 게 아니다 ──
@@ -21075,8 +21121,14 @@ N.forEach(function(n){
      노드가 많아지면 고리가 커지고 배율이 0.44 → 0.30 으로 준다.
      크기를 그대로 두면 화면에서 사람 원이 7 → 4px 이 되어 다시 안 보인다.
      1/0.68 ≒ 1.47 을 곱해 **화면상 크기를 지킨다.** */
-  var grow=Math.sqrt(deg)*(n.t==='result'?1.6:n.prez?2.4:isWho?2.2:1.6);
-  var GROW_CAP=(n.t==='result')?6:isWho?10:7;
+  /* 자라는 몫도 종류에 맞춘다 — 사건이 제일 크게 자라고 사람·정당은 덜 자란다 */
+  var Kg=(typeof nodeKind==='function')?nodeKind(n):null;
+  var grow=Math.sqrt(deg)*(Kg==='event'?2.4:n.t==='result'?1.8:n.prez?1.2:isWho?1.2:1.4);
+  /* ── 상한이 낮으면 **안에서 차이가 사라진다** ──
+     실측: 사건 83개가 화면 반지름 **7.7 로 전부 똑같았다** — 자라는 몫이 상한(7)에
+     다 걸려서다. 「이어진 게 많으면 크게, 없으면 작게」 가 작동하지 않았다.
+     종류마다 상한을 따로 둔다. 사건은 넉넉히, 사람·정당은 좁게(빈 원이라 커지면 눈에 거슬린다). */
+  var GROW_CAP=(Kg==='event')?11:(n.t==='result')?6:isWho?4:5;
   if(grow>GROW_CAP)grow=GROW_CAP;
   /* 실측 (1440×786 · 배율 0.45): 화면상 반지름
        isWho 8  → 4~6px   법(4.5)과 구별이 안 된다
@@ -21094,7 +21146,24 @@ N.forEach(function(n){
        | 16 + cap12 | 15~22px | 노란 원이 이름표만큼 커서 화면을 먹는다 |
        | **8 + cap6** | **7~11px** | **점으로 읽히고 이름표가 산다** |
      순위(이웃 수)는 그대로 남는다 — 자라는 몫만 줄였다. */
-  n.r0=(n.t==='post'?14:n.t==='event'?8.8:n.t==='result'?8:n.prez?23:isWho?19:n.t==='bill'?6.6:6)+grow;
+  /* ── **크기 차례를 다시 잡았다** ──
+     전에는 사람 19+cap10 · 정당 19 가 제일 컸고 사건은 8.8 이었다 —
+     **사람들이 제일 궁금해하는 것이 제일 작았다.** 차례를 뒤집는다:
+
+       사건 13   ← 제일 크게. 눌러야 사슬이 열린다
+       결과 10   ← 크게
+       법·정책 7 · 사람·정당 8   ← 중간
+       판례·헌재 3.2            ← 작게 (5,300개다. 크면 화면을 다 먹는다)
+
+     사람·정당이 8 인데 중간인 이유는 **빈 원**이라 같은 크기에서 채운 도형보다 덜 띄기 때문이다.
+     그리고 **안에서도 이어진 선의 수로 차이를 준다**(grow) — 판단이 아니라 데이터가 만든 값이다. */
+  var K0=(typeof nodeKind==='function')?nodeKind(n):null;
+  n.r0=(n.t==='post'?11:
+        K0==='event'?13:
+        n.t==='event'?8.8:
+        n.t==='result'?10:
+        n.prez?9:isWho?8:
+        n.t==='bill'?7:6)+grow;
   n.r=n.r0;n.lw=60});
 
 /* 좁은 화면에서는 점을 줄인다. 같은 배율이면 폰에서 점이 화면을 더 많이 먹고,
@@ -23000,7 +23069,6 @@ function arrow(ax,ay,bx,by,rr,col,wid){
    **「국회가 만든 것」/「정부가 정한 것」** 으로 화면에 쓴다. 그게 실제로 다른 점이다.
 
    **한 곳에서 정한다** — 그리기·모양·범례·카드가 이 함수를 부른다. 두 벌이면 갈라진다. */
-var GOV_KIND={'대통령령':1,'시행령':1,'훈령':1,'긴급명령':1,'정책':1,'제도':1,'고시':1,'예규':1,'기본계획':1};
 function isPolicy(n){ return !!(n&&n.t==='bill'&&GOV_KIND[n.kind]) }
 /* ── 노드 종류를 **한 곳에서** 정한다 ──
    그리기·모양·범례·검사가 전부 이 함수를 부른다. 갈라지면 「범례에는 있는데 화면엔 없는」
@@ -25078,8 +25146,20 @@ function render(id){
         :(/^evt_/.test(String(n.id))
           ?'<p class="vnote">이 사건이 무슨 일이었는지는 <b>확인 중입니다.</b> '
            +'법 제1조에서 날짜·장소를 못 찾았습니다. 이름에서 짐작해 적지 않습니다.</p>':''))+
-      /* 결론 배지가 있으면 한 줄 설명은 안 쓴다 — 같은 말이 두 번 나온다 */
-      (!n.verdict&&!n.evEasy&&tipOf(n)?'<div class="oneline">'+tipOf(n)+'</div>':'')+
+      /* ── 결론 배지나 **「이게 뭔지」(w)** 가 있으면 한 줄 설명은 안 쓴다 ──
+         같은 말이 두 번 나온다. 실측(「윤 일병 사망 사건」): 노란 글씨로
+         「군부대에서 병사가 집단 구타로 숨졌습니다」 를 쓰고 바로 아래 회색으로 또 썼다.
+         `w` 는 `tip` 에서 날짜·장소만 뗀 것이라 대개 같은 문장이다.
+         결과 카드가 이미 같은 규칙을 쓰고 있었고(`rz.w?'':…`) **사건에만 빠져 있었다.** */
+      (!n.verdict&&!n.evEasy&&!n.w&&tipOf(n)?'<div class="oneline">'+tipOf(n)+'</div>':'')+
+      /* ── **무슨 일이었나를 사슬보다 먼저** ──
+         전에는 사슬(처벌·법·보상·수치) 아래에 있었다. 그런데 **사건이 뭔지 모르면
+         그 뒤를 볼 이유가 없다.** 실측(「윤 일병 사망 사건」): 자세한 설명 185자가
+         카드에 있는데도 화면 첫 장에는 안 보이고 사슬만 보였다.
+         법 카드가 제1조를 맨 위에 두는 것과 같은 순서다. */
+      '<div class="sec"><p class="sec-lab">무슨 일이었나</p><p class="body">'+n.body+'</p>'+
+        (n.easy?'<div class="easy">'+n.easy.map(function(q){
+          return '<p class="eq">'+q[0]+'</p><p class="ea">'+q[1]+'</p>'}).join('')+'</div>':'')+'</div>'+
       /* ── **전체 사슬** ──
            사건 발생 → 가해자 처벌 → 만들어진 법 → 피해자 보상 → 그 뒤 수치
          없는 칸을 비워두지 않는다. **무엇이 없는지 보여준다.** */
@@ -25186,9 +25266,6 @@ function render(id){
         (n.penUrl?'<p class="pen-x"><a href="'+esc(n.penUrl)+'" target="_blank" rel="noopener">판결 원문</a>'+
           ' · 주문에 적힌 것만 옮겼습니다. 범죄사실·당사자 이름은 받지 않습니다</p>':'')+
         '</div>':'')+
-      '<div class="sec"><p class="sec-lab">무슨 일이었나</p><p class="body">'+n.body+'</p>'+
-        (n.easy?'<div class="easy">'+n.easy.map(function(q){
-          return '<p class="eq">'+q[0]+'</p><p class="ea">'+q[1]+'</p>'}).join('')+'</div>':'')+'</div>'+
       /* ── 묶은 사건의 사건번호 목록 ──
          body 가 "사건번호는 아래와 같고" 라고 말한다. 아래가 없으면 그 말이 거짓이 된다.
          **잘린 개수도 밝힌다** — 스무 개만 보여주고 말없이 자르면 "이게 전부" 가 된다. */
